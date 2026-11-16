@@ -295,6 +295,17 @@ reproduction or publication of these documents…"), which does not state a lice
 non-commercial, attribution, not indexable, and ask the owner how to read it.
 Bias: published written decisions only; oral rulings and unreported dispositions absent.
 
+**S4 (Refugee Law Lab FC immigration dockets).** 218,639 dockets (filing years 1993–2022, scraped
+Nov 2022); 667 dropped for sealing/confidentiality markers; 2.58 M recorded entries classified
+(3.1 % unclassified) and stored as type, date and result only — no entry text, no style of cause.
+Registry "(Final decision)" / "(Décision finale)" markers give the final disposition; English and
+French wording are both handled. 80 % of dockets have a leave decision (grant rate ≈ 20 %: 34,076
+granted vs 139,334 dismissed), 94 % a detected final disposition. Weak spots: the 2012 and 2014
+cohorts lack a detected terminal event for ~17 % of files (a format not yet recognised), and
+hearing entries are under-detected (10 % of dockets vs 16 % granted leave), so the
+"leave granted → hearing" estimand is **not reliable yet** and is not charted. Filing → leave
+decision KM medians: 104 days (2010 cohort), 98 (2016), 131 (2019), 266 (2020), 224 (2021).
+
 **S5 extension (2002–2009).** The Court's former statistics pages (`/case-dossier/stat/cat1–5`)
 were captured by the Internet Archive on 2013-10-01; category 5 holds the three time-lapse series for
 2002–2012 as three small tables. They agree with the current pages where windows overlap
