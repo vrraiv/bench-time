@@ -1,0 +1,15 @@
+{"_note": "synthetic record modelled on the Tax Court JSON format (2026-11-16); no real names",
+ "listing": {"APPEAL_NBR": "2024-9(IT)G", "APPELLANT_SURNAME": "PERSON", "REP_SURNAME": "LAWYER",
+   "PROCEDURE": "General", "STATUS": "Closed", "DISPOSITION": "Judgment - Dismissed",
+   "FILED_DATE": "2024-01-05T00:00:00", "NATURE": "Tax benefits", "ACTCODE": "IT",
+   "HEARING_LOC": "Toronto", "SELF_IND": "N", "LANG": "English", "CONFIDENTIAL_IND": "N"},
+ "entries": [
+  {"CREATED_DATE": "2024-01-05T00:00:00", "INFO": "Notice of Appeal", "CONFIDENTIAL_IND": "N", "REP_SURNAME": "LAWYER"},
+  {"CREATED_DATE": "2024-03-15T00:00:00", "INFO": "Reply to Notice of Appeal", "CONFIDENTIAL_IND": "N"},
+  {"CREATED_DATE": "2024-06-12T00:00:00", "INFO": "Appeal Scheduled", "CONFIDENTIAL_IND": "N"},
+  {"CREATED_DATE": "2024-07-25T00:00:00", "INFO": "Adj. prior to hearing - Sine die", "CONFIDENTIAL_IND": "N"},
+  {"CREATED_DATE": "2025-02-10T00:00:00", "INFO": "Minutes of Hearing and Exhibit list", "CONFIDENTIAL_IND": "N"},
+  {"CREATED_DATE": "2025-06-01T00:00:00", "INFO": "Judgment", "CONFIDENTIAL_IND": "N"},
+  {"CREATED_DATE": "2025-06-02T00:00:00", "INFO": "Judgment sent", "CONFIDENTIAL_IND": "N"},
+  {"CREATED_DATE": "2025-06-20T00:00:00", "INFO": "File Closed", "CONFIDENTIAL_IND": "N"}
+ ]}

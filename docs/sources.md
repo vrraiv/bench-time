@@ -224,12 +224,28 @@ request); add the real hostname once the owner confirms it.
   The crawl stopped at A-193-11; certificate verification is not bypassed. 1,576 requests made,
   5 non-200. Resume once the certificate is renewed; cached files are not re-fetched.
 
-### S12 — TCC docket — **UNVERIFIED (same situation as S11)**
+### S12 — Tax Court dockets — **ENDPOINTS VERIFIED, PILOTED**
 
-- `tcc-cci.gc.ca` paths are dead; `www.tcc-cci.ca/en/pages/court-files-and-decisions/court-files`
-  is 404. Home, FAQ, notices and reports pages carry no static court-files link. Practice Note 16
-  ("privacy and public access to court files") is the relevant policy document (PDF linked from the
-  notices page; not yet read). Same next step as S11.
+- Landing page `https://www.tcc-cci.ca/en/pages/find-a-court-file` (script `/Content/js/base/data.js`,
+  read 2026-11-16). File search: `GET /en/tcc/pq/appealnumber/courtnumber?courtnumber=&lang=e`;
+  recorded entries: `GET /en/tcc/pq/appealnumberRE?appealnumber=&lang=e`. Other endpoints (party
+  search, representatives, related files) are not used.
+- **The court-number search is a prefix match**: "2024-1" returned all 1,093 files of 2024 whose
+  number starts with 1 in one 1.4 MB response (no cap; `Count` equals rows). A filing year is listed
+  with nine queries ("YYYY-1" … "YYYY-9"), then one entries request per file. Listing rows already
+  carry procedure (General/Informal), status, disposition text, filing date, nature, act code,
+  hearing location, self-represented flag and a confidentiality flag. Entries are short standard
+  labels with dates ("Reply to Notice of Appeal", "Appeal Scheduled", "Minutes of Hearing",
+  "Judgment", "File Closed", "Adj. …"). Raw responses include appellant, representative and
+  Crown counsel names: local cache only, never parsed into outputs.
+- robots.txt: none (404). Important Notices: Crown copyright, non-commercial reproduction. Practice
+  Note 16 (privacy and public access to court files) sets no conditions on automated access.
+  Crawl at the 4 s default, in parallel with the Federal Court crawl (different host; owner
+  approval 2026-11-16). Plan: census of filing years 2018–2026, roughly 3,000–5,000 files a year,
+  about 4–5 hours per year. Implementation: `sources/s12_tcc_dockets.py`.
+- The handoff's TCC status-at-March-31 table remains unfound, but per-file `STATUS` in the listing
+  ("Case management in progress", "Ready To Be Scheduled", "Scheduled", "Heard", "Hold", "Closed")
+  gives a better pending-stock breakdown at the scrape date.
 
 ---
 
