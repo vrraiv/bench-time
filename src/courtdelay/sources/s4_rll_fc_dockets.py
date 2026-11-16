@@ -66,6 +66,8 @@ FINAL_RE = re.compile(r"^\s*\((?:final\s+decision|d[ée]cision\s+finale)\)", re.
 
 # ordered: first matching type wins (English and French recorded-entry wording)
 ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
+    # an entry withdrawn from the public record (not a file event)
+    ("removed_entry", re.compile(r"^\W*\*+\s*(?:removed|retir[ée])", re.I)),
     ("cancelled", re.compile(r"^\W*\*+\s*(?:cancelled|annul[ée])", re.I)),
     (
         "discontinuance",
@@ -108,6 +110,7 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
         "hearing_scheduled",
         re.compile(
             r"fixing\s+the\s+hearing|fixant\s+l['’]audience|"
+            r"scheduling\s+(?:the\s+)?time\s+and\s+place\s+of\s+(?:the\s+)?hearing|"
             r"hearing\s+(?:is\s+)?(?:fixed|scheduled|set\s+down)|"
             r"notice\s+of\s+hearing|avis\s+d['’]audience|requisition\s+for\s+hearing",
             re.I,
@@ -330,7 +333,18 @@ def derive_docket(entries: list[dict]) -> dict:
         cands = []
         if out["discontinuance_date"]:
             cands.append((out["discontinuance_date"], "discontinuance", None))
-        if cancelled:
+        # "****** CANCELLED ******" marks a cancelled document; it ends the file only when no
+        # substantive entry follows it
+        later = [
+            e
+            for e in ents
+            if cancelled
+            and e["entry_date"]
+            and e["entry_date"] > cancelled
+            and e["entry_type"]
+            not in {"copy_on_file", "removed_entry", "correspondence", "other", "cancelled"}
+        ]
+        if cancelled and not later and not cands:
             cands.append((cancelled, "cancelled", None))
         if out["leave_decision_date"] and out["leave_result"] == "dismissed":
             cands.append((out["leave_decision_date"], "leave_decision", "dismissed"))

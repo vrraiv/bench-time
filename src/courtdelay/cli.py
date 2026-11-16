@@ -31,6 +31,9 @@ def main(argv: list[str] | None = None) -> int:
     f = sub.add_parser("fetch", help="fetch, parse and validate a source")
     f.add_argument("source", help="source id, e.g. s1, or 'all'")
     f.add_argument("--no-fetch", action="store_true", help="parse cached raw files only")
+    f.add_argument(
+        "--strata", nargs="*", help="docket sources only: run these strata (e.g. FCA-2024)"
+    )
     sub.add_parser("list", help="list registered sources")
     sub.add_parser("build", help="build derived aggregate tables")
     args = ap.parse_args(argv)
@@ -64,7 +67,10 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             mod = importlib.import_module(mods[sid])
             if not args.no_fetch:
-                mod.fetch(client)
+                if args.strata:
+                    mod.fetch(client, strata=args.strata)
+                else:
+                    mod.fetch(client)
             tidy = mod.parse()
             mod.validate(tidy)
     return 0

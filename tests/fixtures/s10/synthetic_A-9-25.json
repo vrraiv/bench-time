@@ -1,0 +1,15 @@
+{"_note": "synthetic record modelled on the Federal Court JSON format (2026-11-16); no real names",
+ "info": {"COURT_NO": "A-9-25", "COURT_SEQ": "0000000001", "STYLE_OF_CAUSE": "PARTY A v. PARTY B",
+          "DIVISION": "A", "FILE_DT": "/Date(1735794000000)/", "OFF_CD": "TOR",
+          "PRCDG_TYPE": "A", "ENGLISH_PROCEEDING_TYPE": "Federal Court of Appeal",
+          "ENGLISH_NATURE_DESC": "Appeal (S.27 - Final) - Application for Judicial Review",
+          "ENGLISH_PROCEEDING_CLASS": "Non-Action", "LANG_CD": "E",
+          "Party": ["PARTY A", "PARTY B"], "Ships": [null, null]},
+ "entries": [
+  {"RE_NO": 1, "DOC_DT": "2025-01-02T00:00:00", "RECORDED_ENTRY": "Notice of appeal on behalf of the appellant filed on 02-JAN-2025", "IS_CONFIDENTIAL": "N", "IS_COPY": "N", "ENGLISH_TRACK_NAME": "Appeals", "STYLE_OF_CAUSE": "PARTY A v. PARTY B"},
+  {"RE_NO": 2, "DOC_DT": "2025-01-20T00:00:00", "RECORDED_ENTRY": "****** CANCELLED ****** Affidavit of A. Person sworn on 18-JAN-2025", "IS_CONFIDENTIAL": "N", "IS_COPY": "N"},
+  {"RE_NO": 3, "DOC_DT": "2025-03-01T00:00:00", "RECORDED_ENTRY": "Decision of the tribunal dated 01-DEC-2024", "IS_CONFIDENTIAL": "N", "IS_COPY": "Y"},
+  {"RE_NO": 4, "DOC_DT": "2025-09-28T00:00:00", "RECORDED_ENTRY": "Order scheduling time and place of hearing dated 2025-09-28 rendered by A. Administrator", "IS_CONFIDENTIAL": "N", "IS_COPY": "N"},
+  {"RE_NO": 5, "DOC_DT": "2026-01-15T00:00:00", "RECORDED_ENTRY": "(Final decision) Reasons for Judgment and Judgment dated 15-JAN-2026 rendered by The Court Result: dismissed", "IS_CONFIDENTIAL": "N", "IS_COPY": "N"},
+  {"RE_NO": 6, "DOC_DT": "2026-02-01T00:00:00", "RECORDED_ENTRY": "****** REMOVED ******", "IS_CONFIDENTIAL": "N", "IS_COPY": "N"}
+ ]}

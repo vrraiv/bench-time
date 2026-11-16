@@ -191,11 +191,139 @@ def fetch(client: Client, strata: list[str] | None = None) -> list[dict]:
     return [run_stratum(client, s) for s in plan]
 
 
-def parse(client: Client | None = None):
-    raise NotImplementedError(
-        "S10 parser is written after the pilot shows the JSON response format (no names kept)"
+# -- parse ---------------------------------------------------------------------------------
+
+# Fields kept from the file-information record. STYLE_OF_CAUSE, Party and Ships are never read.
+INFO_FIELDS = {
+    "COURT_NO": "docket",
+    "DIVISION": "division",
+    "OFF_CD": "office",
+    "PRCDG_TYPE": "proceeding_type_code",
+    "ENGLISH_PROCEEDING_TYPE": "proceeding_type",
+    "ENGLISH_NATURE_DESC": "nature",
+    "ENGLISH_PROCEEDING_CLASS": "proceeding_class",
+    "LANG_CD": "language",
+}
+
+
+def ms_date(v):
+    """'/Date(1735794000000)/' (UTC milliseconds) -> local (Eastern) calendar date. The Court stores
+    midnight Eastern, i.e. 04:00 or 05:00 UTC, so subtracting 5 hours gives the intended day."""
+    import re
+    from datetime import UTC, datetime, timedelta
+
+    if not v:
+        return None
+    m = re.search(r"(-?\d+)", str(v))
+    if not m:
+        return None
+    return (datetime.fromtimestamp(int(m.group(1)) / 1000, UTC) - timedelta(hours=5)).date()
+
+
+def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict | None, list[dict]]:
+    """One docket -> (docket row, entry rows), names dropped. Returns (None, []) for files with any
+    entry flagged confidential (dropped per docs/HANDOFF.md section 6; counted by the caller)."""
+    from courtdelay.sources import s4_rll_fc_dockets as s4
+
+    if any(str(e.get("IS_CONFIDENTIAL", "N")).upper() == "Y" for e in entries):
+        return None, []
+    if any(s4.SEALED_RE.search(e.get("RECORDED_ENTRY") or "") for e in entries):
+        return None, []
+    docket = info.get("COURT_NO")
+    docs = [
+        {
+            "RE_NO": e.get("RE_NO"),
+            "DOC_DT": (e.get("DOC_DT") or "")[:10] or None,
+            # the structured copy flag is more reliable than text rules
+            "RECORDED_ENTRY": ("Copy of " if str(e.get("IS_COPY", "N")).upper() == "Y" else "")
+            + (e.get("RECORDED_ENTRY") or ""),
+        }
+        for e in entries
+    ]
+    ents = s4.classify_docket_entries(docs, docket)
+    track = next(
+        (e.get("ENGLISH_TRACK_NAME") for e in entries if e.get("ENGLISH_TRACK_NAME")), None
     )
+    prefix, num, yy = (docket.split("-") + [None, None])[:3] if docket else (None, None, None)
+    row = {k_out: info.get(k_in) for k_in, k_out in INFO_FIELDS.items()}
+    row.update(
+        {
+            "prefix": prefix,
+            "number": int(num) if num and num.isdigit() else None,
+            "docket_year": 2000 + int(yy) if yy and yy.isdigit() else None,
+            "date_filed": ms_date(info.get("FILE_DT")),
+            "track": track,
+            "scraped": fetched_at[:10],
+            **s4.derive_docket(ents),
+        }
+    )
+    return row, [{k: v for k, v in e.items() if k != "_fixed"} for e in ents]
 
 
-def validate(_):
-    raise NotImplementedError
+def _cached_pairs():
+    """Yield ((division, docket), info record, entry records, fetched_at) from the cache."""
+    from urllib.parse import parse_qs, urlsplit
+
+    raw = paths.raw_dir(SOURCE)
+    info, ents = {}, {}
+    for mf in raw.glob("*.meta.json"):
+        meta = json.loads(mf.read_text())
+        if not 200 <= meta["status"] < 300:
+            continue
+        q = parse_qs(urlsplit(meta["url"]).query)
+        key = (q.get("division", [""])[0], q.get("courtnumber", [""])[0])
+        target = info if "proceedingQueriesAddInfo" in meta["url"] else ents
+        target[key] = (raw / meta["file"], meta["fetched_at"])
+    for key, (path, fetched_at) in info.items():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not payload.get("data"):
+            continue
+        if key not in ents:
+            continue
+        ep = json.loads(ents[key][0].read_text(encoding="utf-8"))
+        yield key, payload["data"][0], ep.get("data") or [], fetched_at
+
+
+def parse(client: Client | None = None):
+    import polars as pl
+
+    dockets, entries, dropped = [], [], 0
+    for _key, info, ents, fetched_at in _cached_pairs():
+        row, erows = parse_file(info, ents, fetched_at)
+        if row is None:
+            dropped += 1
+            continue
+        dockets.append(row)
+        entries.extend(erows)
+    out = paths.processed_dir() / "s10"
+    out.mkdir(exist_ok=True)
+    d = pl.DataFrame(dockets, infer_schema_length=None)
+    e = pl.DataFrame(entries, infer_schema_length=None)
+    if d.height:
+        d.write_parquet(out / "dockets.parquet")
+        e.write_parquet(out / "entries.parquet")
+    log.info("S10: %d dockets parsed, %d dropped as confidential/sealed", d.height, dropped)
+    return {"dockets": d, "entries": e, "dropped": dropped}
+
+
+def validate(frames) -> None:
+    import polars as pl
+
+    d = frames["dockets"]
+    if d.height == 0:
+        raise ValueError("S10: no dockets parsed")
+    by = (
+        d.group_by(["prefix", "docket_year"])
+        .agg(
+            pl.len().alias("n"),
+            pl.col("final_disposition_date").is_not_null().mean().alias("disposed_share"),
+            (pl.col("date_filed").dt.year() != pl.col("docket_year"))
+            .mean()
+            .alias("filed_other_year"),
+        )
+        .sort(["prefix", "docket_year"])
+    )
+    log.info("S10 by stratum:\n%s", by)
+    bad = d.filter(pl.col("date_filed").is_null()).height
+    if bad > 0.01 * d.height:
+        raise ValueError(f"S10: {bad} dockets without a filing date")
