@@ -101,3 +101,29 @@ def test_cohort_table():
     assert r["n"] == n and 0 < r["censored_share"] < 0.5
     assert 100 < r["p50_days"] < 220 and r["p50_lo"] <= r["p50_days"] <= r["p50_hi"]
     assert "Kaplan-Meier" in r["bias_statement"]
+
+
+def test_competing_event_censors_at_its_own_date():
+    # 40 files reach the event at 100 days; 60 are discontinued at 10 days (competing).
+    df = pl.DataFrame(
+        {
+            "cohort": [1] * 100,
+            "start": [date(2020, 1, 1)] * 100,
+            "ev": [date(2020, 4, 10)] * 40 + [None] * 60,
+            "comp": [date(2020, 4, 10)] * 40 + [date(2020, 1, 11)] * 60,
+            "obs": [date(2022, 11, 1)] * 100,
+        }
+    )
+    t = survival.cohort_table(
+        df,
+        cohort_col="cohort",
+        start_col="start",
+        event_col="ev",
+        censor_col="obs",
+        competing_col="comp",
+        n_boot=20,
+    )
+    r = t.row(0, named=True)
+    assert r["n_competing"] == 60
+    # all remaining at-risk files have the event at day 100, so every quantile is 100
+    assert r["p50_days"] == 100 and r["p90_days"] == 100

@@ -295,5 +295,39 @@ reproduction or publication of these documents…"), which does not state a lice
 non-commercial, attribution, not indexable, and ask the owner how to read it.
 Bias: published written decisions only; oral rulings and unreported dispositions absent.
 
-**S7 (OCJ).** Fetch complete (90 files); parse and validation notes to follow once the dedupe pass
-finishes (see session summary).
+**S5 extension (2002–2009).** The Court's former statistics pages (`/case-dossier/stat/cat1–5`)
+were captured by the Internet Archive on 2013-10-01; category 5 holds the three time-lapse series for
+2002–2012 as three small tables. They agree with the current pages where windows overlap
+(2010–2012; one cell differs across all pages, the newer value is kept). S5 now covers
+**2002–2025** for all three stages. Categories 1–4 (filings, leave decisions, appeals by
+jurisdiction, judgments) are also archived for 2002–2012 but not yet parsed.
+
+**S6 (ONCA annual report).** The charts on pp. 70–73 have no numbers in the text layer, but the same
+series are printed in the statistical appendix (pp. 75–91). 13 tables parsed, 649 cells, 2014–2024:
+appeals filed, incoming by subject, motions, leave-motion dispositions, appeal dispositions, merits
+hearings, bench vs reserved decisions, and the four timeline tables (filing → ready, ready →
+hearing, hearing → decision, filing → decision; civil, criminal excluding inmate, inmate, all).
+2024 civil values equal the handoff benchmarks exactly (140.35 / 191.60 / 65.03 / 396.66 days).
+Note: on p. 77 (self-represented litigants) the "Civil" and "Criminal" column groups appear swapped
+relative to p. 75 (the "Civil" totals equal the criminal filing counts); that table is not parsed.
+Earlier reports (2009–2013) exist as HTML and PDF on the archives page; not parsed yet.
+
+**S7 (OCJ).** 90 criminal files (2012–2019 PDF, 2020–2026 XLSX; adult "all" and youth).
+Offence-based: 70,964 rows, 72 unit names normalised to stable keys (e.g. "Ontario Overview" =
+"Provincial Overview", "North West" = "Northwest"), route totals (before trial + at trial + after
+trial) equal cases disposed in every year. Monthly series: disposition rate 18,784 unit-months and
+clearance rate 22,942, **2011-01 → 2026-03**, after de-duplicating the two-year overlap between
+files (later file kept; 5,478 and 2,746 unit-months were revised between editions). **Layout
+breaks:** 2012–2014 disposition files use bands under 8 / 8–12 / over 12 months instead of
+10 / 15 / 18; PDF clearance tables add pending (net of bench warrants) and a clearance rate that the
+XLSX files dropped; periods are calendar years to 2019 and April–March fiscal years from 2020. Small
+courthouse cells (1–30 cases) can show averages of several years; validation checks cells with ≥50
+dispositions. Pre-2012: the Internet Archive has no captures of `/ocj/files/stats/` before 2012
+(prefix query, 2026-11-16), so the 2000–2011 panel remains **BLOCKED**. The archive does hold extra
+2015–2016 quarterly bail files not on the live page.
+
+**S8 identity check.** FC: of 90 quarter-to-quarter transitions, 76 reconcile within 1 % of the
+pending stock (small gaps are expected from reopened and transferred files); 14 do not, including
+2015-Q4 (published stock falls 1,246 more than flows imply, ≈20 %) and 2023-Q1 to Q3 (±284 to 710).
+June 2021 is missing from the Court's index, so 2021 has no annual row. FCA: 48 of 49 reconcile.
+Little's-law rows carry `identity_ok`; the site marks failing quarters.

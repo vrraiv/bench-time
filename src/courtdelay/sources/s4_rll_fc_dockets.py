@@ -57,18 +57,27 @@ SEALED_RE = re.compile(
     re.I,
 )
 COPY_RE = re.compile(
-    r"^\s*(?:\(final decision\)\s*)?(?:copy\s+of|copies\s+of|acknowledg?ment\s+of\s+receipt)", re.I
+    r"^\s*(?:\((?:final\s+decision|d[ée]cision\s+finale)\)\s*)?"
+    r"(?:copy\s+of|copies\s+of|acknowledg?ment\s+of\s+receipt|copie\s+(?:certifi[ée]e\s+)?de|"
+    r"accus[ée]\s+de\s+r[ée]ception|carte\s+d['’]accus[ée])",
+    re.I,
 )
-FINAL_RE = re.compile(r"^\s*\(final\s+decision\)", re.I)
+FINAL_RE = re.compile(r"^\s*\((?:final\s+decision|d[ée]cision\s+finale)\)", re.I)
 
-# ordered: first matching type wins
+# ordered: first matching type wins (English and French recorded-entry wording)
 ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
-    ("discontinuance", re.compile(r"notice\s+of\s+discontinuance|d[ée]sistement", re.I)),
+    ("cancelled", re.compile(r"^\W*\*+\s*(?:cancelled|annul[ée])", re.I)),
+    (
+        "discontinuance",
+        re.compile(r"\bdiscontinuance\b|d[ée]sistement|avis\s+de\s+d[ée]sistement", re.I),
+    ),
     (
         "leave_decision",
         re.compile(
             r"(?:granting|dismissing|refusing|allowing|denying)\s+(?:in\s+part\s+)?(?:the\s+)?"
             r"(?:applications?\s+for\s+)?leave\b|"
+            r"(?:rejetant|accueillant|accordant|refusant)\s+(?:en\s+partie\s+)?"
+            r"(?:la\s+|les\s+)?demandes?\s+d['’]autorisation|"
             r"(?:application\s+for\s+leave|demande\s+d['’]autorisation)[^|]{0,200}?result\s*:|"
             r"leave\s+(?:to\s+commence\s+)?(?:is|was|be)\s+(?:granted|dismissed|refused|denied)|"
             r"autorisation\s+(?:est\s+)?(?:accord[ée]e|rejet[ée]e|refus[ée]e)",
@@ -80,7 +89,8 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
         re.compile(
             r"\bjudgments?\b(?!\s+and\s+reasons\s+to\s+be)|\bjugement\b|reasons\s+for\s+judgment|"
             r"motifs\s+du\s+jugement|(?:granting|dismissing|allowing)\s+the\s+application\s+for\s+"
-            r"judicial\s+review",
+            r"judicial\s+review|(?:rejetant|accueillant|accordant)\s+(?:en\s+partie\s+)?la\s+"
+            r"demande\s+de\s+contr[ôo]le\s+judiciaire",
             re.I,
         ),
     ),
@@ -88,6 +98,7 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
         "hearing",
         re.compile(
             r"result\s+of\s+hearing|\bbefore\s+the\s+honou?rable\b.{0,120}?before\s+the\s+court|"
+            r"r[ée]sultat\s+de\s+l['’]audience|devant\s+la\s+cour\s*:|"
             r"hearing\s+(?:held|took\s+place|commenced|continued|concluded)|audience\s+tenue|"
             r"minutes?\s+of\s+hearing|proc[èe]s-verbal\s+d['’]audience",
             re.I | re.S,
@@ -96,7 +107,8 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     (
         "hearing_scheduled",
         re.compile(
-            r"fixing\s+the\s+hearing|hearing\s+(?:is\s+)?(?:fixed|scheduled|set\s+down)|"
+            r"fixing\s+the\s+hearing|fixant\s+l['’]audience|"
+            r"hearing\s+(?:is\s+)?(?:fixed|scheduled|set\s+down)|"
             r"notice\s+of\s+hearing|avis\s+d['’]audience|requisition\s+for\s+hearing",
             re.I,
         ),
@@ -112,11 +124,19 @@ RESULT_RE = re.compile(
     re.I,
 )
 VERB_RESULT = [
-    (re.compile(r"\bin\s+part\b", re.I), "granted_in_part"),
-    (re.compile(r"\b(granting|allowing|granted|allowed|accord[ée]e|accueilli)", re.I), "granted"),
+    (re.compile(r"\bin\s+part\b|\ben\s+partie\b", re.I), "granted_in_part"),
     (
         re.compile(
-            r"\b(dismissing|refusing|denying|dismissed|refused|denied|rejet[ée]e|refus[ée]e)", re.I
+            r"\b(granting|allowing|granted|allowed|accord[ée]e|accueilli|accueillant|accordant)",
+            re.I,
+        ),
+        "granted",
+    ),
+    (
+        re.compile(
+            r"\b(dismissing|refusing|denying|dismissed|refused|denied|rejet[ée]e|refus[ée]e|"
+            r"rejetant|refusant)",
+            re.I,
         ),
         "dismissed",
     ),
@@ -129,8 +149,27 @@ SUBJECT_RE = re.compile(
     re.I,
 )
 FIXED_DATE_RE = re.compile(
-    r"fixing\s+the\s+hearing.{0,80}?\bon\s+(\d{1,2}-[A-Za-z]{3}-\d{4})", re.I | re.S
+    r"(?:fixing\s+the\s+hearing.{0,80}?\bon|fixant\s+l['’]audience.{0,80}?\ble)\s+"
+    r"(\d{1,2}-[A-Za-zÉÛéû]{3,4}-\d{4})",
+    re.I | re.S,
 )
+FR_MON = {
+    "JANV": "JAN",
+    "FÉV": "FEB",
+    "FEV": "FEB",
+    "MARS": "MAR",
+    "AVR": "APR",
+    "MAI": "MAY",
+    "JUIN": "JUN",
+    "JUIL": "JUL",
+    "AOÛ": "AUG",
+    "AOU": "AUG",
+    "SEPT": "SEP",
+    "OCT": "OCT",
+    "NOV": "NOV",
+    "DÉC": "DEC",
+    "DEC": "DEC",
+}
 
 
 def classify_entry(text: str | None) -> str:
@@ -179,6 +218,9 @@ def parse_entry_date(s) -> date | None:
     if isinstance(s, date):
         return s
     t = str(s).strip()
+    fm = re.fullmatch(r"(\d{1,2})-([A-Za-zÉÛéû]{3,4})-(\d{4})", t)
+    if fm and fm.group(2).upper() in FR_MON:
+        t = f"{fm.group(1)}-{FR_MON[fm.group(2).upper()]}-{fm.group(3)}"
     for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%B-%Y", "%Y/%m/%d", "%d/%m/%Y", "%b %d, %Y"):
         try:
             return datetime.strptime(t[:20], fmt).date()
@@ -255,6 +297,7 @@ def derive_docket(entries: list[dict]) -> dict:
         "last_entry_date": ents[-1]["entry_date"] if ents else None,
         "n_entries": len(ents),
     }
+    cancelled = None
     for e in ents:
         t, d = e["entry_type"], e["entry_date"]
         if t == "leave_decision" and out["leave_decision_date"] is None:
@@ -271,6 +314,8 @@ def derive_docket(entries: list[dict]) -> dict:
             out["judgment_date"], out["judgment_result"] = d, e.get("result")
         elif t == "discontinuance" and out["discontinuance_date"] is None:
             out["discontinuance_date"] = d
+        elif t == "cancelled" and cancelled is None:
+            cancelled = d
         if e["is_final"] and out["final_disposition_date"] is None and d is not None:
             out["final_disposition_date"] = d
             out["final_disposition_type"] = {
@@ -285,6 +330,8 @@ def derive_docket(entries: list[dict]) -> dict:
         cands = []
         if out["discontinuance_date"]:
             cands.append((out["discontinuance_date"], "discontinuance", None))
+        if cancelled:
+            cands.append((cancelled, "cancelled", None))
         if out["leave_decision_date"] and out["leave_result"] == "dismissed":
             cands.append((out["leave_decision_date"], "leave_decision", "dismissed"))
         if out["judgment_date"]:

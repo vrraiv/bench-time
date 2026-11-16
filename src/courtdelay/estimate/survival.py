@@ -87,9 +87,12 @@ def cohort_table(
     n_boot: int = 300,
     min_n: int = 30,
     label: str = "",
+    competing_col: str | None = None,
 ) -> pl.DataFrame:
     """KM quantiles per cohort. Rows with a null start are dropped; rows with a null event date are
-    censored at ``censor_col`` (must be non-null)."""
+    censored at ``competing_col`` when that is set and non-null (a competing terminal event, e.g.
+    a discontinuance before any leave decision: cause-specific convention), else at
+    ``censor_col`` (the observation date; must be non-null). ``n_competing`` is reported."""
     rows = []
     for cohort, sub in df.group_by(cohort_col, maintain_order=True):
         key = cohort[0] if isinstance(cohort, tuple) else cohort
@@ -97,11 +100,17 @@ def cohort_table(
         if sub.height < min_n:
             continue
         ev = sub[event_col].is_not_null().to_numpy()
-        end = (
-            pl.when(pl.col(event_col).is_not_null())
-            .then(pl.col(event_col))
-            .otherwise(pl.col(censor_col))
+        censor_at = (
+            pl.coalesce([pl.col(competing_col), pl.col(censor_col)])
+            if competing_col
+            else pl.col(censor_col)
         )
+        n_comp = (
+            sub.filter(pl.col(event_col).is_null() & pl.col(competing_col).is_not_null()).height
+            if competing_col
+            else 0
+        )
+        end = pl.when(pl.col(event_col).is_not_null()).then(pl.col(event_col)).otherwise(censor_at)
         dur = (
             sub.select((end - pl.col(start_col)).dt.total_days().alias("d"))["d"]
             .to_numpy()
@@ -118,6 +127,7 @@ def cohort_table(
             "n": int(len(dur)),
             "n_events": int(ev.sum()),
             "censored_share": float(1 - ev.mean()),
+            "n_competing": int(n_comp),
             "estimand": label or f"{start_col} -> {event_col}",
             "bias_statement": "Kaplan-Meier, right-censored at observation date; "
             "regex-classified events; immigration dockets only",

@@ -2,8 +2,8 @@
 
 Everything written here is an aggregate (no names, no texts). Each table carries a
 ``bias_statement`` column or an accompanying note, plus vintage columns where available.
-Outputs go to data/processed/derived/ (parquet) and site/data/ (CSV, gitignored until M2 decides
-what is published).
+Outputs go to data/processed/derived/ (parquet) and site/src/data/ (CSV, gitignored until it is
+decided what is published).
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 def _out_dirs() -> tuple[Path, Path]:
     derived = paths.processed_dir() / "derived"
     derived.mkdir(exist_ok=True)
-    site = paths.REPO_ROOT / "site" / "data"
+    site = paths.REPO_ROOT / "site" / "src" / "data"
     site.mkdir(parents=True, exist_ok=True)
     return derived, site
 
@@ -69,6 +69,18 @@ def build_s5(derived: Path, site: Path) -> None:
         _write(df, "s5_scc_time_lapses", derived, site)
 
 
+def build_s6(derived: Path, site: Path) -> None:
+    p = paths.processed_dir() / "s6" / "onca_tables.parquet"
+    if p.exists():
+        df = pl.read_parquet(p).with_columns(
+            pl.lit(
+                "ONCA-published; timelines are averages by filing year for appeals heard on the "
+                "merits; counts by calendar year"
+            ).alias("bias_statement")
+        )
+        _write(df, "s6_onca_annual_report_tables", derived, site)
+
+
 def build_s8(derived: Path, site: Path) -> dict[str, pl.DataFrame]:
     out = {}
     for court, fname, total_rx in (
@@ -84,7 +96,7 @@ def build_s8(derived: Path, site: Path) -> dict[str, pl.DataFrame]:
         chk = stock_flow.identity_check(q)
         bad = chk.filter(~pl.col("ok"))
         log.info(
-            "build S8 %s: %d transitions, %d violate the stock-flow identity (tol 5)",
+            "build S8 %s: %d transitions, %d violate the stock-flow identity (>1%% of stock)",
             court,
             chk.height,
             bad.height,
@@ -139,6 +151,7 @@ def build_s4(derived: Path, site: Path) -> None:
         sub = d if start == "date_filed" else d.filter(pl.col("leave_result") == "granted")
         t = survival.cohort_table(
             sub,
+            competing_col=None if event == "final_disposition_date" else "final_disposition_date",
             cohort_col="filing_year",
             start_col=start,
             event_col=event,
@@ -238,6 +251,7 @@ def build_all() -> None:
     derived, site = _out_dirs()
     build_s1(derived, site)
     build_s5(derived, site)
+    build_s6(derived, site)
     fed = build_s8(derived, site)
     v = build_s9(derived, site)
     if v is not None and "FC" in fed:

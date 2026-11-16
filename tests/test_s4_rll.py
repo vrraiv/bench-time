@@ -111,3 +111,31 @@ def test_derive_docket_leave_dismissed_and_discontinued():
 def test_sealed_marker_detected():
     assert s4.SEALED_RE.search("Order that the file be sealed pending further order")
     assert not s4.SEALED_RE.search("Order granting an extension of time")
+
+
+LEAVE_DISMISSED_FR = (
+    "(Décision finale) Ordonnance rendu(e) par Monsieur le juge Exemple à Ottawa le 06-AVR-2010 "
+    "rejetant la demande d'autorisation Décision inscrite au dossier"
+)
+JR_ALLOWED_FR = (
+    "(Décision finale) Jugement rendu(e) par Madame le juge Exemple à Montréal le 27-OCT-2010 "
+    "accueillant la demande de contrôle judiciaire"
+)
+
+
+def test_french_entries_and_terminal_variants():
+    assert s4.classify_entry(LEAVE_DISMISSED_FR) == "leave_decision"
+    assert s4.entry_result(LEAVE_DISMISSED_FR) == "dismissed"
+    assert s4.FINAL_RE.match(LEAVE_DISMISSED_FR)
+    assert s4.classify_entry(JR_ALLOWED_FR) == "judgment"
+    assert s4.entry_result(JR_ALLOWED_FR) == "granted"
+    assert s4.classify_entry("Discontinuance on behalf of Applicant filed on 27-JUL-2011") == (
+        "discontinuance"
+    )
+    assert s4.classify_entry("****** CANCELLED ****** Application for leave") == "cancelled"
+    assert s4.classify_entry("Copie certifiée de la décision du tribunal") == "copy_on_file"
+    assert s4.parse_entry_date("06-AVR-2010") == date(2010, 4, 6)
+    docs = [_doc(1, "2010-01-10", "Demande déposée"), _doc(2, "2010-04-06", LEAVE_DISMISSED_FR)]
+    d = s4.derive_docket(s4.classify_docket_entries(docs, "IMM-9-10"))
+    assert d["final_disposition_type"] == "leave_decision"
+    assert d["final_disposition_result"] == "dismissed"
