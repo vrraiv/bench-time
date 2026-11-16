@@ -1,0 +1,103 @@
+from datetime import date
+
+import numpy as np
+import polars as pl
+import pytest
+
+from courtdelay.estimate import stock_flow, survival
+
+
+def _ytd(court, subject, rows):
+    return pl.DataFrame(
+        [
+            {
+                "court": court,
+                "period_start": f"{y}-01-01",
+                "period_end": end,
+                "subject_matter": subject,
+                "commenced": c,
+                "dispositions": d,
+                "pending": p,
+            }
+            for (y, end, c, d, p) in rows
+        ]
+    )
+
+
+def test_ytd_to_period_and_identity():
+    # consistent stock-flow: pending grows by net flow each quarter
+    df = _ytd(
+        "FC",
+        "TOTAL",
+        [
+            (2024, "2024-03-31", 100, 80, 1020),
+            (2024, "2024-06-30", 210, 170, 1040),  # q2 flows: 110 / 90 -> +20
+            (2024, "2024-09-30", 300, 280, 1020),  # q3: 90 / 110 -> -20
+            (2024, "2024-12-31", 400, 360, 1040),  # q4: 100 / 80 -> +20
+        ],
+    )
+    q = stock_flow.ytd_to_period(df)
+    assert q["commenced_q"].to_list() == [100, 110, 90, 100]
+    assert q["dispositions_q"].to_list() == [80, 90, 110, 80]
+    assert q["q_start"].to_list() == ["2024-01-01", "2024-04-01", "2024-07-01", "2024-10-01"]
+    chk = stock_flow.identity_check(q)
+    assert chk.height == 3 and chk["ok"].all()
+    w = stock_flow.littles_law(q)
+    # q2: L = (1020+1040)/2 = 1030, 91 days, disposals 90/day*91 -> W = 1030 / (90/91) ≈ 1041 days
+    row = w.filter(pl.col("period_end") == "2024-06-30").row(0, named=True)
+    assert row["days"] == 91
+    assert row["W_days_disposal_rate"] == pytest.approx(1030 / (90 / 91), rel=1e-6)
+    assert row["backlog_ratio"] == pytest.approx(110 / 90)
+    assert "steady-state" in row["bias_statement"]
+    y = stock_flow.annual_rollup(w)
+    assert y.height == 1 and y["commenced"][0] == 400 and y["dispositions"][0] == 360
+
+
+def test_identity_violation_is_reported_not_hidden():
+    df = _ytd(
+        "FCA", "TOTAL", [(2024, "2024-03-31", 50, 40, 500), (2024, "2024-06-30", 100, 80, 700)]
+    )
+    chk = stock_flow.identity_check(stock_flow.ytd_to_period(df))
+    assert chk.height == 1 and not chk["ok"][0] and chk["gap"][0] == 500 + 50 - 40 - 700
+
+
+def test_km_no_censoring_matches_empirical_quantiles():
+    d = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100], dtype=float)
+    e = np.ones(10, dtype=bool)
+    q = survival.km_quantiles(d, e, (0.5, 0.9))
+    assert q[0.5] == 50 and q[0.9] == 90
+
+
+def test_km_censoring_raises_quantiles_and_unreached_is_none():
+    d = np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100], dtype=float)
+    e = np.array([1, 1, 1, 1, 0, 0, 0, 0, 0, 0], dtype=bool)  # last six still open
+    q = survival.km_quantiles(d, e, (0.25, 0.5, 0.9))
+    assert q[0.25] == 30  # S drops to 0.7 at t=30 (3/10 events)
+    assert q[0.5] is None and q[0.9] is None  # curve never reaches 0.5
+    ci = survival.bootstrap_quantiles(d, e, (0.25, 0.9), n_boot=50)
+    assert ci[0.9] == (None, None)
+
+
+def test_cohort_table():
+    rng = np.random.default_rng(0)
+    n = 200
+    start = [date(2019, 1, 1) for _ in range(n)]
+    durs = rng.exponential(200, n).astype(int)
+    event = [date(2019, 1, 1).toordinal() + int(x) for x in durs]
+    censor = date(2020, 1, 1)
+    df = pl.DataFrame(
+        {
+            "cohort": [2019] * n,
+            "filed": start,
+            "ev": [date.fromordinal(x) if date.fromordinal(x) <= censor else None for x in event],
+            "scraped": [censor] * n,
+        }
+    )
+    t = survival.cohort_table(
+        df, cohort_col="cohort", start_col="filed", event_col="ev", censor_col="scraped", n_boot=50
+    )
+    assert t.height == 1
+    r = t.row(0, named=True)
+    assert r["n"] == n and 0 < r["censored_share"] < 0.5
+    assert 100 < r["p50_days"] < 220 and r["p50_lo"] <= r["p50_days"] <= r["p50_hi"]
+    assert "Kaplan-Meier" in r["bias_statement"]

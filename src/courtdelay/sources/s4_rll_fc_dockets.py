@@ -6,19 +6,32 @@ Fields: citation (docket number IMM-#-YY), year (filing year), name (style of ca
 parse), date_filed, city_filed, nature, class, track, documents (list of {RE_NO, DOCNO, DOC_DT,
 RECORDED_ENTRY}), source_url, scraped_timestamp (November 2022).
 
+Recorded-entry formats observed (2015–2022 samples):
+  "Order rendered by The Honourable Mr. Justice X at Ottawa on 09-SEP-2019 granting the
+   application for leave fixing the hearing at a Special Sitting at Vancouver on 27-NOV-2019 ..."
+  "(Final decision) Order rendered by ... dismissing the application for leave Decision endorsed
+   on the record ... Considered by the Court without personal appearance ..."
+  "Toronto 13-NOV-2019 BEFORE The Honourable Mr. Justice X Language: E Before the Court:
+   Judicial Review Result of Hearing: Matter reserved held in Court ..."
+  "(Final decision) Reasons for Judgment and Judgment dated 12-MAR-2020 rendered by ... The
+   Court's decision is with regard to Judicial Review Result: dismissed Filed on ..."
+  "Notice of discontinuance on behalf of the applicant filed on 23-APR-2019"
+Entries beginning "Copy of ..." / "Acknowledgment of Receipt ..." are documents placed on file
+(often from another docket), not events. "(Final decision)" marks the Registry's final disposition.
+
 Outputs (data/processed/s4/):
-  dockets.parquet   one row per docket with filing info, counts, and stage dates derived from the
-                    recorded entries: leave decision (+ result), hearing, judgment, discontinuance,
-                    final disposition (date + type), censoring date (scrape date)
-  entries.parquet   one row per recorded entry: docket, RE_NO, entry_date, entry_type (classified);
-                    **the entry text and the style of cause are not kept**
+  dockets.parquet   one row per docket: filing info, counts, stage dates (leave decision + result,
+                    scheduled hearing, hearing, judgment, discontinuance), final disposition
+                    (date, type, result), censoring date (scrape date)
+  entries.parquet   one row per recorded entry: docket, RE_NO, entry_date, entry_type, result,
+                    hearing_subject, is_final — **no entry text, no style of cause**
   parse_log.parquet counts: dockets, entries, classified share, sealed dropped
 
 Dockets whose entries mention sealing, confidentiality or a publication ban are dropped
 (docs/HANDOFF.md section 6) and counted.
 
 Bias statement: immigration (IMM) files only; snapshot as of November 2022 so files still open then
-are right-censored; entry classification is regex-based and imperfect (unclassified share reported);
+are right-censored; entry classification is regex-based (unclassified share reported);
 baseline and validation source for the later S10 docket work.
 """
 
@@ -43,6 +56,10 @@ SEALED_RE = re.compile(
     r"\bsous\s+scell[ée]s?\b|interdiction\s+de\s+publication",
     re.I,
 )
+COPY_RE = re.compile(
+    r"^\s*(?:\(final decision\)\s*)?(?:copy\s+of|copies\s+of|acknowledg?ment\s+of\s+receipt)", re.I
+)
+FINAL_RE = re.compile(r"^\s*\(final\s+decision\)", re.I)
 
 # ordered: first matching type wins
 ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
@@ -50,9 +67,10 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     (
         "leave_decision",
         re.compile(
-            r"(?:application\s+for\s+leave|demande\s+d['’]autorisation).{0,200}?result\s*:|"
-            r"leave\s+(?:to\s+commence\s+)?(?:is|was)\s+(?:granted|dismissed|refused|denied)|"
-            r"(?:granting|dismissing|refusing)\s+(?:the\s+)?(?:application\s+for\s+)?leave|"
+            r"(?:granting|dismissing|refusing|allowing|denying)\s+(?:in\s+part\s+)?(?:the\s+)?"
+            r"(?:applications?\s+for\s+)?leave\b|"
+            r"(?:application\s+for\s+leave|demande\s+d['’]autorisation)[^|]{0,200}?result\s*:|"
+            r"leave\s+(?:to\s+commence\s+)?(?:is|was|be)\s+(?:granted|dismissed|refused|denied)|"
             r"autorisation\s+(?:est\s+)?(?:accord[ée]e|rejet[ée]e|refus[ée]e)",
             re.I | re.S,
         ),
@@ -60,24 +78,26 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     (
         "judgment",
         re.compile(
-            r"\bjudgment\b(?!\s+and\s+reasons\s+to\s+be)|\bjugement\b|reasons\s+for\s+(?:judgment|order)|"
-            r"motifs\s+(?:du\s+jugement|de\s+l['’]ordonnance)",
+            r"\bjudgments?\b(?!\s+and\s+reasons\s+to\s+be)|\bjugement\b|reasons\s+for\s+judgment|"
+            r"motifs\s+du\s+jugement|(?:granting|dismissing|allowing)\s+the\s+application\s+for\s+"
+            r"judicial\s+review",
             re.I,
         ),
     ),
     (
         "hearing",
         re.compile(
+            r"result\s+of\s+hearing|\bbefore\s+the\s+honou?rable\b.{0,120}?before\s+the\s+court|"
             r"hearing\s+(?:held|took\s+place|commenced|continued|concluded)|audience\s+tenue|"
-            r"heard\s+(?:at|in)\s+[A-Z]|minutes?\s+of\s+hearing|proc[èe]s-verbal\s+d['’]audience",
-            re.I,
+            r"minutes?\s+of\s+hearing|proc[èe]s-verbal\s+d['’]audience",
+            re.I | re.S,
         ),
     ),
     (
         "hearing_scheduled",
         re.compile(
-            r"hearing\s+(?:is\s+)?(?:fixed|scheduled|set\s+down)|notice\s+of\s+hearing|"
-            r"avis\s+d['’]audience|requisition\s+for\s+hearing",
+            r"fixing\s+the\s+hearing|hearing\s+(?:is\s+)?(?:fixed|scheduled|set\s+down)|"
+            r"notice\s+of\s+hearing|avis\s+d['’]audience|requisition\s+for\s+hearing",
             re.I,
         ),
     ),
@@ -86,30 +106,69 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("filing", re.compile(r"\bfiled\b|\bd[ée]pos[ée]e?\b|\breceived\b|\bre[çc]u", re.I)),
     ("correspondence", re.compile(r"\bletter\b|\blettre\b|\bcorrespondence\b|communication", re.I)),
 ]
-RESULT_RE = re.compile(r"result\s*:\s*([A-Za-z][A-Za-z\s\-]{2,40}?)(?:[\.\n;]|$)", re.I)
-GRANT_RE = re.compile(r"\b(granted|allowed|accord[ée]e|accueilli)", re.I)
-DISMISS_RE = re.compile(r"\b(dismissed|refused|denied|rejet[ée]e|refus[ée]e)", re.I)
+RESULT_RE = re.compile(
+    r"result(?:\s+of\s+hearing)?\s*:\s*(?:matter\s+)?([A-Za-z][A-Za-z\s\-]{2,40}?)"
+    r"(?=\s+(?:filed|held|decision|style|[A-Z0-9])|[\.\n;]|$)",
+    re.I,
+)
+VERB_RESULT = [
+    (re.compile(r"\bin\s+part\b", re.I), "granted_in_part"),
+    (re.compile(r"\b(granting|allowing|granted|allowed|accord[ée]e|accueilli)", re.I), "granted"),
+    (
+        re.compile(
+            r"\b(dismissing|refusing|denying|dismissed|refused|denied|rejet[ée]e|refus[ée]e)", re.I
+        ),
+        "dismissed",
+    ),
+    (re.compile(r"\breserved\b|en\s+d[ée]lib[ée]r[ée]", re.I), "reserved"),
+    (re.compile(r"\badjourned\b|\bajourn", re.I), "adjourned"),
+]
+SUBJECT_RE = re.compile(
+    r"before\s+the\s+court\s*:\s*([A-Za-z][A-Za-z\s/]{2,40}?)"
+    r"(?=\s+(?:doc\.|result|on\s+behalf|language)|$)",
+    re.I,
+)
+FIXED_DATE_RE = re.compile(
+    r"fixing\s+the\s+hearing.{0,80}?\bon\s+(\d{1,2}-[A-Za-z]{3}-\d{4})", re.I | re.S
+)
 
 
 def classify_entry(text: str | None) -> str:
     if not text:
         return "other"
+    if COPY_RE.match(text):
+        return "copy_on_file"
     for name, rx in ENTRY_TYPES:
         if rx.search(text):
             return name
     return "other"
 
 
-def leave_result(text: str | None) -> str | None:
+def entry_result(text: str | None) -> str | None:
+    """Outcome for decision-like entries: granted / granted_in_part / dismissed / reserved /
+    adjourned. Uses the 'Result:' field when present, else the operative verb."""
     if not text:
         return None
     m = RESULT_RE.search(text)
-    seg = m.group(1) if m else text[-200:]
-    if GRANT_RE.search(seg):
-        return "granted"
-    if DISMISS_RE.search(seg):
-        return "dismissed"
+    seg = m.group(1) if m else text
+    for rx, label in VERB_RESULT:
+        if rx.search(seg):
+            return label
     return None
+
+
+def hearing_subject(text: str | None) -> str | None:
+    if not text:
+        return None
+    m = SUBJECT_RE.search(text)
+    if not m:
+        return None
+    s = m.group(1).strip().lower()
+    if "judicial review" in s:
+        return "judicial_review"
+    if "motion" in s:
+        return "motion"
+    return s[:40]
 
 
 def parse_entry_date(s) -> date | None:
@@ -148,7 +207,33 @@ def _parquet():
     raise FileNotFoundError("S4: parquet not cached; run fetch first")
 
 
-def derive_docket(docket: str, entries: list[dict]) -> dict:
+def classify_docket_entries(docs: list[dict], docket: str) -> list[dict]:
+    """Classify a docket's recorded entries; returns dicts without the entry text."""
+    out = []
+    for d in docs:
+        text = d.get("RECORDED_ENTRY") or ""
+        et = classify_entry(text)
+        e = {
+            "docket": docket,
+            "re_no": _int(d.get("RE_NO")),
+            "entry_date": parse_entry_date(d.get("DOC_DT")),
+            "entry_type": et,
+            "result": entry_result(text)
+            if et in {"leave_decision", "judgment", "hearing", "order"}
+            else None,
+            "hearing_subject": hearing_subject(text) if et == "hearing" else None,
+            "is_final": bool(FINAL_RE.match(text)),
+            "_fixed": None,
+        }
+        if et in {"leave_decision", "hearing_scheduled"}:
+            fm = FIXED_DATE_RE.search(text)
+            if fm:
+                e["_fixed"] = parse_entry_date(fm.group(1))
+        out.append(e)
+    return out
+
+
+def derive_docket(entries: list[dict]) -> dict:
     """Stage dates from a docket's classified entries (sorted by date, then RE_NO)."""
     ents = sorted(
         entries,
@@ -157,12 +242,15 @@ def derive_docket(docket: str, entries: list[dict]) -> dict:
     out = {
         "leave_decision_date": None,
         "leave_result": None,
-        "first_hearing_scheduled_date": None,
+        "scheduled_hearing_date": None,
         "hearing_date": None,
+        "hearing_result": None,
         "judgment_date": None,
+        "judgment_result": None,
         "discontinuance_date": None,
         "final_disposition_date": None,
         "final_disposition_type": None,
+        "final_disposition_result": None,
         "first_entry_date": ents[0]["entry_date"] if ents else None,
         "last_entry_date": ents[-1]["entry_date"] if ents else None,
         "n_entries": len(ents),
@@ -170,25 +258,41 @@ def derive_docket(docket: str, entries: list[dict]) -> dict:
     for e in ents:
         t, d = e["entry_type"], e["entry_date"]
         if t == "leave_decision" and out["leave_decision_date"] is None:
-            out["leave_decision_date"], out["leave_result"] = d, e.get("leave_result")
-        elif t == "hearing_scheduled" and out["first_hearing_scheduled_date"] is None:
-            out["first_hearing_scheduled_date"] = d
-        elif t == "hearing" and out["hearing_date"] is None:
-            out["hearing_date"] = d
-        elif t == "judgment" and (out["judgment_date"] is None or d and d > out["judgment_date"]):
-            out["judgment_date"] = d
+            out["leave_decision_date"], out["leave_result"] = d, e.get("result")
+            if e.get("_fixed") and out["scheduled_hearing_date"] is None:
+                out["scheduled_hearing_date"] = e["_fixed"]
+        elif t == "hearing_scheduled" and out["scheduled_hearing_date"] is None:
+            out["scheduled_hearing_date"] = e.get("_fixed") or d
+        elif (
+            t == "hearing" and e.get("hearing_subject") != "motion" and out["hearing_date"] is None
+        ):
+            out["hearing_date"], out["hearing_result"] = d, e.get("result")
+        elif t == "judgment" and out["judgment_date"] is None:
+            out["judgment_date"], out["judgment_result"] = d, e.get("result")
         elif t == "discontinuance" and out["discontinuance_date"] is None:
             out["discontinuance_date"] = d
-    # final disposition: earliest of discontinuance, leave dismissed, judgment
-    cands = []
-    if out["discontinuance_date"]:
-        cands.append((out["discontinuance_date"], "discontinued"))
-    if out["leave_decision_date"] and out["leave_result"] == "dismissed":
-        cands.append((out["leave_decision_date"], "leave_dismissed"))
-    if out["judgment_date"]:
-        cands.append((out["judgment_date"], "judgment"))
-    if cands:
-        out["final_disposition_date"], out["final_disposition_type"] = min(cands)
+        if e["is_final"] and out["final_disposition_date"] is None and d is not None:
+            out["final_disposition_date"] = d
+            out["final_disposition_type"] = {
+                "leave_decision": "leave_decision",
+                "judgment": "judgment",
+                "discontinuance": "discontinuance",
+                "order": "order",
+            }.get(t, t)
+            out["final_disposition_result"] = e.get("result")
+    if out["final_disposition_date"] is None:
+        # no Registry marker: earliest of discontinuance, leave dismissed, judgment
+        cands = []
+        if out["discontinuance_date"]:
+            cands.append((out["discontinuance_date"], "discontinuance", None))
+        if out["leave_decision_date"] and out["leave_result"] == "dismissed":
+            cands.append((out["leave_decision_date"], "leave_decision", "dismissed"))
+        if out["judgment_date"]:
+            cands.append((out["judgment_date"], "judgment", out["judgment_result"]))
+        if cands:
+            d, t, r = min(cands, key=lambda c: c[0])
+            out["final_disposition_date"], out["final_disposition_type"] = d, t
+            out["final_disposition_result"] = r
     return out
 
 
@@ -219,25 +323,13 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
     n_entries = 0
     for row in df.iter_rows(named=True):
         docs = row.get("documents") or []
-        texts = [d.get("RECORDED_ENTRY") or "" for d in docs]
-        if any(SEALED_RE.search(t) for t in texts):
+        if any(SEALED_RE.search(d.get("RECORDED_ENTRY") or "") for d in docs):
             sealed += 1
             continue
-        ents = []
-        for d, t in zip(docs, texts, strict=True):
-            et = classify_entry(t)
-            n_entries += 1
-            unclassified += et == "other"
-            e = {
-                "docket": row["citation"],
-                "re_no": _int(d.get("RE_NO")),
-                "entry_date": parse_entry_date(d.get("DOC_DT")),
-                "entry_type": et,
-                "leave_result": leave_result(t) if et == "leave_decision" else None,
-            }
-            ents.append(e)
-            entry_rows.append({k: v for k, v in e.items() if k != "leave_result"})
-        derived = derive_docket(row["citation"], ents)
+        ents = classify_docket_entries(docs, row["citation"])
+        n_entries += len(ents)
+        unclassified += sum(e["entry_type"] == "other" for e in ents)
+        entry_rows.extend({k: v for k, v in e.items() if k != "_fixed"} for e in ents)
         docket_rows.append(
             {
                 "docket": row["citation"],
@@ -249,19 +341,18 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
                 "track": row.get("track"),
                 "scraped": parse_entry_date(row.get("scraped_timestamp")),
                 "source_url": row.get("source_url"),
-                **derived,
+                **derive_docket(ents),
             }
         )
-    dockets = pl.DataFrame(docket_rows, infer_schema_length=None)
+    dockets = pl.DataFrame(docket_rows, infer_schema_length=None).with_columns(
+        pl.lit(meta["sha256"]).alias("raw_sha256"), pl.lit(meta["fetched_at"]).alias("fetched_at")
+    )
     entries = pl.DataFrame(entry_rows, infer_schema_length=None)
     out = paths.processed_dir() / "s4"
     out.mkdir(exist_ok=True)
-    dockets = dockets.with_columns(
-        pl.lit(meta["sha256"]).alias("raw_sha256"), pl.lit(meta["fetched_at"]).alias("fetched_at")
-    )
     dockets.write_parquet(out / "dockets.parquet")
     entries.write_parquet(out / "entries.parquet")
-    logdf = pl.DataFrame(
+    pl.DataFrame(
         {
             "dockets_in": [df.height],
             "dockets_kept": [dockets.height],
@@ -269,8 +360,7 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
             "entries": [n_entries],
             "unclassified_share": [unclassified / max(n_entries, 1)],
         }
-    )
-    logdf.write_parquet(out / "parse_log.parquet")
+    ).write_parquet(out / "parse_log.parquet")
     log.info(
         "S4: %d dockets kept (%d sealed dropped), %d entries, %.1f%% unclassified",
         dockets.height,
@@ -304,26 +394,51 @@ def validate(frames: dict[str, pl.DataFrame]) -> None:
             problems.append(f"{col}: {bad} dockets with stage date before filing")
     lr = d.filter(pl.col("leave_decision_date").is_not_null())
     share_leave = lr.height / max(d.height, 1)
-    res = lr["leave_result"].value_counts().sort("leave_result") if lr.height else None
+    res = (
+        dict(
+            zip(
+                *lr["leave_result"]
+                .fill_null("unknown")
+                .value_counts()
+                .sort("leave_result")
+                .to_dict()
+                .values(),
+                strict=True,
+            )
+        )
+        if lr.height
+        else {}
+    )
     log.info(
-        "S4: %d dockets, %.0f%% with leave decision (%s); %.0f%% judgment, %.0f%% discontinued",
+        "S4: %d dockets; %.0f%% with leave decision %s; %.0f%% hearing; %.0f%% judgment; "
+        "%.0f%% discontinued; %.0f%% with a final disposition",
         d.height,
         100 * share_leave,
-        res.to_dicts() if res is not None else None,
+        res,
+        100 * d["hearing_date"].is_not_null().mean(),
         100 * d["judgment_date"].is_not_null().mean(),
         100 * d["discontinuance_date"].is_not_null().mean(),
+        100 * d["final_disposition_date"].is_not_null().mean(),
     )
     if share_leave < 0.5:
         problems.append(f"only {share_leave:.0%} of dockets have a leave decision (expected most)")
+    unknown = res.get("unknown", 0) / max(lr.height, 1)
+    if unknown > 0.2:
+        problems.append(f"{unknown:.0%} of leave decisions have no parsed result")
     by_year = (
         d.group_by("filing_year")
         .agg(
             pl.len().alias("n"),
             pl.col("leave_decision_date").is_not_null().mean().alias("leave_rate"),
+            (pl.col("leave_result") == "granted").mean().alias("granted_share"),
             (pl.col("leave_decision_date") - pl.col("date_filed"))
             .dt.total_days()
             .median()
             .alias("filed_to_leave_med_days"),
+            (pl.col("final_disposition_date") - pl.col("date_filed"))
+            .dt.total_days()
+            .median()
+            .alias("filed_to_final_med_days"),
         )
         .sort("filing_year")
     )
