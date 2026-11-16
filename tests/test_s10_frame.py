@@ -67,3 +67,35 @@ def test_default_plan_matches_owner_decision():
     assert [s.year for s in imm] == [2023, 2024, 2025, 2026] and all(
         s.n_sample == 1000 for s in imm
     )
+
+
+class FlakyClient(FakeClient):
+    """Raises FetchError for the listed docket numbers."""
+
+    def __init__(self, max_n, failing):
+        super().__init__(max_n)
+        self.failing = set(failing)
+
+    def get(self, url, *, source, tier, params):
+        n = int(params["courtnumber"].split("-")[1])
+        if n in self.failing:
+            raise s10.FetchError(url, None, "SSL: CERTIFICATE_VERIFY_FAILED")
+        return super().get(url, source=source, tier=tier, params=params)
+
+
+def test_isolated_errors_are_logged_not_counted_as_misses(raw):
+    s10._consecutive_errors = 0
+    c = FlakyClient(max_n=30, failing={10, 20})
+    r = s10.crawl_census(c, s10.Stratum("FCA-2024", "A", "a", 2024, "census"))
+    assert r["found"] == 28 and r["last_n_probed"] == 35
+    lines = (raw / "raw" / s10.SOURCE / "failures_FCA-2024.jsonl").read_text().splitlines()
+    assert [json.loads(x)["docket"] for x in lines] == ["A-10-24", "A-20-24"]
+
+
+def test_outage_aborts_instead_of_ending_the_census(raw):
+    s10._consecutive_errors = 0
+    c = FlakyClient(max_n=300, failing=set(range(50, 400)))
+    with pytest.raises(s10.CrawlAborted):
+        s10.crawl_census(c, s10.Stratum("FCA-2024", "A", "a", 2024, "census"))
+    progress = (raw / "raw" / s10.SOURCE / "progress_FCA-2024.jsonl").read_text()
+    assert '"done"' not in progress, "an outage must never be recorded as a finished census"

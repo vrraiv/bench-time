@@ -92,21 +92,47 @@ def exists(payload) -> bool:
     return False
 
 
-def fetch_file(client: Client, s: Stratum, n: int) -> bool:
-    """Fetch both endpoints for one file number; returns whether the file exists."""
+MAX_CONSECUTIVE_ERRORS = 5
+_consecutive_errors = 0
+
+
+class CrawlAborted(RuntimeError):
+    """Raised after MAX_CONSECUTIVE_ERRORS failed requests in a row (site down, TLS failure,
+    blocking). The cache keeps everything fetched so far; rerunning resumes."""
+
+
+def _record_failure(s: Stratum, number: str, exc: Exception) -> None:
+    global _consecutive_errors
+    _consecutive_errors += 1
+    with (paths.raw_dir(SOURCE) / f"failures_{s.name}.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({"docket": number, "error": str(exc)[:300]}) + "\n")
+    log.warning("%s %s: %s", s.name, number, exc)
+    if _consecutive_errors >= MAX_CONSECUTIVE_ERRORS:
+        raise CrawlAborted(
+            f"{_consecutive_errors} consecutive request failures; last: {exc}"
+        ) from exc
+
+
+def fetch_file(client: Client, s: Stratum, n: int) -> bool | None:
+    """Fetch both endpoints for one file number. Returns True (file exists, both fetched),
+    False (no such file) or None (a request failed: neither a hit nor a miss; logged to
+    failures_<stratum>.jsonl for a later retry)."""
+    global _consecutive_errors
     number = s.number(n)
     try:
         info = _get(client, ADDINFO, s, number)
+        try:
+            payload = info.json()
+        except ValueError:
+            payload = None
+        if not exists(payload):
+            _consecutive_errors = 0
+            return False
+        _get(client, ENTRIES, s, number)
     except FetchError as exc:
-        log.warning("%s %s: %s", s.name, number, exc)
-        return False
-    try:
-        payload = info.json()
-    except ValueError:
-        payload = None
-    if not exists(payload):
-        return False
-    _get(client, ENTRIES, s, number)
+        _record_failure(s, number, exc)
+        return None
+    _consecutive_errors = 0
     return True
 
 
@@ -117,7 +143,7 @@ def highest_number(client: Client, s: Stratum, hint: int = 1000) -> int:
     silently drop the year's latest filings, so this errs towards probing more."""
 
     def any_exists(n: int) -> bool:
-        return any(fetch_file(client, s, n + k) for k in (0, 3, 10, 25, 50))
+        return any(fetch_file(client, s, n + k) is True for k in (0, 3, 10, 25, 50))
 
     lo, hi = 0, max(hint, 1)
     while any_exists(hi):
@@ -139,9 +165,10 @@ def _progress(s: Stratum, row: dict) -> None:
 def crawl_census(client: Client, s: Stratum, *, start: int = 1) -> dict:
     misses, n, found = 0, start, 0
     while misses < STOP_AFTER_MISSES:
-        if fetch_file(client, s, n):
+        r = fetch_file(client, s, n)
+        if r is True:
             found, misses = found + 1, 0
-        else:
+        elif r is False:
             misses += 1
         if n % 50 == 0:
             _progress(s, {"n": n, "found": found})
@@ -171,7 +198,7 @@ def crawl_sample(client: Client, s: Stratum, hint: int = 8000) -> dict:
         if found >= s.n_sample:
             break
         tried += 1
-        if fetch_file(client, s, n):
+        if fetch_file(client, s, n) is True:
             found += 1
         if tried % 50 == 0:
             _progress(s, {"tried": tried, "found": found})

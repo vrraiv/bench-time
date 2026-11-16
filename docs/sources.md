@@ -216,7 +216,13 @@ request); add the real hostname once the owner confirms it.
 - Plan (owner decision 2026-11-16): FCA census, FC general (T-) census, FC immigration sample of
   1,000 per filing year from 2023. At 4 s per request this is roughly: FCA 2010–2026 ≈ 15 h,
   FC general 2018–2026 ≈ 2–3 days, IMM 2023–2026 ≈ 9 h, plus misses at the end of each year.
-  Implementation: `sources/s10_fc_fca_dockets.py`. Blocked until `COURTDELAY_CONTACT` is set.
+  Implementation: `sources/s10_fc_fca_dockets.py`.
+- **Run log.** 2026-11-16: pilot of 7 files OK. FCA census started 08:28 local; FCA-2010 complete
+  (485 files, numbers probed to 694). At 10:20 the site began serving an **expired TLS certificate**
+  (subject CN www.cas-satj.gc.ca, Entrust, notAfter 2026-11-02 23:59:59 GMT; the host is behind Azure
+  Traffic Manager, so earlier requests were presumably routed to a backend with a valid certificate).
+  The crawl stopped at A-193-11; certificate verification is not bypassed. 1,576 requests made,
+  5 non-200. Resume once the certificate is renewed; cached files are not re-fetched.
 
 ### S12 — TCC docket — **UNVERIFIED (same situation as S11)**
 
