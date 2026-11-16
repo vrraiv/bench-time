@@ -215,6 +215,45 @@ the Ontario Courts Public Portal. The client raises `Tier3Error` for these hosts
 
 ---
 
-## Data notes (filled per source as fetched)
+## Data notes (one paragraph per source as fetched; vintage = fetch date 2026-11-15/16 UTC)
 
-(see below)
+**S1 (StatCan ICCS).** Six tables downloaded whole and filtered to Canada + Ontario:
+35-10-0029 (median elapsed days; 389k rows kept of 3.4M; fiscal years 1994/95–2024/25; dimensions
+offences × age × sex × type of case × statistic {Count, Median}), 35-10-0027 (cases/charges by
+decision; 1.9M rows kept), 35-10-0173/0174 (adult/youth key indicators, 2005/06–2024/25, 40–56 %
+of cells null because many indicators start later), 35-10-0172/0176 (preliminary quarterly
+indicators, 2019–2026, 49–65 % null). Headline check: Ontario, Total Criminal Code, all ages/sexes,
+total cases, median days to disposition in 2024/25 = **196**. Sparse cells (companies, "age not
+applicable") carry medians above 10 years and are legitimate; validation checks the headline series
+only. Bias: completed cases; first appearance → final decision; no attribution of delay. Processed:
+`data/processed/s1/*.parquet`, release vintage in `tables.parquet` (release 2026-10-01).
+
+**S5 (SCC statistics).** Six HTML pages (stat-2020 … stat-2025), each an 11-year window; 1,199
+cells; most-recent page wins where windows overlap (no cross-page conflicts logged this vintage).
+Time lapses (months, annual averages) **2010–2025**, latest 2025: leave filing → leave decision
+4.4; leave → hearing 9.1; hearing → judgment 5.1. Also leave counts, appeals heard, judgments,
+"appeals standing for judgment at year end". Bias: averages, by file number; pre-2010 not yet
+captured. Processed: `data/processed/s5/scc_time_lapses.parquet`, `scc_stats.parquet`.
+
+**S8 (federal workload).** FC: 93 quarterly Activity Summary pages, 2003-Q1 … 2026-Q3, 2,204
+rows of subject matter × {commenced, dispositions, pending at period end, leave granted}; periods
+are year-to-date so quarterly flows need differencing. Latest (2026-09-30 YTD): 30,845 commenced,
+15,349 disposed, **43,536 pending** (immigration-driven). FCA: 50 YTD periods 2019–2026-Q2, 450
+rows (TOTAL pending 473 at 2026-06-30). TCC: one table, five fiscal years 2018-19…2022-23, 18
+metrics incl. proceedings instituted (3,230 in 2022-23) and total dispositions; no pending-status
+breakdown. CAS annual report pages cached for 2017-18…2025-26 except 2023-24; not parsed yet.
+Bias: counts of proceedings; category definitions change (e.g. 2010 vs 2026 subject lists);
+Little's-law durations from these are steady-state approximations. Processed:
+`data/processed/s8/{fc_activity,fca_activity,tcc_workload}.parquet`.
+
+**S9 (judicial complement).** 118 captures (117 Wayback + live), 116 parsed, **112 distinct
+"as of" dates 2009-06 → 2026-11**; 3,716 rows (jurisdiction × court). Coverage by year:
+2009–2014 one or two snapshots each, 2015: 5, 2016–2019: 8–12, 2020: 6, 2021: 7, 2022–2026:
+7–11. Two captures failed (error pages, "no tables"); one 2011 capture needed ordinal-date
+handling. Federal Court example: 2009-06 27 in office / 6 vacancies; 2026-11 40 in office / 2
+vacancies, 3 supernumeraries. Validation: grand_total = in_office + supernumerary holds; Canada
+and Ontario tables present in the latest snapshot. Caveats: the "as of" date is the page's own
+(first of month), captures are irregular, and pre-2015 page layouts name "Yukon Territory".
+Processed: `data/processed/s9/judges_snapshots.parquet`, `parse_failures.parquet`.
+
+**S7 (OCJ) and S3 (A2AJ)**: see the session summary; fetch in progress at time of writing.
