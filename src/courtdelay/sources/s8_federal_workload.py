@@ -210,6 +210,8 @@ def parse_fc_page(html: bytes | str, url: str) -> list[dict]:
     soup = BeautifulSoup(html, "lxml")
     text_candidates = []
     for tb in soup.find_all("table"):
+        if tb.find("table"):  # archived pages wrap the real table in a layout table
+            continue
         cap = tb.find("caption")
         prev = tb.find_previous(["h1", "h2", "h3", "h4", "p", "strong"])
         for cand in (
@@ -238,6 +240,8 @@ def parse_fca_page(html: bytes | str, url: str = FCA_STATS) -> list[dict]:
     soup = BeautifulSoup(html, "lxml")
     rows = []
     for tb in soup.find_all("table"):
+        if tb.find("table"):
+            continue
         h = tb.find_previous(["h2", "h3", "h4"])
         period = h.get_text(" ", strip=True) if h else ""
         if _date_from_text(period) == (None, None):
