@@ -239,6 +239,86 @@ class Client:
                 )
         return self._fetch_and_store(method, url, body, headers, source, raw, key, meta_path)
 
+    def download(
+        self,
+        url: str,
+        *,
+        source: str,
+        tier: int = 1,
+        vintage: str = "",
+        refresh: bool = False,
+    ) -> Response:
+        """Stream a large file to the cache without holding it in memory. Returns a Response
+        whose ``content`` is empty; use ``.path``. Same cache/manifest/tier rules as ``get``."""
+        self._guard(url, tier)
+        key = self._cache_key("GET", url, None, vintage)
+        raw = paths.raw_dir(source)
+        meta_path = raw / f"{key}.meta.json"
+        if not refresh and meta_path.exists():
+            meta = json.loads(meta_path.read_text())
+            data_path = raw / meta["file"]
+            if 200 <= meta["status"] < 300 and data_path.exists():
+                return Response(
+                    url=url,
+                    final_url=meta.get("final_url", url),
+                    status=meta["status"],
+                    content=b"",
+                    content_type=meta.get("content_type", ""),
+                    path=data_path,
+                    fetched_at=meta["fetched_at"],
+                    from_cache=True,
+                )
+        host = _host(url)
+        self._throttle(host)
+        fetched_at = datetime.now(UTC).isoformat(timespec="seconds")
+        h = hashlib.sha256()
+        tmp = raw / f"{key}.part"
+        with self._http.stream("GET", url) as resp:
+            ctype = resp.headers.get("content-type", "")
+            fname = f"{key}.{_ext_for(ctype, url)}"
+            n = 0
+            with tmp.open("wb") as fh:
+                for chunk in resp.iter_bytes(chunk_size=1 << 20):
+                    fh.write(chunk)
+                    h.update(chunk)
+                    n += len(chunk)
+            status, final_url = resp.status_code, str(resp.url)
+        data_path = raw / fname
+        if tmp.exists():
+            tmp.replace(data_path)
+        sha = h.hexdigest()
+        meta_path.write_text(
+            json.dumps(
+                {
+                    "url": url,
+                    "final_url": final_url,
+                    "method": "GET",
+                    "status": status,
+                    "content_type": ctype,
+                    "fetched_at": fetched_at,
+                    "sha256": sha,
+                    "bytes": n,
+                    "file": fname,
+                    "response_headers": {},
+                },
+                indent=1,
+            )
+        )
+        self._log_manifest(url, "GET", source, fetched_at, status, sha, str(data_path), "")
+        if not 200 <= status < 300:
+            raise FetchError(url, status)
+        log.info("downloaded %s (%.1f MB)", url, n / 1e6)
+        return Response(
+            url=url,
+            final_url=final_url,
+            status=status,
+            content=b"",
+            content_type=ctype,
+            path=data_path,
+            fetched_at=fetched_at,
+            from_cache=False,
+        )
+
     def close(self) -> None:
         self._http.close()
 

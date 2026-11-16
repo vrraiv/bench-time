@@ -118,3 +118,26 @@ def test_robots_allows():
     assert http.robots_allows(txt, "https://x.ca/public/a")
     assert not http.robots_allows(txt, "https://x.ca/private/a")
     assert http.robots_allows(None, "https://x.ca/anything")
+
+
+def test_download_streams_to_cache(env):
+    payload = b"x" * (3 << 20)
+
+    def handler(request):
+        return httpx.Response(
+            200, content=payload, headers={"content-type": "application/x-parquet"}
+        )
+
+    c = make_client(handler, FakeClock())
+    r = c.download(
+        "https://huggingface.co/datasets/x/y/resolve/main/SCC/train.parquet", source="s3"
+    )
+    assert (
+        r.content == b"" and r.path.suffix == ".parquet" and r.path.stat().st_size == len(payload)
+    )
+    r2 = c.download(
+        "https://huggingface.co/datasets/x/y/resolve/main/SCC/train.parquet", source="s3"
+    )
+    assert r2.from_cache and r2.path == r.path
+    rows = [json.loads(line) for line in (env / "manifest.jsonl").read_text().splitlines()]
+    assert len(rows) == 1 and rows[0]["sha256"] == __import__("hashlib").sha256(payload).hexdigest()
