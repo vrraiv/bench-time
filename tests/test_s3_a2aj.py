@@ -124,3 +124,52 @@ def test_empty_and_dateless():
     assert p["hearing_date"] is None and p["file_numbers"] is None
     p = s3.parse_header("No useful header here.", "ONCA")
     assert p["hearing_date"] is None
+
+
+FC_TAIL = """JUDGMENT in IMM-1234-22
+THIS COURT'S JUDGMENT is that the application is dismissed.
+"Jane Example"
+Judge
+FEDERAL COURT
+SOLICITORS OF RECORD
+DOCKET: IMM-1234-22
+STYLE OF CAUSE: A.B. v THE MINISTER OF CITIZENSHIP AND IMMIGRATION
+PLACE OF HEARING: TORONTO, ONTARIO
+DATE OF HEARING: APRIL 3, 2023
+JUDGMENT AND REASONS: EXAMPLE J.
+DATED: MAY 12, 2023
+"""
+
+FCA_WRITTEN = """Federal Court of Appeal
+Date: 20240322
+Docket: A-16-23
+Citation: 2024 FCA 61
+CORAM: WEBB J.A. RENNIE J.A. BIRINGER J.A.
+BETWEEN:
+HIS MAJESTY THE KING
+Appellant
+and
+C.D.
+Respondent
+Dealt with in writing without appearance of parties.
+Order delivered at Ottawa, Ontario, on March 22, 2024.
+"""
+
+
+def test_fc_hearing_date_in_tail_block():
+    head = FC_HEADER.replace("Heard at Toronto, Ontario, on April 3, 2023.\n", "")
+    p = s3.parse_header(head, "FC", tail=FC_TAIL)
+    assert p["hearing_date"] == date(2023, 4, 3) and p["hearing_mode"] == "oral"
+
+
+def test_fca_written_disposition():
+    p = s3.parse_header(FCA_WRITTEN, "FCA", tail="")
+    assert p["hearing_date"] is None and p["hearing_mode"] == "written"
+    assert p["judges_line"].startswith("WEBB J.A.")
+    assert p["file_numbers"] == "A-16-23"
+
+
+def test_judges_line_never_captures_party_block():
+    text = "Before the court were the applicant and respondent.\nBETWEEN:\nX\nApplicant\n"
+    p = s3.parse_header(text, "FC", tail="")
+    assert p["judges_line"] is None or "applicant" not in p["judges_line"].lower()
