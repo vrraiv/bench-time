@@ -199,23 +199,24 @@ request); add the real hostname once the owner confirms it.
 
 ## Tier 2 (landing and notice pages only; no docket queries made)
 
-### S10 — Federal Court "Court Files" — **MOVED host, UNVERIFIED mechanics**
+### S10 + S11 — Federal Court and FCA dockets — **ENDPOINTS VERIFIED, NOT YET QUERIED**
 
-- `https://www.fct-cf.ca/en/court-files-and-decisions/court-files` (redirect from fct-cf.gc.ca).
-  Page links a "Notice to the Parties and the Profession" and "User Guide (PDF)" for the
-  2022 Online Access pilot. The search form itself is JavaScript-driven; request pattern not
-  examined. robots.txt is empty (allow-all). Important Notices: Crown copyright, non-commercial
-  reproduction permitted; privacy notice says no personal data gathered automatically. No clause
-  on automated querying found.
-
-### S11 — FCA recorded entries — **UNVERIFIED (entry point not found in static HTML)**
-
-- `https://www.fca-caf.ca/en/pages/court-files` is 404. The home page
-  (`/en/home`), About, Statistics, Decisions and Important Notices pages contain no link whose
-  text or href mentions court files, dockets or case search, so the court-files search is
-  reached through script-rendered navigation (not followed: no JavaScript execution, no search
-  queries). Next step (Tier 2, needs the contact email): open the home page in a browser session
-  with the owner, note the search URL and request pattern, then read its terms.
+- Landing page `https://www.fct-cf.ca/en/court-files-and-decisions/court-files`. Its scripts
+  (`/Content/js/pages/courtfiles.js`, `/Content/js/base/data.js`, read 2026-11-16) call JSON
+  endpoints on the same host. One court-number search box serves both courts: `division=t` is the
+  Federal Court, `division=a` the Federal Court of Appeal, so **S11 uses the same system as S10**.
+  Per file: `GET /CourtFilesAndDecisions/proceedingQueriesAddInfo?division=&courtnumber=` (file
+  information) and `GET /CourtFilesAndDecisions/proceedingQueriesRE?division=&courtnumber=`
+  (recorded entries): **two requests per file**. Other endpoints exist for party-name search,
+  related cases and public party lists; we do not use them.
+- robots.txt: none (404). Important Notices: Crown copyright, non-commercial reproduction
+  permitted; no clause on automated access. The 2022 online-access notice and user guide concern
+  downloadable documents and confidentiality; they set no conditions on automated queries.
+  Responses include party names: kept only in the local raw cache, dropped at parse.
+- Plan (owner decision 2026-11-16): FCA census, FC general (T-) census, FC immigration sample of
+  1,000 per filing year from 2023. At 4 s per request this is roughly: FCA 2010–2026 ≈ 15 h,
+  FC general 2018–2026 ≈ 2–3 days, IMM 2023–2026 ≈ 9 h, plus misses at the end of each year.
+  Implementation: `sources/s10_fc_fca_dockets.py`. Blocked until `COURTDELAY_CONTACT` is set.
 
 ### S12 — TCC docket — **UNVERIFIED (same situation as S11)**
 
