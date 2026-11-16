@@ -296,7 +296,7 @@ report's ~65 days for civil appeals. Decision dates match the "Date:" header lin
 rows (no UTC day shift). `upstream_license` is the same CanLII-style notice for all five courts
 ("Users are responsible for identifying and complying with all legal restrictions on the
 reproduction or publication of these documents…"), which does not state a licence; treat as
-non-commercial, attribution, not indexable, and ask the owner how to read it.
+non-commercial, attribution, not indexable. **Owner's reading (2026-11-16): the notice means no commercial use and no reproduction of full texts; publishing derived aggregates with attribution is consistent with it.**
 Bias: published written decisions only; oral rulings and unreported dispositions absent.
 
 **S4 (Refugee Law Lab FC immigration dockets).** 218,639 dockets (filing years 1993–2022, scraped

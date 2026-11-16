@@ -1,7 +1,7 @@
 // Observable Framework config. Local preview/build only; nothing here deploys anywhere.
 // Telemetry: run with OBSERVABLE_TELEMETRY_DISABLE=true (see site/README.md).
 export default {
-  title: "Court Delay Observatory (working title)",
+  title: "bench-time",
   root: "src",
   pages: [
     {name: "Overview", path: "/"},

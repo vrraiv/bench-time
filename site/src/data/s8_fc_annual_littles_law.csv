@@ -1,0 +1,25 @@
+court,subject_matter,year,commenced,dispositions,pending_end,pending_start,days,n_periods,identity_ok,L,W_days_disposal_rate,W_days_arrival_rate,backlog_ratio,bias_statement,publishable
+FC,TOTAL,2003,12405,11464,7141,,365,4,true,7141.0,227.36086880669924,210.11406690850464,1.082083042568039,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2004,12629,13326,6423,7141,366,4,true,6782.0,186.26834759117514,196.54857866814476,0.9476962329281104,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2005,9731,10650,5471,6423,365,4,true,5947.0,203.8173708920188,223.06597471996713,0.9137089201877934,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2006,8521,8585,5252,5471,365,4,false,5361.5,227.9496214327315,229.66171810820327,0.9925451368666278,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2007,7241,7659,4839,5252,365,3,true,5045.5,240.45012403708054,254.33054826681396,0.9454236845541193,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2008,7303,7192,4940,4839,366,4,true,4889.5,248.82605672969967,245.04409146925923,1.0154338153503892,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2009,8407,8102,5170,4940,365,4,false,5055.0,227.73080720809676,219.46889496847865,1.037645025919526,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2010,9386,9337,5156,5170,365,4,true,5163.0,201.83088786548143,200.77722139356487,1.0052479383099497,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2011,11364,10348,6142,5156,365,4,true,5649.0,199.2544453034403,181.44007391763463,1.0981832238113645,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2012,14640,11352,9422,6142,366,4,true,7782.0,250.899577167019,194.55,1.2896405919661733,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2013,10065,12180,7259,9422,365,4,true,8340.5,249.94109195402302,302.4622454048683,0.8263546798029556,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2014,10529,9099,8627,7259,365,4,true,7943.0,318.6278711946368,275.35330990597396,1.157160127486537,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2015,7624,8537,6348,8627,365,4,false,7487.5,320.12855804146653,358.4650445960126,0.8930537659599391,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2016,7178,7329,6039,6348,366,4,false,6193.5,309.2947196070405,315.8011981053218,0.9793969163596671,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2017,7280,8790,4496,6039,365,4,true,5267.5,218.7300910125142,264.0985576923077,0.8282138794084186,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2018,8303,7051,5536,4496,365,4,false,5016.0,259.65678627145087,220.50343249427917,1.1775634661750107,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2019,9493,8638,6301,5536,365,4,false,5918.5,250.08711507293356,227.5626777625619,1.0989812456587174,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2020,7581,5999,7767,6301,366,4,true,7034.0,429.14552425404236,339.591610605461,1.263710618436406,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2021,11325,9977,8863,7767,365,3,false,8315.0,304.1971534529418,267.9889624724062,1.1351107547358925,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2022,15762,13385,11168,8863,365,4,true,10015.5,273.11598804632047,231.92853064331936,1.1775868509525589,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2023,18999,17131,12977,11168,365,4,false,12072.5,257.2215574105423,231.93128585715036,1.1090420874438154,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2024,27651,24519,15627,12977,366,4,false,14302.0,213.4888046005139,189.30714983183248,1.127737672825156,"steady-state approximation (Little's law); mean, not median",false
+FC,TOTAL,2025,32859,20315,28098,15627,365,4,true,21862.5,392.8039625892198,242.8501323838218,1.6174747723357126,"steady-state approximation (Little's law); mean, not median",true
+FC,TOTAL,2026,30845,15349,43536,28098,273,3,true,35817.0,637.047429799987,317.00570594910033,2.009577171151215,"steady-state approximation (Little's law); mean, not median",false

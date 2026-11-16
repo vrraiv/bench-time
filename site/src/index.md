@@ -3,7 +3,7 @@ title: Overview
 toc: false
 ---
 
-# Court Delay Observatory
+# bench-time
 
 <p class="muted">Working draft (local build). How long cases take in Ontario's courts and the federal courts, read as a court-resourcing question: how much of the wait is the institution's?</p>
 
