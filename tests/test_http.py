@@ -98,7 +98,7 @@ def test_rate_limit_per_host(env):
     assert clock.slept == [pytest.approx(4.0)], "default 4 s between requests to a court host"
     c.get("https://www150.statcan.gc.ca/x", source="s_test")  # other host: no wait
     c.get("https://www150.statcan.gc.ca/y", source="s_test")
-    assert clock.slept[-1] == pytest.approx(1.0), "StatCan allowlisted at 1 s"
+    assert clock.slept[-1] == pytest.approx(2.0), "StatCan allowlisted at 2 s (robots Crawl-delay)"
 
 
 def test_tier_guards(env, monkeypatch):
@@ -149,3 +149,14 @@ def test_ext_prefers_url_extension_for_octet_stream():
     assert http._ext_for("text/html; charset=utf-8", "https://h/page.aspx") == "html"
     assert http._ext_for("", "https://h/report.pdf") == "pdf"
     assert http._ext_for("application/octet-stream", "https://h/blob") == "bin"
+
+
+def test_redirect_to_tier3_host_is_refused(env):
+    def handler(request):
+        if request.url.host == "ok.example.ca":
+            return httpx.Response(302, headers={"location": "https://www.canlii.org/en/"})
+        return httpx.Response(200, text="should never be reached")
+
+    c = make_client(handler, FakeClock())
+    with pytest.raises(http.Tier3Error):
+        c.get("https://ok.example.ca/start", source="s_test")

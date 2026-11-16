@@ -38,7 +38,7 @@ DEFAULT_DELAY = 4.0
 
 #: Hosts whose published terms / nature permit faster polling. Seconds between requests.
 FAST_HOSTS: dict[str, float] = {
-    "www150.statcan.gc.ca": 1.0,  # StatCan Web Data Service (public API)
+    "www150.statcan.gc.ca": 2.0,  # StatCan WDS; robots.txt asks Crawl-delay: 2
     "api.a2aj.ca": 1.0,  # A2AJ API
     "huggingface.co": 1.0,
     "datasets-server.huggingface.co": 1.0,
@@ -163,6 +163,8 @@ class Client:
             headers={"User-Agent": user_agent()},
             timeout=timeout,
             follow_redirects=True,
+            # re-check the host on every hop so a redirect cannot reach a Tier 3 site
+            event_hooks={"request": [self._guard_request]},
         )
         self._clock, self._sleep = clock, sleep
         self._default_delay = default_delay
@@ -332,6 +334,12 @@ class Client:
         self.close()
 
     # -- internals ----------------------------------------------------------------------
+
+    @staticmethod
+    def _guard_request(request: httpx.Request) -> None:
+        host = request.url.host or ""
+        if _host_blocked(host):
+            raise Tier3Error(f"redirect/request to Tier 3 host {host} refused")
 
     def _guard(self, url: str, tier: int) -> None:
         host = _host(url)
