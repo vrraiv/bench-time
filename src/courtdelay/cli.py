@@ -48,7 +48,15 @@ def main(argv: list[str] | None = None) -> int:
 
         build_all()
         return 0
-    ids = sorted(mods) if args.source == "all" else [args.source.lower()]
+    if args.source == "all":
+        # Tier 2 crawls run for days; they only start when named explicitly
+        ids = [
+            sid
+            for sid in sorted(mods)
+            if getattr(importlib.import_module(mods[sid]), "TIER", 1) < 2
+        ]
+    else:
+        ids = [args.source.lower()]
     with Client() as client:
         for sid in ids:
             if sid not in mods:
