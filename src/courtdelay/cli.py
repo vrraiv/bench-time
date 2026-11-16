@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     f.add_argument("source", help="source id, e.g. s1, or 'all'")
     f.add_argument("--no-fetch", action="store_true", help="parse cached raw files only")
     sub.add_parser("list", help="list registered sources")
-    sub.add_parser("build", help="build processed outputs (not yet implemented)")
+    sub.add_parser("build", help="build derived aggregate tables")
     args = ap.parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -44,7 +44,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{sid:5s} {mod}")
         return 0
     if args.cmd == "build":
-        print("build: not yet implemented (M2)")
+        from courtdelay.estimate.build import build_all
+
+        build_all()
         return 0
     ids = sorted(mods) if args.source == "all" else [args.source.lower()]
     with Client() as client:

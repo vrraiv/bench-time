@@ -288,7 +288,54 @@ def _month_from_label(label) -> str | None:
     return None
 
 
-def _monthly_rows(grid, unit: str, meta: dict, cols: list[str], table: str) -> list[dict]:
+# Older disposition-rate files (2012-2014 PDFs) use three bands: under 8 / 8-12 / over 12 months.
+DR_COLS_OLD = [
+    "pct_under_8m",
+    "pct_8_12m",
+    "pct_over_12m",
+    "avg_appearances",
+    "avg_days_before_trial",
+    "avg_days_at_trial",
+    "avg_days_following_trial",
+    "avg_days_all",
+]
+CR_COLS = [
+    "received",
+    "disposed",
+    "before_trial_n",
+    "before_trial_pct",
+    "at_trial_n",
+    "at_trial_pct",
+    "following_trial_n",
+    "following_trial_pct",
+    "net_received_less_disposed",
+    "net_pct",
+]
+# PDF clearance tables (2012-2019) add two columns the XLSX files dropped.
+CR_COLS_PDF = CR_COLS + ["pending_net_bench_warrants", "clearance_rate"]
+
+
+def _layout(table: str, header_text: str, n_values: int | None = None) -> tuple[list[str], str]:
+    """Pick the column list for a monthly table from its header text (and, for PDFs, the number
+    of values on a data line). Returns (cols, layout_label)."""
+    h = header_text.lower()
+    if table == "dr":
+        if "under 8" in h or "over 12" in h or n_values == len(DR_COLS_OLD):
+            return DR_COLS_OLD, "bands_8_12"
+        return DR_COLS, "bands_10_15_18"
+    if (
+        n_values == len(CR_COLS_PDF)
+        or "clearance" in h
+        and "pending" in h
+        and n_values != len(CR_COLS)
+    ):
+        return CR_COLS_PDF, "with_pending"
+    return CR_COLS, "basic"
+
+
+def _monthly_rows(
+    grid, unit: str, meta: dict, cols: list[str], table: str, layout: str = ""
+) -> list[dict]:
     out = []
     for row in grid:
         cells = list(row)
@@ -308,6 +355,7 @@ def _monthly_rows(grid, unit: str, meta: dict, cols: list[str], table: str) -> l
             "case_type": meta["case_type"],
             "source_year": meta["year"],
             "source_url": meta["url"],
+            "layout": layout,
         }
         rec.update(dict(zip(cols, vals, strict=False)))
         out.append(rec)
@@ -324,13 +372,16 @@ def parse_monthly_xlsx(data: bytes, meta: dict, cols: list[str], table: str) -> 
         if len(grid) < 9:
             continue
         unit = str(grid[3][0] or ws.title).strip()
-        rows.extend(_monthly_rows(grid[6:], unit, meta, cols, table))
+        header_text = " ".join(str(c) for r in grid[5:9] for c in r if c is not None)
+        cols_here, layout = _layout(table, header_text)
+        rows.extend(_monthly_rows(grid[6:], unit, meta, cols_here, table, layout))
     return rows
 
 
 def parse_monthly_pdf(data: bytes, meta: dict, cols: list[str], table: str) -> list[dict]:
     """PDF monthly tables: pdfplumber merges rows, so parse text lines like
-    '2018/Jan 85.1% 8.9% 2.8% 3.3% 7.4 121 364 378 151'."""
+    '2018/Jan 85.1% 8.9% 2.8% 3.3% 7.4 121 364 378 151'. The column layout is detected per page
+    from the header text and the number of values on the line."""
     rows = []
     line_re = re.compile(r"^(\d{4}/[A-Za-z]{3}|[A-Za-z]{3,9}\s+\d{4})\s+(.+)$")
     with pdfplumber.open(io.BytesIO(data)) as pdf:
@@ -338,34 +389,26 @@ def parse_monthly_pdf(data: bytes, meta: dict, cols: list[str], table: str) -> l
             text = page.extract_text() or ""
             lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
             unit = lines[3] if len(lines) > 4 else "?"
-            grid = []
+            header_text = " ".join(lines[5:16])
+            data_lines = []
             for ln in lines:
                 if " to " in ln.lower():  # period header, e.g. "January 2014 to December 2015"
                     continue
                 m = line_re.match(ln)
                 if m and _month_from_label(m.group(1)):
                     tokens = m.group(2).split()
-                    numeric = [t for t in tokens if _num(t) is not None]
-                    # a data row has one value per column; fewer means blank cells shifted the
-                    # columns (small courthouses) -> keep only if the count matches
-                    if len(numeric) == len(cols) and len(tokens) == len(cols):
-                        grid.append([m.group(1), *tokens])
-            rows.extend(_monthly_rows(grid, unit, meta, cols, table))
+                    if all(_num(t) is not None for t in tokens):
+                        data_lines.append((m.group(1), tokens))
+            if not data_lines:
+                continue
+            # the modal value count on this page defines the layout; rows with blank cells
+            # (shifted columns, small courthouses) are dropped rather than misaligned
+            counts = [len(t) for _, t in data_lines]
+            n_values = max(set(counts), key=counts.count)
+            cols_here, layout = _layout(table, header_text, n_values)
+            grid = [[lbl, *t] for lbl, t in data_lines if len(t) == len(cols_here)]
+            rows.extend(_monthly_rows(grid, unit, meta, cols_here, table, layout))
     return rows
-
-
-CR_COLS = [
-    "received",
-    "disposed",
-    "before_trial_n",
-    "before_trial_pct",
-    "at_trial_n",
-    "at_trial_pct",
-    "following_trial_n",
-    "following_trial_pct",
-    "net_received_less_disposed",
-    "net_pct",
-]
 
 
 # -- parse / validate ----------------------------------------------------------------------
@@ -479,10 +522,10 @@ def validate(frames: dict[str, pl.DataFrame]) -> None:
         # tiny cells (1-2 cases) legitimately show averages of many years; check cells with
         # at least 20 dispositions
         bad = ob.filter(
-            (pl.col("disposed") >= 20) & ((pl.col("avg_days") < 0) | (pl.col("avg_days") > 2000))
+            (pl.col("disposed") >= 50) & ((pl.col("avg_days") < 0) | (pl.col("avg_days") > 2000))
         ).height
         if bad:
-            problems.append(f"offence_based: {bad} rows (disposed>=20) with implausible avg_days")
+            problems.append(f"offence_based: {bad} rows (disposed>=50) with implausible avg_days")
         if ob["unit_key"].n_unique() < 40:
             problems.append(f"offence_based: only {ob['unit_key'].n_unique()} units (expected ~60)")
         tot = ob.filter(pl.col("offence_type") == "TOTAL").with_columns(

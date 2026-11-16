@@ -62,3 +62,7 @@ def test_tcc_workload():
         & (pl.col("fiscal_year") == "2022-23")
     )
     assert filed["value"][0] == 3230
+
+
+def test_impossible_published_date_is_clamped():
+    assert s8._date_from_text("January 1, 2009 to June 31, 2009") == ("2009-01-01", "2009-06-30")

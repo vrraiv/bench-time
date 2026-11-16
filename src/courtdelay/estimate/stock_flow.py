@@ -54,10 +54,13 @@ def ytd_to_period(df: pl.DataFrame) -> pl.DataFrame:
     return d.drop("_year")
 
 
-def identity_check(df: pl.DataFrame, *, tol: int = 5) -> pl.DataFrame:
+def identity_check(df: pl.DataFrame, *, tol: int = 5, rel_tol: float = 0.01) -> pl.DataFrame:
     """For consecutive periods of each (court, subject_matter), compare the published pending
     stock with the stock implied by the previous stock plus net flow. Returns one row per
-    transition with ``gap`` and ``ok``. Requires per-period flows (``commenced_q`` etc.)."""
+    transition with ``gap``, ``rel_gap`` and ``ok`` (|gap| <= max(tol, rel_tol * pending)).
+    Small gaps are expected (reopened and transferred files); large ones mark a break in the
+    published series and the adjacent Little's-law values should not be used.
+    A transition spanning a missing quarter is flagged with ``spans_gap``."""
     d = df.sort(["court", "subject_matter", "period_end"])
     grp = ["court", "subject_matter"]
     d = d.with_columns(
@@ -72,7 +75,15 @@ def identity_check(df: pl.DataFrame, *, tol: int = 5) -> pl.DataFrame:
         ).alias("gap")
     )
     d = d.filter(pl.col("pending_prev").is_not_null())
-    return d.with_columns((pl.col("gap").abs() <= tol).alias("ok")).select(
+    d = d.with_columns(
+        (pl.col("gap") / pl.col("pending")).alias("rel_gap"),
+        (
+            (pl.col("period_end").str.to_date() - pl.col("prev_end").str.to_date()).dt.total_days()
+            > 100
+        ).alias("spans_gap"),
+    )
+    thresh = pl.max_horizontal(pl.lit(float(tol)), pl.col("pending") * rel_tol)
+    return d.with_columns((pl.col("gap").abs() <= thresh).alias("ok")).select(
         [
             "court",
             "subject_matter",
@@ -83,6 +94,8 @@ def identity_check(df: pl.DataFrame, *, tol: int = 5) -> pl.DataFrame:
             "dispositions_q",
             "pending",
             "gap",
+            "rel_gap",
+            "spans_gap",
             "ok",
         ]
     )

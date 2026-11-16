@@ -124,10 +124,15 @@ def _date_from_text(text: str) -> tuple[str | None, str | None]:
     if m1.lower() not in MONTHS or m2.lower() not in MONTHS:
         return None, None
     y1 = y1 or y2
-    return (
-        f"{y1}-{MONTHS[m1.lower()]:02d}-{int(d1):02d}",
-        f"{y2}-{MONTHS[m2.lower()]:02d}-{int(d2):02d}",
-    )
+    import calendar
+
+    def _iso(y: str, mon: str, d: str) -> str:
+        # the court occasionally publishes impossible dates ("June 31, 2009"): clamp to month end
+        mi = MONTHS[mon.lower()]
+        day = min(int(d), calendar.monthrange(int(y), mi)[1])
+        return f"{y}-{mi:02d}-{day:02d}"
+
+    return _iso(y1, m1, d1), _iso(y2, m2, d2)
 
 
 def _colmap(header_cells: list[str]) -> dict[int, str]:
