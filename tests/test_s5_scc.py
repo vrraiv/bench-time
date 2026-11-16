@@ -44,3 +44,15 @@ def test_missing_table_raises():
 
     with pytest.raises(ValueError):
         s5.parse_html("<html><body><table><tr><td>x</td></tr></table></body></html>", page_year=1)
+
+
+def test_archived_cat5_page():
+    df = s5.parse_archived_cat5((paths.fixtures_dir("s5") / "cat5_archived_2013.html").read_bytes())
+    assert df.height == 33 and df["year"].min() == 2002 and df["year"].max() == 2012
+    hj = df.filter(pl.col("item") == "Between hearing and judgment").sort("year")
+    assert hj["value"][0] == 5.6 and hj["value"][-1] == 6.4
+    stages = {
+        next(k for k, rx in s5.TIME_LAPSE_ITEMS.items() if rx.search(i))
+        for i in df["item"].unique()
+    }
+    assert stages == set(s5.TIME_LAPSE_ITEMS)
