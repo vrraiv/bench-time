@@ -61,18 +61,23 @@ MONTH_NUM = {
 # "January 15, 2020" / "January 15 and 16, 2020" / "15 janvier 2020" / "2020-01-15" / "20200115"
 DATE_EN = rf"(?:{_MONTHS_EN})\s+\d{{1,2}}(?:\s*(?:,|and|&|-|–|to)\s*\d{{1,2}})*,?\s+\d{{4}}"
 DATE_FR = (
-    rf"(?:le\s+)?\d{{1,2}}(?:er)?(?:\s*(?:,|et|-|–|au)\s*\d{{1,2}}(?:er)?)*"
+    rf"(?:les?\s+)?\d{{1,2}}(?:er)?(?:\s*(?:,|et|-|–|au)\s*\d{{1,2}}(?:er)?)*"
     rf"\s+(?:{_MONTHS_FR})\s+\d{{4}}"
 )
 DATE_ISO = r"\d{4}-\d{2}-\d{2}"
 DATE_ANY = rf"({DATE_EN}|{DATE_FR}|{DATE_ISO})"
+DATE_ANY_RE = re.compile(DATE_ANY, re.I)
 
-HEARING_RE = re.compile(
-    rf"(?:heard\s+(?:at\s+[^,\n:]{{1,60}}?,?\s+)?on|heard|hearing\s+date|date\s+of\s+hearing|hearing|"
-    rf"entendu(?:e)?\s+(?:à\s+[^,\n:]{{1,60}}?,?\s+)?le|entendu(?:e)?|date\s+de\s+l['’]audience|audience)"
-    rf"\s*:?\s*(?:at\s+[^,\n:]{{1,60}}?,?\s+on\s+)?(?:le\s+)?{DATE_ANY}",
+# Hearing-date detection is keyword + window: find a hearing keyword, then take the first date
+# within the next HEARING_WINDOW characters (at most two lines). Covers "Heard at Toronto,
+# Ontario, on April 3, 2023", "Heard: November 20, 2023", "Audience tenue à Montréal (Québec),
+# les 7 et 8 décembre 2021", "Appeal heard: October 7, 2020".
+HEARING_KEYWORD_RE = re.compile(
+    r"(?:appeal\s+heard|heard|hearing\s+date|date\s+of\s+hearing|hearing|"
+    r"audience|entendu(?:e)?|date\s+de\s+l['’]audience)\s*:?",
     re.I,
 )
+HEARING_WINDOW = 160
 JUDGMENT_RE = re.compile(
     rf"(?:judgment\s+(?:delivered|rendered)?(?:\s+at\s+[^,\n:]{{1,60}}?,?)?\s*(?:on)?|date\s+of\s+judgment|"
     rf"jugement\s+(?:rendu)?(?:\s+à\s+[^,\n:]{{1,60}}?,?)?\s*(?:le)?|date\s+du\s+jugement|decision\s+date|date)"
@@ -96,7 +101,8 @@ JUDGES_RE = re.compile(
     re.I,
 )
 LOWER_COURT_DATE_RE = re.compile(
-    rf"on\s+appeal\s+from[^\n]{{0,300}}?dated\s+{DATE_ANY}|en\s+appel[^\n]{{0,300}}?(?:daté|datée|en\s+date)\s+du\s+{DATE_ANY}",
+    rf"on\s+appeal\s+from.{{0,300}}?dated\s+{DATE_ANY}|"
+    rf"en\s+appel.{{0,300}}?(?:daté|datée|en\s+date)\s+du\s+{DATE_ANY}",
     re.I | re.S,
 )
 
@@ -143,8 +149,14 @@ def parse_header(text: str | None, court: str) -> dict:
         return res
     head = text[:HEADER_CHARS]
     dates: list[date] = []
-    for m in HEARING_RE.finditer(head):
-        dates.extend(_parse_date(m.group(1)))
+    for m in HEARING_KEYWORD_RE.finditer(head):
+        window = head[m.end() : m.end() + HEARING_WINDOW]
+        # stay within the keyword's line and the next one
+        parts = window.split("\n")
+        window = "\n".join(parts[:2])
+        dm = DATE_ANY_RE.search(window)
+        if dm:
+            dates.extend(_parse_date(dm.group(1)))
     dates = sorted(set(dates))
     if dates:
         res["hearing_date"] = dates[0]
