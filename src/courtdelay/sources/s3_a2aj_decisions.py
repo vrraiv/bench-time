@@ -331,8 +331,18 @@ def parse_court(court: str, path, meta: dict) -> pl.DataFrame:
         .with_columns(
             (pl.col("decision_date") - pl.col("hearing_last_date"))
             .dt.total_days()
-            .alias("reserve_days")
+            .alias("_reserve_raw")
         )
+        .with_columns(
+            # a hearing date after the decision date is a parse error (another date in the
+            # window); keep the row, null the duration, and flag it
+            pl.when(pl.col("_reserve_raw") >= 0)
+            .then(pl.col("_reserve_raw"))
+            .otherwise(None)
+            .alias("reserve_days"),
+            (pl.col("_reserve_raw") < 0).fill_null(False).alias("hearing_after_decision"),
+        )
+        .drop("_reserve_raw")
     )
     # drop tz-aware datetimes (tzdata not guaranteed on Windows; dates are what we keep)
     return out.drop(date_cols)
@@ -391,7 +401,7 @@ def validate(df: pl.DataFrame) -> None:
         recent = d.filter(pl.col("decision_date").dt.year() >= 2015)
         oral = recent.filter(pl.col("hearing_mode").fill_null("unknown") != "written")
         rate = oral["hearing_date"].is_not_null().mean() if oral.height else 0.0
-        neg = recent.filter(pl.col("reserve_days") < 0).height
+        neg = recent.filter(pl.col("hearing_after_decision")).height
         huge = recent.filter(pl.col("reserve_days") > 1500).height
         log.info(
             "S3 %s: n=%d (since 2015: %d), hearing rate among non-written %.1f%%, "

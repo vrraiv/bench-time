@@ -84,6 +84,17 @@ def unit_type(unit: str) -> str:
     return "courthouse"
 
 
+def unit_key(unit: str) -> str:
+    """Stable key across spelling variants: '311 Jarvis  St.' / '311 Jarvis St.',
+    'North West Overview' / 'Northwest Overview', 'Ontario Overview' / 'Provincial Overview'."""
+    u = re.sub(r"\s+", " ", unit.strip().lower()).replace(".", "")
+    u = u.replace("north west", "northwest").replace("north east", "northeast")
+    u = u.replace("st thomas", "st thomas").replace("st.thomas", "st thomas")
+    if u in {"ontario overview", "provincial overview", "ontario"}:
+        return "provincial overview"
+    return u
+
+
 def _num(s) -> float | None:
     if s is None:
         return None
@@ -184,6 +195,7 @@ def _ob_rows(grid: list[list], unit: str, period: tuple, meta: dict) -> list[dic
         rec = {
             "unit": unit,
             "unit_type": unit_type(unit),
+            "unit_key": unit_key(unit),
             "period_start": start,
             "period_end": end,
             "case_type": meta["case_type"],
@@ -291,6 +303,7 @@ def _monthly_rows(grid, unit: str, meta: dict, cols: list[str], table: str) -> l
         rec = {
             "unit": unit,
             "unit_type": unit_type(unit),
+            "unit_key": unit_key(unit),
             "month": month,
             "case_type": meta["case_type"],
             "source_year": meta["year"],
@@ -327,9 +340,16 @@ def parse_monthly_pdf(data: bytes, meta: dict, cols: list[str], table: str) -> l
             unit = lines[3] if len(lines) > 4 else "?"
             grid = []
             for ln in lines:
+                if " to " in ln.lower():  # period header, e.g. "January 2014 to December 2015"
+                    continue
                 m = line_re.match(ln)
                 if m and _month_from_label(m.group(1)):
-                    grid.append([m.group(1), *m.group(2).split()])
+                    tokens = m.group(2).split()
+                    numeric = [t for t in tokens if _num(t) is not None]
+                    # a data row has one value per column; fewer means blank cells shifted the
+                    # columns (small courthouses) -> keep only if the count matches
+                    if len(numeric) == len(cols) and len(tokens) == len(cols):
+                        grid.append([m.group(1), *tokens])
             rows.extend(_monthly_rows(grid, unit, meta, cols, table))
     return rows
 
@@ -406,10 +426,33 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
         else pl.DataFrame(),
     }
     for name, df in frames.items():
-        if df.height:
-            df = df.unique()
-            frames[name] = df
-            df.write_parquet(out / f"{name}.parquet")
+        if not df.height:
+            continue
+        df = df.unique()
+        if name != "offence_based":
+            # each monthly file spans two years, so every month appears in two files; keep the
+            # most recent file's row (later files carry revisions) and log how many differed
+            key = ["unit_key", "month", "case_type"]
+            value_cols = [
+                c
+                for c in df.columns
+                if c not in key + ["unit", "unit_type", "source_year", "source_url"]
+            ]
+            dup = df.group_by(key).agg(
+                pl.len().alias("n"), *[pl.col(c).n_unique().alias(c) for c in value_cols]
+            )
+            revised = dup.filter(
+                (pl.col("n") > 1) & pl.any_horizontal([pl.col(c) > 1 for c in value_cols])
+            ).height
+            df = df.sort("source_year", descending=True).unique(subset=key, keep="first")
+            log.info(
+                "S7 %s: %d month-rows after dedupe; %d (unit, month) cells revised between files",
+                name,
+                df.height,
+                revised,
+            )
+        frames[name] = df
+        df.write_parquet(out / f"{name}.parquet")
     pl.DataFrame(logrows, infer_schema_length=None).write_parquet(out / "parse_log.parquet")
     return frames
 
@@ -433,26 +476,47 @@ def validate(frames: dict[str, pl.DataFrame]) -> None:
             problems.append(f"offence_based: only {len(years)} source years")
         if prov.height == 0:
             problems.append("offence_based: no provincial TOTAL rows")
-        bad = ob.filter((pl.col("avg_days") < 0) | (pl.col("avg_days") > 2000)).height
+        # tiny cells (1-2 cases) legitimately show averages of many years; check cells with
+        # at least 20 dispositions
+        bad = ob.filter(
+            (pl.col("disposed") >= 20) & ((pl.col("avg_days") < 0) | (pl.col("avg_days") > 2000))
+        ).height
         if bad:
-            problems.append(f"offence_based: {bad} rows with implausible avg_days")
-        if ob["unit"].n_unique() < 40:
-            problems.append(f"offence_based: only {ob['unit'].n_unique()} units (expected ~60)")
+            problems.append(f"offence_based: {bad} rows (disposed>=20) with implausible avg_days")
+        if ob["unit_key"].n_unique() < 40:
+            problems.append(f"offence_based: only {ob['unit_key'].n_unique()} units (expected ~60)")
+        tot = ob.filter(pl.col("offence_type") == "TOTAL").with_columns(
+            (
+                pl.col("before_trial_total")
+                + pl.col("at_trial_total")
+                + pl.col("following_trial_total")
+                - pl.col("disposed")
+            ).alias("gap")
+        )
+        off = tot.filter(pl.col("gap").abs() > 1).height
+        if off > 0.02 * max(tot.height, 1):
+            problems.append(
+                f"offence_based: {off}/{tot.height} TOTAL rows where routes != disposed"
+            )
     dr = frames["disposition_rate_monthly"]
     if dr.height == 0:
         problems.append("disposition_rate: no rows")
     else:
         months = dr["month"].unique().sort()
         log.info("S7 disposition_rate: %d rows, months %s..%s", dr.height, months[0], months[-1])
-        shares = dr.select(
-            pl.sum_horizontal("pct_under_10m", "pct_10_15m", "pct_15_18m", "pct_over_18m").alias(
-                "s"
-            )
-        )
+        pcts = ["pct_under_10m", "pct_10_15m", "pct_15_18m", "pct_over_18m"]
+        full = dr.filter(pl.all_horizontal([pl.col(c).is_not_null() for c in pcts]))
+        shares = full.select(pl.sum_horizontal(*pcts).alias("s"))
         off = shares.filter((pl.col("s") < 0.97) | (pl.col("s") > 1.03)).height
-        if off > 0.05 * dr.height:
+        log.info(
+            "S7 disposition_rate: %d/%d rows with all four shares; %d do not sum to 1",
+            full.height,
+            dr.height,
+            off,
+        )
+        if off > 0.05 * max(full.height, 1):
             problems.append(
-                f"disposition_rate: {off}/{dr.height} rows whose shares do not sum to 1"
+                f"disposition_rate: {off}/{full.height} complete rows whose shares do not sum to 1"
             )
     cr = frames["clearance_rate_monthly"]
     if cr.height == 0:

@@ -204,17 +204,21 @@ request); add the real hostname once the owner confirms it.
   reproduction permitted; privacy notice says no personal data gathered automatically. No clause
   on automated querying found.
 
-### S11 — FCA recorded entries — **UNVERIFIED**
+### S11 — FCA recorded entries — **UNVERIFIED (entry point not found in static HTML)**
 
-- `https://www.fca-caf.ca/en/pages/court-files` is 404. Court-files search location not yet
-  found; Important Notices page is standard GoC boilerplate.
+- `https://www.fca-caf.ca/en/pages/court-files` is 404. The home page
+  (`/en/home`), About, Statistics, Decisions and Important Notices pages contain no link whose
+  text or href mentions court files, dockets or case search, so the court-files search is
+  reached through script-rendered navigation (not followed: no JavaScript execution, no search
+  queries). Next step (Tier 2, needs the contact email): open the home page in a browser session
+  with the owner, note the search URL and request pattern, then read its terms.
 
-### S12 — TCC docket — **UNVERIFIED**
+### S12 — TCC docket — **UNVERIFIED (same situation as S11)**
 
-- `tcc-cci.gc.ca` host is dead for these paths; `www.tcc-cci.ca/en/pages/court-files-and-decisions/
-  court-files` is also 404. Practice Note 16 ("privacy and public access to court files") and the
-  "Preliminary Ruling Docket" practice note are linked from the notices page. Search location
-  not yet found.
+- `tcc-cci.gc.ca` paths are dead; `www.tcc-cci.ca/en/pages/court-files-and-decisions/court-files`
+  is 404. Home, FAQ, notices and reports pages carry no static court-files link. Practice Note 16
+  ("privacy and public access to court files") is the relevant policy document (PDF linked from the
+  notices page; not yet read). Same next step as S11.
 
 ---
 
@@ -266,4 +270,30 @@ and Ontario tables present in the latest snapshot. Caveats: the "as of" date is 
 (first of month), captures are irregular, and pre-2015 page layouts name "Yukon Territory".
 Processed: `data/processed/s9/judges_snapshots.parquet`, `parse_failures.parquet`.
 
-**S7 (OCJ) and S3 (A2AJ)**: see the session summary; fetch in progress at time of writing.
+**S2 (StatCan civil).** 35-10-0112 (1,020 Canada+Ontario rows) and 35-10-0114 (1,800 rows)
+downloaded and tidied; counts only, used as denominators. Not yet inspected beyond validation.
+
+**S3 (A2AJ decisions).** Five parquet files (1.76 GB raw, cached): SCC 10,900 decisions
+(1877–2026), FCA 7,838, FC 36,156, TCC 8,149, ONCA 24,298. Derived fields only are stored
+(`decisions_meta.parquet`): citation, decision date, URL, upstream licence, text length,
+hearing date(s) and mode, file numbers, judges line (header labels only), TCC procedure, ONCA
+lower-court date, reserve days. **Hearing-date coverage since 2015, decisions not disposed of in
+writing:** FC 97 %, FCA 99.8 %, ONCA 90 %, SCC 99 %, TCC 95 %. SCC before 2016 relies on the
+S.C.R. headnote date line and reaches ~84 % for 2005–2015 and ~0 % before 2005. Hearing dates
+come from three places: the header ("Heard:", "Appeal heard:", "Audience tenue … le"), the FC
+solicitors-of-record block at the end ("DATE OF HEARING:"), or the SCC headnote. "Dealt with in
+writing" / "sans comparution" marks `hearing_mode = written` (FCA 12 %, FC 4 %). About 1 % of rows
+have a parsed hearing date after the decision date (another date in the window); those keep a
+null reserve time and `hearing_after_decision = true`.
+Cross-checks: S3 mean hearing→judgment for the SCC tracks the Court's published S5 averages
+within ~0.3 months in 13 of 16 years 2010–2025 (e.g. 2024: 6.6 vs 6.3; 2017: 4.6 vs 4.6);
+ONCA 2024 mean hearing→decision 60 days (n = 787, median 13, p90 187) against the annual
+report's ~65 days for civil appeals. Decision dates match the "Date:" header line on 99.9 % of
+rows (no UTC day shift). `upstream_license` is the same CanLII-style notice for all five courts
+("Users are responsible for identifying and complying with all legal restrictions on the
+reproduction or publication of these documents…"), which does not state a licence; treat as
+non-commercial, attribution, not indexable, and ask the owner how to read it.
+Bias: published written decisions only; oral rulings and unreported dispositions absent.
+
+**S7 (OCJ).** Fetch complete (90 files); parse and validation notes to follow once the dedupe pass
+finishes (see session summary).
