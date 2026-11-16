@@ -1,0 +1,16 @@
+{
+  "name": "bench-time-site",
+  "private": true,
+  "type": "module",
+  "description": "Court Delay Observatory static site (Observable Framework). Local builds only; no deployment configured.",
+  "scripts": {
+    "dev": "observable preview",
+    "build": "observable build"
+  },
+  "dependencies": {
+    "@observablehq/framework": "1.13.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

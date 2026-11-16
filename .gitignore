@@ -231,3 +231,4 @@ site/src/data/*.csv
 
 # session prompt files live outside the repo history
 CLAUDE_CODE_PROMPT.md
+site/src/.observablehq/
