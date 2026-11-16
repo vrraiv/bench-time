@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- bench-time project ---
+data/raw/
+data/processed/
+site/dist/
+site/.observablehq/cache/
+.env
