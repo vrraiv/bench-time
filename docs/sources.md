@@ -9,14 +9,24 @@ configured)`; no Tier 2 docket queries were made and no Tier 3 host was contacte
 Status legend: **OK** works as described in the handoff · **MOVED** works at a different URL ·
 **PARTIAL** works with caveats · **BLOCKED** refused or forbidden · **UNVERIFIED** not yet checked.
 
-Robots summary: `www150.statcan.gc.ca` asks `Crawl-delay: 2` (we use 1 s for the WDS API, which
-is an API, not a crawl; raise to 2 s if anyone objects). `huggingface.co`, `www.a2aj.ca`,
-`www.scc-csc.ca`, `www.fja.gc.ca`, `www.fct-cf.ca`, `www.fca-caf.ca`, `www.tcc-cci.ca`: no
-restriction relevant to us (empty or allow-all; SCC disallows only two case documents and
-`/cso-dce/`). `www.ontariocourts.ca` disallows `/decisions/`, `/coa/en/*`, `/search/`,
-`/statisticslogs/` etc.; `/ocj/statistics/` and `/ocj/files/stats/` are allowed.
-`api.a2aj.ca` robots.txt carries Cloudflare "content signals" boilerplate (no explicit
-search/ai-input/ai-train values set) and the API description itself prohibits systematic scraping.
+Robots summary (re-read from the cached files by final host, 2026-11-16):
+- `www150.statcan.gc.ca` (200, text): `Crawl-delay: 2` for `*` → the client now waits 2 s.
+  `www.statcan.gc.ca` (200): standard Drupal file, nothing relevant.
+- `www.scc-csc.ca` (200): disallows only two case documents and `/cso-dce/`.
+- `www.ontariocourts.ca` (200): disallows `/decisions/`, `/coa/en/*`, `/search/`,
+  `/statisticslogs/`, `/ocj/jprc/…` etc.; `/ocj/statistics/` and `/ocj/files/stats/` are allowed.
+- `huggingface.co`, `www.a2aj.ca` (200): `Allow: /`.
+- `api.a2aj.ca` (200): Cloudflare "content signals" boilerplate with no explicit values; the API
+  description itself prohibits systematic scraping.
+- **No robots.txt at all (HTTP 404 HTML error pages)**: `www.fct-cf.ca`, `www.fca-caf.ca`,
+  `www.tcc-cci.ca`, `www.fja.gc.ca`, `www.fja-cmf.gc.ca`, `www.cas-satj.gc.ca`,
+  `web.archive.org`. The `*.gc.ca` court hosts redirect to the `.ca` hosts first. Absence of a
+  robots file means no stated restriction, not an explicit allowance; we keep 4 s per host.
+- `collections.ola.org/robots.txt` redirects to the library's discovery UI (HTML), i.e. none.
+
+The Tier 3 blocklist entry for the Ontario Courts Public Portal uses the hostname
+`ontariocourts.on.ca`, which is an **unverified guess** (we did not look it up, to avoid any
+request); add the real hostname once the owner confirms it.
 
 ---
 
@@ -34,7 +44,7 @@ search/ai-input/ai-train values set) and the API description itself prohibits sy
   1994–2024 (fiscal years), 133,152 series, released 2026-10-01, status CURRENT.
 - Format: CSV in zip. Licence: [Statistics Canada Open Licence]
   (https://www.statcan.gc.ca/en/terms-conditions/open-licence) (the handoff's "Open Government
-  Licence" is the wrong name; attribution required).
+  Licence" is the wrong name; attribution required). Request spacing 2 s per robots.txt.
 - Surprise: the WDS user guide moved to `https://www.statcan.gc.ca/en/developers/wds/user-guide`.
   Whole-table download is far cheaper than per-vector calls; we filter Canada/Ontario locally.
 - Data note: see S1 section at the bottom once fetched.
