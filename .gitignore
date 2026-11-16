@@ -225,3 +225,6 @@ data/processed/
 site/dist/
 site/.observablehq/cache/
 .env
+
+# session prompt files live outside the repo history
+CLAUDE_CODE_PROMPT.md
