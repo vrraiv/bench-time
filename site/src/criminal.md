@@ -28,25 +28,29 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Definition: median days from first appearance to final decision, adult criminal court cases completed in the year, all Criminal Code offences. n (cases per year) is in the CSV. No sampling interval: a census of completed cases. Bias: completed cases only; delay cannot be attributed to Crown, defence or court. Source: Statistics Canada table 35-10-0029-01, release 2026-10-01.</p>
+<p class="muted">Definition: median days from first appearance to final decision, adult criminal court cases completed in the year, all Criminal Code offences. n (cases per year) is in the CSV. No sampling interval: a census of completed cases. Bias: completed cases only; delay cannot be attributed to Crown, defence or court. Source: Statistics Canada table 35-10-0029-01, release 2026-10-01; fetched 2026-11-16.</p>
 
 ## Ontario Court of Justice: share of cases disposed after 18 months
 
 ```js
-const ocj = dr.filter(d => d.case_type === "all" && d.pct_over_18m != null).map(d => ({...d, date: new Date(d.month + "-01")}));
+// typed CSV parsing turns "2024-04" into a Date; accept either form
+const asDate = v => v instanceof Date ? v : new Date(String(v).length === 7 ? v + "-01" : v);
+const ocj = dr.filter(d => d.case_type === "all" && d.pct_over_18m != null).map(d => ({...d, date: asDate(d.month)}));
 display(Plot.plot({
   y: {label: "% disposed after 18 months", percent: true, grid: true}, x: {label: null},
   marks: [Plot.lineY(ocj, {x: "date", y: "pct_over_18m", tip: true})]
 }));
 ```
 
-<p class="muted">Definition: monthly share of OCJ criminal cases disposed more than 18 months after first appearance (cases without bench warrants). Coverage 2015 onward in this band layout; 2012–2014 files use 8- and 12-month bands. Bias: Ministry of the Attorney General data, which the Court disclaims; completed cases only. Source: OCJ Disposition Rate Statistics.</p>
+<p class="muted">Definition: monthly share of OCJ criminal cases disposed more than 18 months after first appearance (cases without bench warrants). Coverage 2015 onward in this band layout; 2012–2014 files use 8- and 12-month bands. Bias: Ministry of the Attorney General data, which the Court disclaims; completed cases only. Source: OCJ Disposition Rate Statistics; fetched 2026-11-15. 2023 provincial figures exclude Toronto (data-integrity issues after the Toronto courthouse amalgamation).</p>
 
 ## Courthouse panel
 
 ```js
-const latest = d3.max(ch, d => d.period_end);
-const rows = ch.filter(d => d.period_end === latest && d.disposed >= 500).sort((a, b) => d3.descending(a.avg_days_weighted, b.avg_days_weighted));
+const ts = v => +(v instanceof Date ? v : new Date(v));
+const latestTs = d3.max(ch, d => ts(d.period_end));
+const latest = new Date(latestTs).toISOString().slice(0, 10);
+const rows = ch.filter(d => ts(d.period_end) === latestTs && d.disposed >= 500).sort((a, b) => d3.descending(a.avg_days_weighted, b.avg_days_weighted));
 display(Plot.plot({
   marginLeft: 160, height: rows.length * 16 + 40,
   x: {label: "average days to disposition", grid: true},
@@ -54,4 +58,4 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Definition: disposal-weighted average days to disposition across offence groups, period ending ${latest}, courthouses with at least 500 dispositions. Bias: averages, not medians; calendar years to 2019 and fiscal years from 2020 (definition break); courthouse names vary across years and are normalised.</p>
+<p class="muted">Definition: disposal-weighted average days to disposition across offence groups, period ending ${latest}, courthouses with at least 500 dispositions. Bias: averages, not medians; calendar years to 2019 and fiscal years from 2020 (definition break); courthouse names vary across years and are normalised; Toronto courthouses were amalgamated in 2023 and Toronto is absent from 2023 data. Source: OCJ Offence Based Statistics; fetched 2026-11-15.</p>

@@ -13,7 +13,7 @@ const leave = FileAttachment("data/s4_fc_immigration_leave_by_cohort.csv").csv({
 ## Federal Court stock and flow
 
 ```js
-const q = fcq.map(d => ({...d, date: new Date(d.period_end)}));
+const q = fcq.map(d => ({...d, date: d.period_end instanceof Date ? d.period_end : new Date(d.period_end)}));
 display(Plot.plot({
   y: {label: "pending proceedings", grid: true}, x: {label: null},
   marks: [Plot.lineY(q, {x: "date", y: "pending", tip: true})]
@@ -27,7 +27,7 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Definition: Little's law, W = average pending ÷ quarterly disposal rate. Steady-state approximation of the mean, not a median. Red crosses mark quarters where the published stock does not reconcile with the published flows (gap above 1% of the stock); do not read those values. Source: Federal Court quarterly Activity Summaries, 2003–2026.</p>
+<p class="muted">Definition: Little's law, W = average pending ÷ quarterly disposal rate. Steady-state approximation of the mean, not a median. Red crosses mark quarters where the published stock does not reconcile with the published flows (gap above 1% of the stock); do not read those values. Source: Federal Court quarterly Activity Summaries, 2003–2026; fetched 2026-11-15.</p>
 
 ## Immigration judicial review: time to a leave decision, by filing year
 
@@ -42,7 +42,7 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Definition: Kaplan–Meier median days from filing to the leave decision, by filing-year cohort. Files closed before a leave decision (discontinued, cancelled) are censored at their closing date; files still open in November 2022 are censored then. Medians that the curve never reaches are omitted (recent cohorts). Bias: immigration files only; events classified from docket text by pattern rules. Source: Refugee Law Lab, Luck of the Draw III (CC BY-NC 4.0).</p>
+<p class="muted">Definition: Kaplan–Meier median days from filing to the leave decision, by filing-year cohort. Files closed before a leave decision (discontinued, cancelled) are censored at their closing date; files still open in November 2022 are censored then. Medians that the curve never reaches are omitted (recent cohorts). Bias: immigration files only; events classified from docket text by pattern rules. Source: Refugee Law Lab, Luck of the Draw III (CC BY-NC 4.0), scraped November 2022; fetched 2026-11-15.</p>
 
 ```js
 display(Inputs.table(leave, {columns: ["filing_year", "n_dockets", "leave_decided_share", "grant_rate", "discontinued_share"], format: {leave_decided_share: d3.format(".0%"), grant_rate: d3.format(".0%"), discontinued_share: d3.format(".0%")}}));

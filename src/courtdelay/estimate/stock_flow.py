@@ -152,6 +152,11 @@ def annual_rollup(d: pl.DataFrame) -> pl.DataFrame:
             pl.col("pending_prev").first().alias("pending_start"),
             pl.col("days").sum().alias("days"),
             pl.len().alias("n_periods"),
+            *(
+                [pl.col("identity_ok").fill_null(True).all().alias("identity_ok")]
+                if "identity_ok" in d.columns
+                else [pl.lit(True).alias("identity_ok")]
+            ),
         )
         .sort(["court", "subject_matter", "year"])
     )
@@ -177,4 +182,6 @@ def annual_rollup(d: pl.DataFrame) -> pl.DataFrame:
         pl.lit("steady-state approximation (Little's law); mean, not median").alias(
             "bias_statement"
         ),
+        # publishable only with a full year of quarters that all reconcile (docs/methods.md E2)
+        ((pl.col("n_periods") == 4) & pl.col("identity_ok")).alias("publishable"),
     )

@@ -93,3 +93,11 @@ def test_clearance_rate_xlsx():
         0, named=True
     )
     assert (r["received"], r["disposed"], r["net_received_less_disposed"]) == (21265, 22053, -788)
+
+
+def test_unit_keys_and_types():
+    assert s7.unit_key("St.Thomas") == s7.unit_key("St. Thomas") == "st thomas"
+    assert s7.unit_key("311 Jarvis  St.") == s7.unit_key("311 Jarvis St.")
+    assert s7.unit_key("North West Overview") == s7.unit_key("Northwest Overview")
+    assert s7.unit_key("Ontario Overview") == s7.unit_key("Provincial Overview")
+    assert s7.unit_type("Provincial Overview, Less Toronto") == "province_ex_toronto"

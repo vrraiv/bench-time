@@ -84,7 +84,11 @@ def build_s6(derived: Path, site: Path) -> None:
 def build_s8(derived: Path, site: Path) -> dict[str, pl.DataFrame]:
     out = {}
     for court, fname, total_rx in (
-        ("FC", "fc_activity.parquet", r"(?i)^(grand total|total federal court|total)$"),
+        (
+            "FC",
+            "fc_activity.parquet",
+            r"(?i)^(grand total|total federal court|total trial division|total)$",
+        ),
         ("FCA", "fca_activity.parquet", r"(?i)^total$"),
     ):
         p = paths.processed_dir() / "s8" / fname

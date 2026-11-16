@@ -39,7 +39,6 @@ DEFAULT_DELAY = 4.0
 #: Hosts whose published terms / nature permit faster polling. Seconds between requests.
 FAST_HOSTS: dict[str, float] = {
     "www150.statcan.gc.ca": 2.0,  # StatCan WDS; robots.txt asks Crawl-delay: 2
-    "api.a2aj.ca": 1.0,  # A2AJ API
     "huggingface.co": 1.0,
     "datasets-server.huggingface.co": 1.0,
     "web.archive.org": 2.0,  # Wayback: polite but it is built for this

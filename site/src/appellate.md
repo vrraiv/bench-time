@@ -19,7 +19,7 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Averages by file number as published by the Court, 2002–2025 (2002–2009 from the Court's former statistics page via the Internet Archive). No distributions are published.</p>
+<p class="muted">Averages by file number as published by the Court, 2002–2025 (2002–2009 from the Court's former statistics page via the Internet Archive). No distributions are published. Fetched 2026-11-16.</p>
 
 ## ONCA appeal phases (court-published averages, by filing year)
 
@@ -32,7 +32,7 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Phases: filing → ready for scheduling (largely party-driven), ready → hearing (waiting for a hearing date: closest to institutional delay), hearing → decision (reserve). Appeals heard and decided on their merits only. Source: ONCA Annual Report 2023–2024, statistical appendix.</p>
+<p class="muted">Phases: filing → ready for scheduling (largely party-driven), ready → hearing (waiting for a hearing date: closest to institutional delay), hearing → decision (reserve). Appeals heard and decided on their merits only. Source: ONCA Annual Report 2023–2024, statistical appendix; fetched 2026-11-15.</p>
 
 ## Reserve time from published decisions (hearing → decision)
 
@@ -48,4 +48,4 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Definition: median days from the last hearing day to the decision, per decision year, with 95% bootstrap CIs; p90 and n in tooltips. Bias: published written decisions only; oral rulings and unreported decisions are absent; matters decided in writing are excluded; hearing dates are parsed from unofficial texts (coverage by court-year in the CSV). Source: A2AJ Canadian Case Law (derived fields only).</p>
+<p class="muted">Definition: median days from the last hearing day to the decision, per decision year, with 95% bootstrap CIs; p90 and n in tooltips. Bias: published written decisions only; oral rulings and unreported decisions are absent; matters decided in writing are excluded; hearing dates are parsed from unofficial texts (coverage by court-year in the CSV). Source: A2AJ Canadian Case Law (derived fields only), dataset version of 2026-11-15.</p>

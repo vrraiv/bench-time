@@ -13,9 +13,12 @@ Robots summary (re-read from the cached files by final host, 2026-11-16):
 - `www150.statcan.gc.ca` (200, text): `Crawl-delay: 2` for `*` → the client now waits 2 s.
   `www.statcan.gc.ca` (200): standard Drupal file, nothing relevant.
 - `www.scc-csc.ca` (200): disallows only two case documents and `/cso-dce/`.
-- `www.ontariocourts.ca` (200): disallows `/decisions/`, `/coa/en/*`, `/search/`,
-  `/statisticslogs/`, `/ocj/jprc/…` etc.; `/ocj/statistics/` and `/ocj/files/stats/` are allowed.
-- `huggingface.co`, `www.a2aj.ca` (200): `Allow: /`.
+- `www.ontariocourts.ca` (200, 1,299 bytes, `User-agent: *` only, no crawl-delay): disallows
+  `/decisions/`, `/coa/en/*`, `/search/`, `/statisticslogs/`, `/coafiles/`, `/scj/files/archive/`
+  etc. Checked with the stdlib parser: `/ocj/statistics/`, `/ocj/files/stats/…` and
+  `/coa/files/annual-reports/…` are allowed.
+- `huggingface.co`, `www.a2aj.ca` (200): `Allow: /`. The client uses 1 s for Hugging Face and the
+  4 s default for `api.a2aj.ca` (published limit 1,000 requests/hour; we made 3 requests).
 - `api.a2aj.ca` (200): Cloudflare "content signals" boilerplate with no explicit values; the API
   description itself prohibits systematic scraping.
 - **No robots.txt at all (HTTP 404 HTML error pages)**: `www.fct-cf.ca`, `www.fca-caf.ca`,
@@ -52,7 +55,7 @@ request); add the real hostname once the owner confirms it.
 ### S2 — StatCan Civil Court Survey (WDS) — **OK**
 
 - 35-10-0112-01 and 35-10-0114-01 both resolve through `getFullTableDownloadCSV`. Same mechanics
-  and licence as S1. Not fetched this session (denominators only; low priority).
+  and licence as S1. Fetched and tidied (see data note); denominators only, not yet used.
 
 ### S3 — A2AJ Canadian Legal Data — **PARTIAL (use parquet, not API)**
 
@@ -85,7 +88,7 @@ request); add the real hostname once the owner confirms it.
 - Fields: `citation` (docket no. IMM-#-YY), `year`, `name` (style of cause: **drop at parse**),
   `date_filed`, `city_filed`, `nature`, `class`, `track`, `documents` (list of
   `{RE_NO, DOCNO, DOC_DT, RECORDED_ENTRY}`), `source_url`, `scraped_timestamp`. All FC
-  immigration dockets filed 1997–2022 as of November 2022. Not fetched this session.
+  immigration dockets filed 1997–2022 as of November 2022. Fetched and parsed (see data note).
 
 ### S5 — SCC Year in Review / statistics — **MOVED**
 
@@ -101,13 +104,13 @@ request); add the real hostname once the owner confirms it.
   - Year in Review narrative: 2021–2023 at `/review-revue/{year}/index-eng.html` (no tables),
     2024–2025 at `…/review-retro/{year}/`; 2020 as PDF `/review-revue/2020/yr-ra2020-eng.pdf`;
     2025 PDF `/pdf/YIR_2025_EN.pdf`.
-- Coverage from HTML alone: **2010–2025**. Pre-2010 (handoff says PDFs 2003–2017, some only on
-  the LAC web archive) still **UNVERIFIED**; Wayback captures of the old `stat` page are the
-  likely route.
+- Coverage: **2010–2025** from the live HTML pages, extended to **2002** from the Court's former
+  `case-dossier/stat/cat5` page as captured by the Internet Archive on 2013-10-01 (see data note).
+  1990s PDFs (the handoff mentions 2003–2017 PDFs on the LAC archive) were not pursued.
 - Terms: `https://www.scc-csc.ca/resources-ressources/terms-avis/` — standard Government of
   Canada non-commercial reproduction permission. Averages only; no distributions.
 
-### S6 — ONCA Annual Report — **PARTIAL**
+### S6 — ONCA Annual Report — **OK (one edition)**
 
 - Current report: `https://www.ontariocourts.ca/coa/files/annual-reports/2023-2024-EN.pdf`
   (92 pages; covers calendar 2023 and 2024). Listed on
@@ -116,9 +119,9 @@ request); add the real hostname once the owner confirms it.
   the file is titled 2023-2024. Whether a 2025 report exists is **UNVERIFIED**.
 - Page 70 ff: "Appeal Timelines" — average days filing→scheduling readiness, readiness→hearing,
   hearing→decision, by filing year 2014–2024, for Civil, Criminal (excluding inmate) and Inmate
-  appeals. Values are inside bar charts; pdfplumber text extraction returns the axis and some
-  labels, so numbers may need to be read from chart data labels or by hand. Criminal tables
-  exist (answering the handoff's question).
+  appeals. The charts on pp. 70–73 have no numbers in the text layer, but the same series are
+  printed as tables in the statistical appendix (pp. 88–91) and are parsed from there. Criminal
+  tables exist (answering the handoff's question).
 - Terms-of-use page linked in the handoff (`/en/terms-of-use/`) is gone ("page has moved");
   no site-wide terms page found yet. Court publications → treat as Crown copyright, non-commercial.
 
@@ -127,7 +130,8 @@ request); add the real hostname once the owner confirms it.
 - `https://www.ontariocourts.ca/ocj/statistics/` lists Criminal, Family and Provincial Offences
   statistics. File pattern `https://www.ontariocourts.ca/ocj/files/stats/{crim|fam|poa|bail}/{YYYY}/
   {YYYY}-{Offence-Based|Clearance-Rate|Disposition-Rate}-{Criminal|Youth}.{pdf|xlsx}`.
-  **2012–2019 are PDF; 2020–2026 are XLSX** (much easier to parse; 2026 is partial-year).
+  **2012–2019 are PDF; 2020–2026 are XLSX** (much easier to parse). Periods: calendar years to 2019, April–March fiscal years from 2020; the
+  2026 files cover April 2025–March 2026.
   Criminal series: Offence-Based (cases received/disposed, average appearances and days to
   disposition, trial rate), Clearance Rate (two-year files), Disposition Rate (% disposed by
   months elapsed, average appearances/days). Bail 2015–2026. Family and POA counts too.
@@ -148,8 +152,8 @@ request); add the real hostname once the owner confirms it.
   "Activity Summary" pages exist for **every quarter 2003–2026** at
   `…/reports-and-statistics/statistics-{march-31|june-30|september-30|december-31}-{YYYY}`
   (one HTML table: subject matter × proceedings commenced, dispositions, pending at quarter end;
-  recent pages add pending-share comparisons and leave-granted counts; June 2021 is missing from
-  the index). Plus a historic workbook `FC-CF_2003-2025_Historic-Stats-Historiques.xlsx`
+  recent pages add pending-share comparisons and leave-granted counts; September 2007 and June
+  2021 are missing from the index; 2003 pages label the total "TOTAL TRIAL DIVISION"). Plus a historic workbook `FC-CF_2003-2025_Historic-Stats-Historiques.xlsx`
   (one sheet: new proceedings by year, total/immigration).
 - **FCA**: `https://www.fca-caf.ca/en/pages/about-the-court/statistics` works (handoff URL
   correct). One page, ~50 tables: cumulative year-to-date commenced/dispositions/pending by
@@ -271,7 +275,7 @@ and Ontario tables present in the latest snapshot. Caveats: the "as of" date is 
 Processed: `data/processed/s9/judges_snapshots.parquet`, `parse_failures.parquet`.
 
 **S2 (StatCan civil).** 35-10-0112 (1,020 Canada+Ontario rows) and 35-10-0114 (1,800 rows)
-downloaded and tidied; counts only, used as denominators. Not yet inspected beyond validation.
+downloaded and tidied; counts only, intended as denominators; not yet used in any estimate.
 
 **S3 (A2AJ decisions).** Five parquet files (1.76 GB raw, cached): SCC 10,900 decisions
 (1877–2026), FCA 7,838, FC 36,156, TCC 8,149, ONCA 24,298. Derived fields only are stored
@@ -326,19 +330,30 @@ Earlier reports (2009–2013) exist as HTML and PDF on the archives page; not pa
 **S7 (OCJ).** 90 criminal files (2012–2019 PDF, 2020–2026 XLSX; adult "all" and youth).
 Offence-based: 70,964 rows, 72 unit names normalised to stable keys (e.g. "Ontario Overview" =
 "Provincial Overview", "North West" = "Northwest"), route totals (before trial + at trial + after
-trial) equal cases disposed in every year. Monthly series: disposition rate 18,784 unit-months and
+trial) equal cases disposed in every year. Monthly series: disposition rate 18,772 unit-months and
 clearance rate 22,942, **2011-01 → 2026-03**, after de-duplicating the two-year overlap between
-files (later file kept; 5,478 and 2,746 unit-months were revised between editions). **Layout
+files (later file kept; revisions counted in the Toronto-break paragraph below). **Layout
 breaks:** 2012–2014 disposition files use bands under 8 / 8–12 / over 12 months instead of
 10 / 15 / 18; PDF clearance tables add pending (net of bench warrants) and a clearance rate that the
 XLSX files dropped; periods are calendar years to 2019 and April–March fiscal years from 2020. Small
 courthouse cells (1–30 cases) can show averages of several years; validation checks cells with ≥50
-dispositions. Pre-2012: the Internet Archive has no captures of `/ocj/files/stats/` before 2012
+dispositions. **Toronto break:** the 2023 files exclude Toronto entirely (data-integrity problems
+after the six Toronto courthouses were amalgamated into 10 Armoury Street) and label the province
+"Provincial/Ontario Overview, Less Toronto" (kept as `province_ex_toronto`, never mixed with full
+province rows); Toronto resumes in January 2024, and the 2025 and 2026 Toronto sheets report
+cumulative periods starting January 2024 rather than the file's own period. The 2020 files' French
+headers read October 2019 – September 2020 for some sheets; periods are taken per sheet. Revisions
+between overlapping monthly editions (same measure, different non-null value): 2,837 unit-months
+(disposition) and 1,597 (clearance); the later edition is kept. The PDF monthly parser drops data
+lines whose value count does not match the layout (blank cells in small courthouses) without counting
+them. Pre-2012: the Internet Archive has no captures of `/ocj/files/stats/` before 2012
 (prefix query, 2026-11-16), so the 2000–2011 panel remains **BLOCKED**. The archive does hold extra
 2015–2016 quarterly bail files not on the live page.
 
 **S8 identity check.** FC: of 90 quarter-to-quarter transitions, 76 reconcile within 1 % of the
 pending stock (small gaps are expected from reopened and transferred files); 14 do not, including
 2015-Q4 (published stock falls 1,246 more than flows imply, ≈20 %) and 2023-Q1 to Q3 (±284 to 710).
-June 2021 is missing from the Court's index, so 2021 has no annual row. FCA: 48 of 49 reconcile.
-Little's-law rows carry `identity_ok`; the site marks failing quarters.
+September 2007 and June 2021 are missing from the Court's index, so 2007 and 2021 have only three
+quarters. FCA: 48 of 49 reconcile. Quarterly Little's-law rows carry `identity_ok`; annual rows carry
+`publishable` (four quarters, all reconciling): 13 of 24 FC years qualify (not: 2006, 2007, 2009,
+2015, 2016, 2018, 2019, 2021, 2023, 2024, 2026). The site marks failing quarters.

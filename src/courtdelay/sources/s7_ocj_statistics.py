@@ -79,6 +79,8 @@ def unit_type(unit: str) -> str:
     u = unit.lower()
     if u in {"provincial overview", "ontario overview", "ontario"}:
         return "province"
+    if "less toronto" in u:
+        return "province_ex_toronto"
     if u.endswith("overview"):
         return "region"
     return "courthouse"
@@ -86,10 +88,11 @@ def unit_type(unit: str) -> str:
 
 def unit_key(unit: str) -> str:
     """Stable key across spelling variants: '311 Jarvis  St.' / '311 Jarvis St.',
-    'North West Overview' / 'Northwest Overview', 'Ontario Overview' / 'Provincial Overview'."""
-    u = re.sub(r"\s+", " ", unit.strip().lower()).replace(".", "")
+    'St.Thomas' / 'St. Thomas', 'North West Overview' / 'Northwest Overview',
+    'Ontario Overview' / 'Provincial Overview'."""
+    u = unit.strip().lower().replace(".", " ")
+    u = re.sub(r"\s+", " ", u).strip()
     u = u.replace("north west", "northwest").replace("north east", "northeast")
-    u = u.replace("st thomas", "st thomas").replace("st.thomas", "st thomas")
     if u in {"ontario overview", "provincial overview", "ontario"}:
         return "provincial overview"
     return u
@@ -479,13 +482,23 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
             value_cols = [
                 c
                 for c in df.columns
-                if c not in key + ["unit", "unit_type", "source_year", "source_url"]
+                if c not in key + ["unit", "unit_type", "source_year", "source_url", "layout"]
             ]
+            # a revision = two editions report different non-null values for the same measure
+            # (|diff| > 0.0005 to ignore rounding of shares); layout labels and columns that
+            # exist in only one layout do not count
             dup = df.group_by(key).agg(
-                pl.len().alias("n"), *[pl.col(c).n_unique().alias(c) for c in value_cols]
+                pl.len().alias("n"),
+                *[
+                    (pl.col(c).drop_nulls().max() - pl.col(c).drop_nulls().min())
+                    .fill_null(0)
+                    .alias(c)
+                    for c in value_cols
+                ],
             )
             revised = dup.filter(
-                (pl.col("n") > 1) & pl.any_horizontal([pl.col(c) > 1 for c in value_cols])
+                (pl.col("n") > 1)
+                & pl.any_horizontal([pl.col(c).abs() > 0.0005 for c in value_cols])
             ).height
             df = df.sort("source_year", descending=True).unique(subset=key, keep="first")
             log.info(
