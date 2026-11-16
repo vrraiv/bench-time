@@ -9,6 +9,9 @@ def test_parse_as_of():
         "2026-11-01"
     )
     assert s9.parse_as_of("Judges as of the 15 March 2011") == "2011-03-15"
+    assert s9.parse_as_of("Number of Federal Judges on the Bench as of July 1st, 2011") == (
+        "2011-07-01"
+    )
     assert s9.parse_as_of("nothing here") is None
 
 

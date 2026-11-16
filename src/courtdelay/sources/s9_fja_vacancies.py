@@ -135,6 +135,7 @@ def _today_month() -> str:
 
 
 def parse_as_of(text: str) -> str | None:
+    text = re.sub(r"(\d)(st|nd|rd|th)\b", r"\1", text)  # "July 1st, 2011"
     m = AS_OF_RE.search(text)
     if not m:
         return None
