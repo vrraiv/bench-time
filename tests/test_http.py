@@ -141,3 +141,11 @@ def test_download_streams_to_cache(env):
     assert r2.from_cache and r2.path == r.path
     rows = [json.loads(line) for line in (env / "manifest.jsonl").read_text().splitlines()]
     assert len(rows) == 1 and rows[0]["sha256"] == __import__("hashlib").sha256(payload).hexdigest()
+
+
+def test_ext_prefers_url_extension_for_octet_stream():
+    assert http._ext_for("application/octet-stream", "https://h/x/train.parquet") == "parquet"
+    assert http._ext_for("application/json", "https://h/api/getFoo") == "json"
+    assert http._ext_for("text/html; charset=utf-8", "https://h/page.aspx") == "html"
+    assert http._ext_for("", "https://h/report.pdf") == "pdf"
+    assert http._ext_for("application/octet-stream", "https://h/blob") == "bin"

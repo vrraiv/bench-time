@@ -111,12 +111,15 @@ _EXT = {
 
 def _ext_for(content_type: str, url: str) -> str:
     ct = content_type.split(";")[0].strip().lower()
-    if ct in _EXT:
-        return _EXT[ct]
     tail = urlsplit(url).path.rsplit(".", 1)
-    if len(tail) == 2 and 1 <= len(tail[1]) <= 7 and tail[1].isalnum():
-        return tail[1].lower()
-    return "bin"
+    url_ext = (
+        tail[1].lower() if len(tail) == 2 and 1 <= len(tail[1]) <= 7 and tail[1].isalnum() else None
+    )
+    if ct in _EXT and ct != "application/octet-stream":
+        return _EXT[ct]
+    if url_ext:
+        return url_ext  # octet-stream or unknown type: trust the URL's extension
+    return _EXT.get(ct, "bin")
 
 
 @dataclass(frozen=True)
