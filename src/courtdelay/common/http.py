@@ -42,6 +42,9 @@ FAST_HOSTS: dict[str, float] = {
     "huggingface.co": 1.0,
     "datasets-server.huggingface.co": 1.0,
     "web.archive.org": 2.0,  # Wayback: polite but it is built for this
+    # Federal Court docket site: owner approved 3 s (bottom of the handoff's 3-5 s range) on
+    # 2026-11-16; still single process, single-threaded
+    "www.fct-cf.ca": 3.0,
 }
 
 #: Tier 3 hosts: never request, not even robots.txt (see docs/HANDOFF.md section 3).

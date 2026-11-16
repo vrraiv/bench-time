@@ -35,6 +35,8 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
   directly in a source module. No parallel fetching (the rate limiter is in-process).
 - Default rate limit is 4 s per host; faster only for hosts on the explicit API allowlist in
   `common/http.py`. Never go faster than the handoff allows without asking.
+  `www.fct-cf.ca` runs at 3 s (owner approval 2026-11-16). One crawl process per host at a time;
+  crawls on different hosts (e.g. Tax Court alongside Federal Court) may run in parallel.
 - User-Agent is `bench-time/<version> (court-delay research; <COURTDELAY_CONTACT>)`. The contact
   comes only from the env var — never hardcode an address.
 - Every raw response is cached on disk under `data/raw/<source>/` and logged to
