@@ -92,3 +92,12 @@ reported agreement. Selected sample (delay litigated on appeal); labelled as suc
 SCC time lapses (S5) · ONCA 2024 civil averages (≈140 / 192 / 65 / 397 days) · Grant's TCC samples
 (≈5.3 years to trial decision; 2021 files settled ≈869 days) · Lesage 2019 SCJ (5 y 9 m to trial, six
 GTA courthouses) · Law360 2023 vacancy analysis (349 fills 2019–2023, 8+ months average).
+
+Docket censuses against court-published workload (S8): aggregate S12 Tax Court files by fiscal year
+(April–March) and compare with https://www.tcc-cci.ca/en/pages/about/reports-and-statistics
+(FY2018-19 to 2022-23): proceedings instituted ↔ files by `FILED_DATE` (comparable from FY2018-19);
+total dispositions ↔ files by close date and files heard ↔ first "Minutes of Hearing" (comparable
+only from about FY2021-22, because the census starts with 2018 docket numbers and misses older
+files closing or heard in earlier years). Same idea for S10/S11 against the FC and FCA activity
+summaries (commenced, dispositions, pending). Report differences, not just agreement; a large gap in
+hearings tests whether "Minutes of Hearing" marks the trial.
