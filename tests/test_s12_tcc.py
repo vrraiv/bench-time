@@ -86,3 +86,20 @@ def test_application_numbers_and_new_milestones():
     assert s12.classify("Case Management Conference Held") == "case_mgmt_held"
     assert s12.classify("Request for adjournment") == "adjournment_requested"
     assert s12.classify("Memo requesting date submitted from a Joint Application") == "other"
+
+
+@pytest.mark.parametrize(
+    "nbr,group",
+    [
+        ("2018-9(IT)G", "General"),
+        ("2018-9(GST)I", "Informal"),
+        ("2018-80(GST)APP", "Application"),
+        ("2018-826(EI)", "EI"),
+        ("2018-828(CPP)", "CPP"),
+        ("2018-811(OAS)", "OAS"),
+        ("2018-12(IT)", "Other / unlettered"),
+    ],
+)
+def test_procedure_group(nbr, group):
+    row, _ = s12.parse_file(dict(FIX["listing"], APPEAL_NBR=nbr), FIX["entries"], "2026-11-16")
+    assert row["procedure_group"] == group

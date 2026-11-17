@@ -208,6 +208,14 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             if m
             else None,
             "is_application": bool(m and m.group(4) == "APP"),
+            # EI, CPP and OAS appeals carry an act suffix but no G/I letter: they follow their
+            # own procedural rules, so group them by act rather than as "no procedure"
+            "procedure_group": (
+                {"G": "General", "I": "Informal", "APP": "Application"}.get(m.group(4))
+                or {"EI": "EI", "CPP": "CPP", "OAS": "OAS"}.get(m.group(3), "Other / unlettered")
+            )
+            if m
+            else "Unparsed",
             "date_filed": _d(listing.get("FILED_DATE")) or first("notice_of_appeal"),
             "reply_date": first("reply"),
             "first_scheduled_date": first("scheduled"),
