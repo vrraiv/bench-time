@@ -72,3 +72,17 @@ def test_errors_abort_after_five(tmp_path, monkeypatch):
 
     with pytest.raises(s12.CrawlAborted):
         s12.list_year(C(), 2024)
+
+
+def test_application_numbers_and_new_milestones():
+    listing = dict(FIX["listing"], APPEAL_NBR="2018-80(GST)APP")
+    row, _ = s12.parse_file(listing, FIX["entries"], "2026-11-16")
+    assert row["docket_year"] == 2018 and row["procedure_suffix"] == "Application"
+    assert row["is_application"] is True
+    listing = dict(FIX["listing"], APPEAL_NBR="2018-4718(EI)")
+    row, _ = s12.parse_file(listing, FIX["entries"], "2026-11-16")
+    assert row["docket_year"] == 2018 and row["procedure_suffix"] is None
+    assert s12.classify("Joint Application for hearing") == "hearing_requested"
+    assert s12.classify("Case Management Conference Held") == "case_mgmt_held"
+    assert s12.classify("Request for adjournment") == "adjournment_requested"
+    assert s12.classify("Memo requesting date submitted from a Joint Application") == "other"

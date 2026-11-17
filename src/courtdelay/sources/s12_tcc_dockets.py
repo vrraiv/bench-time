@@ -42,7 +42,9 @@ LIST_URL = f"{BASE}/appealnumber/courtnumber"
 RE_URL = f"{BASE}/appealnumberRE"
 DEFAULT_YEARS = range(2018, 2027)
 MAX_CONSECUTIVE_ERRORS = 5
-NUMBER_RE = re.compile(r"^(\d{4})-(\d+)\((\w+)\)([GI])?$")
+# "2024-1(IT)I", "2024-10(GST)G", "2018-4718(EI)" (no procedure suffix: EI/CPP appeals),
+# "2018-80(GST)APP" (applications, e.g. for an extension of time to appeal)
+NUMBER_RE = re.compile(r"^(\d{4})-(\d+)\((\w+)\)(G|I|APP)?$")
 
 _consecutive_errors = 0
 
@@ -139,6 +141,16 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("adjournment", re.compile(r"^adj(?:\.|ournment)", re.I)),
     ("scheduled", re.compile(r"^appeal scheduled|^notice of hearing", re.I)),
     ("status_hearing", re.compile(r"status hearing", re.I)),
+    # the case is ready and a hearing date is requested (general procedure): the start of the
+    # wait that is attributable to the court's calendar
+    (
+        "hearing_requested",
+        re.compile(
+            r"^(?:joint )?application (?:for|to fix) (?:a )?hearing|^request for hearing", re.I
+        ),
+    ),
+    ("case_mgmt_held", re.compile(r"^case management conference held", re.I)),
+    ("adjournment_requested", re.compile(r"^request for adjournment", re.I)),
     ("judgment", re.compile(r"^(?:amended )?judgment\b(?!.*\bsent\b)", re.I)),
     ("consent", re.compile(r"consent (?:to judgment|allowed|dismissed)", re.I)),
     ("order", re.compile(r"\border\b", re.I)),
@@ -190,11 +202,19 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             "docket_year": int(m.group(1)) if m else None,
             "number": int(m.group(2)) if m else None,
             "act_suffix": m.group(3) if m else None,
-            "procedure_suffix": {"G": "General", "I": "Informal"}.get(m.group(4)) if m else None,
+            "procedure_suffix": {"G": "General", "I": "Informal", "APP": "Application"}.get(
+                m.group(4)
+            )
+            if m
+            else None,
+            "is_application": bool(m and m.group(4) == "APP"),
             "date_filed": _d(listing.get("FILED_DATE")) or first("notice_of_appeal"),
             "reply_date": first("reply"),
             "first_scheduled_date": first("scheduled"),
             "first_hearing_date": first("hearing_held"),
+            "hearing_requested_date": first("hearing_requested"),
+            "n_case_mgmt_conferences": sum(e["entry_type"] == "case_mgmt_held" for e in ents),
+            "n_adjournment_requests": sum(e["entry_type"] == "adjournment_requested" for e in ents),
             "judgment_date": first("judgment"),
             "discontinuance_date": first("discontinuance"),
             "closed_date": first("file_closed"),
