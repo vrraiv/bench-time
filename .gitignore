@@ -231,3 +231,6 @@ site/data/
 # session prompt files live outside the repo history
 CLAUDE_CODE_PROMPT.md
 site/src/.observablehq/
+
+# local progress tracker (owner request 2026-11-17)
+progress/
