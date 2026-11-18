@@ -56,9 +56,9 @@ case "$cmd" in
     for meta in $(ls data/raw/s1[02]_*/*.meta.json data/raw/s[5-9]_*/*.meta.json 2>/dev/null | shuf -n 25); do
       file="$(dirname "$meta")/$(grep -o '"file": "[^"]*"' "$meta" | cut -d'"' -f4)"
       want="$(grep -o '"sha256": "[^"]*"' "$meta" | cut -d'"' -f4)"
-      # restic on Windows stores C:\projects\... as /C/projects/...
-      snap_path="/$(echo "${ROOT:1:1}" | tr a-z A-Z)${ROOT:2}/$file"
-      got="$("$RESTIC" dump latest "$snap_path" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+      # backups run from the repo root with a relative path, so snapshots store /data/raw/...
+      # MSYS_NO_PATHCONV stops Git Bash rewriting "/data/raw/..." into a C:\ path
+      got="$(MSYS_NO_PATHCONV=1 "$RESTIC" dump latest "/$file" 2>/dev/null | sha256sum | cut -d' ' -f1 || true)"
       if [ "$got" = "$want" ]; then ok=$((ok+1)); else bad=$((bad+1)); echo "MISMATCH $file"; fi
     done
     echo "restore test: $ok ok, $bad mismatched (files newer than the latest snapshot also show as mismatched)"
