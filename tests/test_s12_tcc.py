@@ -88,6 +88,23 @@ def test_application_numbers_and_new_milestones():
     assert s12.classify("Memo requesting date submitted from a Joint Application") == "other"
 
 
+def test_dismissed_and_abeyance():
+    assert s12.classify("Dismissed") == "dismissed"
+    assert s12.classify("Request to be held in abeyance") == "abeyance_requested"
+    assert s12.classify("Held in Abeyance granted") == "abeyance"
+    assert s12.classify("Held in Abeyance Pending Related Decision") == "abeyance"
+    assert s12.classify("Case Management Conference scheduled") == "case_mgmt_scheduled"
+    ents = [
+        {"INFO": "Notice of Appeal", "CREATED_DATE": "2019-01-02T00:00:00"},
+        {"INFO": "Held in Abeyance granted", "CREATED_DATE": "2019-03-01T00:00:00"},
+        {"INFO": "Dismissed", "CREATED_DATE": "2020-05-04T00:00:00"},
+    ]
+    listing = dict(FIX["listing"], APPEAL_NBR="2019-5(IT)I")
+    row, _ = s12.parse_file(listing, ents, "2026-11-17")
+    assert row["abeyance_date"].isoformat() == "2019-03-01"
+    assert row["final_disposition_date"].isoformat() == "2020-05-04"
+
+
 @pytest.mark.parametrize(
     "nbr,group",
     [

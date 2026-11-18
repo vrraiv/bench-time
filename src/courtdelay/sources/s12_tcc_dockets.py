@@ -153,6 +153,13 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("adjournment_requested", re.compile(r"^request for adjournment", re.I)),
     ("judgment", re.compile(r"^(?:amended )?judgment\b(?!.*\bsent\b)", re.I)),
     ("consent", re.compile(r"consent (?:to judgment|allowed|dismissed)", re.I)),
+    # a bare "Dismissed" entry ends the file; 42 files (2018-2026) have no other end event
+    ("dismissed", re.compile(r"^dismissed\b", re.I)),
+    # abeyance pauses the file at a party's request (often pending a related decision): time
+    # in abeyance is not calendar delay, so it is recorded separately
+    ("abeyance_requested", re.compile(r"^request to be held in abeyance", re.I)),
+    ("abeyance", re.compile(r"^held in abeyance", re.I)),
+    ("case_mgmt_scheduled", re.compile(r"^case management conference scheduled", re.I)),
     ("order", re.compile(r"\border\b", re.I)),
 ]
 
@@ -226,12 +233,24 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             "judgment_date": first("judgment"),
             "discontinuance_date": first("discontinuance"),
             "closed_date": first("file_closed"),
+            "dismissed_date": first("dismissed"),
+            "abeyance_date": first("abeyance"),
+            "n_abeyance_entries": sum(e["entry_type"] == "abeyance" for e in ents),
             "n_adjournments": sum(e["entry_type"] == "adjournment" for e in ents),
             "n_entries": len(ents),
             "scraped": fetched_at[:10],
         }
     )
-    ends = [d for d in (row["closed_date"], row["judgment_date"], row["discontinuance_date"]) if d]
+    ends = [
+        d
+        for d in (
+            row["closed_date"],
+            row["judgment_date"],
+            row["discontinuance_date"],
+            row["dismissed_date"],
+        )
+        if d
+    ]
     row["final_disposition_date"] = row["closed_date"] or (min(ends) if ends else None)
     return row, ents
 
