@@ -153,8 +153,23 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("adjournment_requested", re.compile(r"^request for adjournment", re.I)),
     ("judgment", re.compile(r"^(?:amended )?judgment\b(?!.*\bsent\b)", re.I)),
     ("consent", re.compile(r"consent (?:to judgment|allowed|dismissed)", re.I)),
-    # a bare "Dismissed" entry ends the file; 42 files (2018-2026) have no other end event
-    ("dismissed", re.compile(r"^dismissed\b", re.I)),
+    # bare outcome entries end the file ("Dismissed", "Allowed", "Quashed", "Dism. for failure
+    # to appear", "File Cancelled"); some files have no other end event
+    (
+        "outcome",
+        re.compile(
+            r"^dism[.] for failure to appear"
+            r"|^(?:dismissed|allowed(?: in part)?|quashed|file cancelled)[ ]*$",
+            re.I,
+        ),
+    ),
+    # the court's own adjournment of a hearing, as distinct from one a party requested
+    ("court_adjournment", re.compile(r"^hearing adjourned by tcc", re.I)),
+    ("settlement_conf_held", re.compile(r"^settlement conference held", re.I)),
+    (
+        "abeyance_released",
+        re.compile(r"^(?:released from pending|unhold appeal|reactivate appeal)", re.I),
+    ),
     # abeyance pauses the file at a party's request (often pending a related decision): time
     # in abeyance is not calendar delay, so it is recorded separately
     ("abeyance_requested", re.compile(r"^request to be held in abeyance", re.I)),
@@ -233,7 +248,12 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             "judgment_date": first("judgment"),
             "discontinuance_date": first("discontinuance"),
             "closed_date": first("file_closed"),
-            "dismissed_date": first("dismissed"),
+            "outcome_entry_date": first("outcome"),
+            "abeyance_released_date": first("abeyance_released"),
+            "n_court_adjournments": sum(e["entry_type"] == "court_adjournment" for e in ents),
+            "n_settlement_conferences": sum(
+                e["entry_type"] == "settlement_conf_held" for e in ents
+            ),
             "abeyance_date": first("abeyance"),
             "n_abeyance_entries": sum(e["entry_type"] == "abeyance" for e in ents),
             "n_adjournments": sum(e["entry_type"] == "adjournment" for e in ents),
@@ -247,7 +267,7 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             row["closed_date"],
             row["judgment_date"],
             row["discontinuance_date"],
-            row["dismissed_date"],
+            row["outcome_entry_date"],
         )
         if d
     ]

@@ -89,7 +89,11 @@ def test_application_numbers_and_new_milestones():
 
 
 def test_dismissed_and_abeyance():
-    assert s12.classify("Dismissed") == "dismissed"
+    assert s12.classify("Dismissed") == "outcome"
+    assert s12.classify("Dism. for failure to appear") == "outcome"
+    assert s12.classify("Allowed in Part") == "outcome"
+    assert s12.classify("Released from Pending") == "abeyance_released"
+    assert s12.classify("Hearing Adjourned by TCC") == "court_adjournment"
     assert s12.classify("Request to be held in abeyance") == "abeyance_requested"
     assert s12.classify("Held in Abeyance granted") == "abeyance"
     assert s12.classify("Held in Abeyance Pending Related Decision") == "abeyance"
