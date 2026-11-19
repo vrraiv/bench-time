@@ -232,7 +232,7 @@ request); add the real hostname once the owner confirms it.
   confidentiality marker (see `docs/methods.md`, open issue). Cross-check from the decision link:
   of 8,179 in-frame file numbers cited by published decisions, 12 were not found.
 - **IMM-2022 overlap sample** (owner approval 2026-11-18): stratum `IMM-2022`, 300 files drawn at
-  random, started 2026-11-19 at the same 3 s spacing.
+  random, run 2026-11-19 at the same 3 s spacing; finished 07:20, no errors (frame top IMM-13672-22).
 
 ### S12 — Tax Court dockets — **ENDPOINTS VERIFIED, PILOTED**
 

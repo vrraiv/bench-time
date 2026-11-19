@@ -238,7 +238,10 @@ INFO_FIELDS = {
 
 def ms_date(v):
     """'/Date(1735794000000)/' (UTC milliseconds) -> local (Eastern) calendar date. The Court stores
-    midnight Eastern, i.e. 04:00 or 05:00 UTC, so subtracting 5 hours gives the intended day."""
+    midnight Eastern, i.e. 04:00 UTC in daylight time and 05:00 UTC in standard time (a few carry a
+    daytime clock time). Subtracting 4 hours gives the intended day in both seasons; subtracting 5
+    put daylight-time filings on the previous day (found with the IMM-2022 overlap, 2026-11-19).
+    No tz database is used: tzdata is not installed on the Windows dev machine."""
     import re
     from datetime import UTC, datetime, timedelta
 
@@ -247,7 +250,7 @@ def ms_date(v):
     m = re.search(r"(-?\d+)", str(v))
     if not m:
         return None
-    return (datetime.fromtimestamp(int(m.group(1)) / 1000, UTC) - timedelta(hours=5)).date()
+    return (datetime.fromtimestamp(int(m.group(1)) / 1000, UTC) - timedelta(hours=4)).date()
 
 
 def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict | None, list[dict]]:

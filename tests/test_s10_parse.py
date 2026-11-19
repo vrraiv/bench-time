@@ -9,6 +9,7 @@ FIX = json.loads((paths.fixtures_dir("s10") / "synthetic_A-9-25.json").read_text
 
 def test_ms_date_is_eastern_calendar_day():
     assert s10.ms_date("/Date(1735794000000)/") == date(2025, 1, 2)  # 05:00 UTC
+    assert s10.ms_date("/Date(1657080000000)/") == date(2022, 7, 6)  # 04:00 UTC, daylight time
     assert s10.ms_date(None) is None
 
 

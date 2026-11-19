@@ -269,6 +269,23 @@ EI 9.1%, CPP 8.7%, Applications 2.6%; among files with a hearing entry, 13% (Gen
 (Informal). Most Tax Court files end without published reasons, so decision-based measures for
 this court describe a small and selected group.
 
+### FC immigration 2022 overlap sample (run 2026-11-19)
+
+300 files drawn at random from IMM-1-22 to IMM-13672-22 on the court's site. 243 are also in the
+Refugee Law Lab series (S4); the other 64 parsed files are numbered above IMM-11000-22, where S4
+stops. For the 243, comparing S10 entries dated up to S4's scrape date:
+
+- Stage dates agree wherever S4 has one: leave decision 47 of 47 (and the result, 47 of 47),
+  discontinuance 71 of 71, judgment 4 of 4, hearing 2 of 2, final disposition 106 of 106.
+- Entry counts by type are identical for 95% of files; the rest differ by a few entries the court
+  added or back-dated after the scrape (3 files have a stage date on or before the scrape date
+  that S4 lacks).
+- **Bug found and fixed:** S10 filing dates were one day early for about 60% of files filed in
+  daylight-time months (the timestamp conversion assumed standard time all year). After the fix
+  filing dates match S4 for 243 of 243. All S10 durations from filing shift by at most one day.
+- 44% of these files were disposed when S4 was scraped; 98% are now. The two series are measured
+  alike and can be read as one, with S4's 2022 cohort heavily censored.
+
 ### Further linkages (owner decision 2026-11-18: build all)
 
 1. **FC immigration decisions to Refugee Law Lab dockets (S3 to S4)** by IMM file number,
