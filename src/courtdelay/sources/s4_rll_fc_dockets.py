@@ -286,8 +286,13 @@ def classify_docket_entries(docs: list[dict], docket: str) -> list[dict]:
     return out
 
 
-def derive_docket(entries: list[dict]) -> dict:
-    """Stage dates from a docket's classified entries (sorted by date, then RE_NO)."""
+def derive_docket(entries: list[dict], *, judgment_fallback: bool = True) -> dict:
+    """Stage dates from a docket's classified entries (sorted by date, then RE_NO).
+
+    The end of a file is the Registry's final-decision marker. Without one, the fallback is the
+    earliest of a discontinuance, a dismissed leave application and, when ``judgment_fallback``
+    is set, the first judgment-typed entry. S10 turns that last one off: the judgment pattern
+    matches any entry that mentions a judgment, and it was closing pending files."""
     ents = sorted(
         entries,
         key=lambda e: (e["entry_date"] or date.min, e["re_no"] if e["re_no"] is not None else 0),
@@ -304,6 +309,7 @@ def derive_docket(entries: list[dict]) -> dict:
         "final_disposition_date": None,
         "final_disposition_type": None,
         "final_disposition_result": None,
+        "final_disposition_source": None,  # "marker" (Registry marker) or "fallback"
         "first_entry_date": ents[0]["entry_date"] if ents else None,
         "last_entry_date": ents[-1]["entry_date"] if ents else None,
         "n_entries": len(ents),
@@ -336,6 +342,7 @@ def derive_docket(entries: list[dict]) -> dict:
                 "order": "order",
             }.get(t, t)
             out["final_disposition_result"] = e.get("result")
+            out["final_disposition_source"] = "marker"
     if out["final_disposition_date"] is None:
         # no Registry marker: earliest of discontinuance, leave dismissed, judgment
         cands = []
@@ -356,12 +363,13 @@ def derive_docket(entries: list[dict]) -> dict:
             cands.append((cancelled, "cancelled", None))
         if out["leave_decision_date"] and out["leave_result"] == "dismissed":
             cands.append((out["leave_decision_date"], "leave_decision", "dismissed"))
-        if out["judgment_date"]:
+        if judgment_fallback and out["judgment_date"]:
             cands.append((out["judgment_date"], "judgment", out["judgment_result"]))
         if cands:
             d, t, r = min(cands, key=lambda c: c[0])
             out["final_disposition_date"], out["final_disposition_type"] = d, t
             out["final_disposition_result"] = r
+            out["final_disposition_source"] = "fallback"
     return out
 
 

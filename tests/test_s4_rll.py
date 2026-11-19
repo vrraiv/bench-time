@@ -153,3 +153,16 @@ def test_final_marker_on_its_own_line():
         "Letter asking that the record be addressed after a final decision in the appeal"
     )
     assert not final("****** CANCELLED ****** (Final decision) Order rendered by the Court")
+
+
+def test_judgment_fallback_can_be_turned_off():
+    docs = [
+        _doc(1, "2024-03-01", "Notice of appeal filed on 01-MAR-2024"),
+        _doc(2, "2024-03-02", "Copy of judgment under appeal placed on file"),
+        _doc(3, "2024-03-05", "Letter concerning the judgment of the Tax Court received"),
+    ]
+    ents = s4.classify_docket_entries(docs, "A-9-24")
+    assert s4.derive_docket(ents)["final_disposition_source"] == "fallback"
+    open_file = s4.derive_docket(ents, judgment_fallback=False)
+    assert open_file["final_disposition_date"] is None
+    assert open_file["final_disposition_source"] is None

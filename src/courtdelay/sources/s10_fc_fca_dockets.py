@@ -309,7 +309,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "n_confidential_flag_entries": n_flag,
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,
-            **s4.derive_docket(ents),
+            **s4.derive_docket(ents, judgment_fallback=False),
         }
     )
     return row, [{k: v for k, v in e.items() if k != "_fixed"} for e in ents]
