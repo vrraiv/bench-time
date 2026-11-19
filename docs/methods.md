@@ -194,7 +194,13 @@ Results (inside the census frame only; all files kept, see the decision below):
 these files, so the markers are presumed to mean something narrower than a sealed proceeding. Each
 file now carries `n_confidential_flag_entries`, `n_sealed_text_entries` and
 `n_publication_ban_entries` so the earlier rule can be reproduced (`DROP_MARKED_FILES`). What the
-markers mean goes to the practitioner in a second review document. S4 (Refugee Law Lab) still
+markers mean goes to the practitioner in a second review document. Breakdown of the 2,119 files the old
+rule matched (2026-11-19, entry wording read locally, names masked): court confidential flag 294
+files; "sealed envelope" 804; confidentiality or protective order 983; publication ban 18 (4 with
+wording of a ban granted). About 570 files match only through the court's seal on an issued
+document ("sealed and issued copy") or an entry saying no confidentiality order is sought: these
+were never confidentiality markers. In a flagged file the median is 3 flagged entries (about 5% of
+the file); one file is flagged throughout. S4 (Refugee Law Lab) still
 drops 667 files under the old rule. The analysis that led here, as first written:
 
 
