@@ -238,6 +238,70 @@ judicial reviews of 2012 show a median of exactly 526 days because a block of re
 on one day. FC citizenship files rose from 178 (2023) to 1,420 (2025). About 350 actions against
 the Crown from 2018-2021 have no entries since 2020 and count as open.
 
+**Hearing entries (fixed 2026-11-19).** The hearing pattern missed the Registry's French minutes
+("L'audition de cette affaire a lieu...", "... En présence de ... Matière en litige") and the
+appeal court's English wording ("This matter comes on for hearing"): about 6,300 entries in S10.
+It also took a case management conference, mediation or motion as "the hearing" when one came
+first. Both fixed; `hearing_date` is now the first hearing entry that is not one of those.
+Checked against linked final decisions: a docket hearing entry falls on the decision's hearing
+date for 90% of FCA and 87% of FC decisions (70% and 72% before), and for 93% of FC immigration
+decisions in S4 (78% before). In S4 the share of leave-granted files with a recorded hearing rose
+from 47-64% to 53-76% by filing year. 3,256 hearing entries still state no subject.
+
+**Appeal chains (first version 2026-11-19).** An appeal's opening entries usually name the file
+appealed from; `appeal_from_file` reads it (73% of appeals from the Federal Court, 60% from the
+Tax Court). Linked to lower files in S10, S4 and S12: 1,015 Federal Court and 166 Tax Court
+chains; another 2,335 name a lower file outside our data (Federal Court files before 2018,
+immigration files after 2022, Tax Court files before 2018). Legs: filing in the lower court to
+the notice of appeal, then notice of appeal to the end of the appeal. The lower file's own end
+date is not used, because a Tax Court file stays open until the appeal returns and an
+interlocutory appeal is taken mid-file. Where the docket also states the date of the decision
+appealed from (321 chains), the notice of appeal follows it by a median of 28 days. Median days,
+completed chains (`link_appeal_chains_by_year`, not yet on the site):
+
+| Appeal filed | Origin | Chains | Filing to notice of appeal | Appeal | Total |
+|---|---|---|---|---|---|
+| 2019 | Federal Court, final | 51 | 342 | 403 | 778 |
+| 2021 | Federal Court, final | 96 | 601 | 438 | 1,056 |
+| 2023 | Federal Court, final | 71 | 516 | 403 | 927 |
+| 2023 | Tax Court | 21 | 1,372 | 433 | 1,818 |
+
+Bias: lower files start in 2018, so early appeal years hold only quick lower-court files and the
+totals rise partly for that reason; completed chains only. The Supreme Court leg is not built
+(no SCC docket source).
+
+**Judges against complement (first version 2026-11-19).** `estimate/judges.py`. Federal Court
+and Tax Court only (one judge decides). The judge's surname from the decision header is a
+grouping key kept in `data/processed/links/`; the derived table
+(`link_judges_vs_complement_by_court_year`) holds counts and across-judge distributions, and
+withholds any distribution over fewer than five judges. Check: distinct judges issuing decisions
+are 103% to 112% of the FJA complement (in office plus supernumerary) for the Federal Court each
+year 2012-2025, the excess being turnover within the year. Federal Court 2023: 44 judges,
+median 31 published decisions each; the median judge's median reserve time is 33 days, and the
+10th and 90th percentile judges are at 7 and 126 days.
+
+**Tax Court check against the court's statistics (S8, fiscal years).** Files filed in our census
+are 92% to 97% of the court's "proceedings instituted or filed" for 2018-19 to 2022-23 (4,770 of
+5,211; 4,439 of 4,684; 2,251 of 2,325; 3,285 of 3,426; 2,964 of 3,230). The gap is unexplained;
+files the public search does not list are one candidate. First "Minutes of Hearing" entries in
+our census (895, 1,358, 462, 672, 930) exceed the court's "files prepared for hearing and heard"
+(888, 883, 273, 166, 713) even though our frame omits files from before 2018. So that entry is
+written for more than trials, which supports practitioner question 1.
+
+**Tax Court wait for a hearing** (`s12_tcc_hearing_wait_by_cohort`, provisional). Most files end
+without a hearing, so this is a cumulative incidence with "ended without a hearing" as the
+competing outcome (`survival.cif_table`), not a Kaplan-Meier median. Share of files with a first
+hearing entry within one and two years of filing:
+
+| Filing year | Informal, 1 year | Informal, 2 years | General, 2 years |
+|---|---|---|---|
+| 2018 | 31% | 41% (39-42) | 12% (10-14) |
+| 2020 | 6% | 19% (17-21) | 13% (11-15) |
+| 2022 | 8% | 26% (24-29) | 9% (8-10) |
+| 2024 | 18% | 34% (32-37) | 12% (10-13) |
+
+The fall from 31% to 6% within a year for Informal files filed in 2020 is the pandemic closure.
+
 ### Confidentiality markers: files kept, markers counted (owner decision 2026-11-19)
 
 **Decision:** S10 no longer drops files that carry a confidentiality marker. The court publishes
