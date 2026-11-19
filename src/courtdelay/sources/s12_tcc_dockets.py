@@ -218,6 +218,26 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
     def first(t):
         return next((e["entry_date"] for e in ents if e["entry_type"] == t), None)
 
+    # Filing date: the listing's FILED_DATE when plausible. It is missing for most applications
+    # and occasionally mistyped (year 0026) or years away from the file number's year, so fall
+    # back to the notice of appeal entry, then to the first recorded entry; the source is kept.
+    year = int(m.group(1)) if m else None
+
+    def plausible(d):
+        return d is not None and (year is None or abs(d.year - year) <= 1)
+
+    listed = _d(listing.get("FILED_DATE"))
+    first_entry = next((e["entry_date"] for e in ents if e["entry_date"]), None)
+    filed, filed_source = None, None
+    for cand, src in (
+        (listed, "listing"),
+        (first("notice_of_appeal"), "notice_of_appeal"),
+        (first_entry, "first_entry"),
+    ):
+        if plausible(cand):
+            filed, filed_source = cand, src
+            break
+
     row = {out: listing.get(k) for k, out in LIST_FIELDS.items()}
     row.update(
         {
@@ -238,7 +258,9 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             )
             if m
             else "Unparsed",
-            "date_filed": _d(listing.get("FILED_DATE")) or first("notice_of_appeal"),
+            "date_filed": filed,
+            "date_filed_source": filed_source,
+            "listed_filed_date_implausible": listed is not None and not plausible(listed),
             "reply_date": first("reply"),
             "first_scheduled_date": first("scheduled"),
             "first_hearing_date": first("hearing_held"),
@@ -341,5 +363,10 @@ def validate(frames) -> None:
         .sort(["docket_year", "procedure"])
     )
     log.info("S12 by year and procedure:\n%s", by)
+    log.info(
+        "S12 filing date source:\n%s\n%d listed filing dates rejected as implausible",
+        d.group_by("date_filed_source").len().sort("len", descending=True),
+        d["listed_filed_date_implausible"].sum(),
+    )
     other = frames["entries"].filter(pl.col("entry_type") == "other").height
     log.info("S12: %d of %d entries unclassified", other, frames["entries"].height)

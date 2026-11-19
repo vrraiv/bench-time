@@ -88,6 +88,9 @@ def cohort_table(
     min_n: int = 30,
     label: str = "",
     competing_col: str | None = None,
+    min_at_risk: int = 0,
+    bias_statement: str = "Kaplan-Meier, right-censored at observation date; "
+    "regex-classified events; immigration dockets only",
 ) -> pl.DataFrame:
     """KM quantiles per cohort. Rows with a null start are dropped; rows with a null event date are
     censored at ``competing_col`` when that is set and non-null (a competing terminal event, e.g.
@@ -129,12 +132,17 @@ def cohort_table(
             "censored_share": float(1 - ev.mean()),
             "n_competing": int(n_comp),
             "estimand": label or f"{start_col} -> {event_col}",
-            "bias_statement": "Kaplan-Meier, right-censored at observation date; "
-            "regex-classified events; immigration dockets only",
+            "bias_statement": bias_statement,
         }
         for q in qs:
             name = f"p{int(q * 100)}"
             row[f"{name}_days"] = qv[q]
             row[f"{name}_lo"], row[f"{name}_hi"] = ci[q]
+            # a quantile read off a right tail thinned by censoring (few files still at risk,
+            # and under half of the (1-q)*n a fully observed cohort would have) is unstable:
+            # report it as not yet estimable
+            at_risk = int((dur >= qv[q]).sum()) if qv[q] is not None else 0
+            if qv[q] is not None and at_risk < min_at_risk and at_risk < 0.5 * (1 - q) * len(dur):
+                row[f"{name}_days"] = row[f"{name}_lo"] = row[f"{name}_hi"] = None
         rows.append(row)
     return pl.DataFrame(rows, infer_schema_length=None) if rows else pl.DataFrame()

@@ -27,9 +27,11 @@ def _out_dirs() -> tuple[Path, Path]:
     return derived, site
 
 
-def _write(df: pl.DataFrame, name: str, derived: Path, site: Path) -> None:
+def _write(df: pl.DataFrame, name: str, derived: Path, site: Path, *, publish: bool = True) -> None:
+    """``publish=False`` keeps a table out of site/src/data (committed) until the owner decides."""
     df.write_parquet(derived / f"{name}.parquet")
-    df.write_csv(site / f"{name}.csv")
+    if publish:
+        df.write_csv(site / f"{name}.csv")
     log.info("build: %s (%d rows)", name, df.height)
 
 
@@ -251,6 +253,69 @@ def build_s7(derived: Path, site: Path) -> None:
         _write(dr, "s7_ocj_provincial_disposition_monthly", derived, site)
 
 
+S12_BIAS = (
+    "Tax Court of Canada docket census (every file number listed by the court's search), "
+    "Kaplan-Meier, right-censored at the scrape date; end of file = first of file closed, "
+    "judgment, discontinuance or a bare outcome entry; entry labels regex-classified; "
+    "PROVISIONAL pending practitioner review of entry labels"
+)
+
+
+def build_s12(derived: Path, site: Path) -> None:
+    """Tax Court cohort tables. Not written to site/src/data: provisional, and publishing
+    aggregates from a Tier 2 docket source is an owner decision."""
+    p = paths.processed_dir() / "s12" / "dockets.parquet"
+    if not p.exists():
+        return
+    d = pl.read_parquet(p).with_columns(
+        pl.col("scraped").str.to_date(strict=False).alias("scraped_date"),
+        (pl.col("docket_year").cast(pl.Utf8) + "|" + pl.col("procedure_group")).alias("cohort"),
+    )
+    km = survival.cohort_table(
+        d,
+        cohort_col="cohort",
+        start_col="date_filed",
+        event_col="final_disposition_date",
+        censor_col="scraped_date",
+        n_boot=200,
+        label="filing -> final disposition",
+        min_at_risk=20,
+        bias_statement=S12_BIAS,
+    )
+    if km.height:
+        km = (
+            km.with_columns(
+                pl.col("cohort").str.split("|").list.get(0).cast(pl.Int32).alias("docket_year"),
+                pl.col("cohort").str.split("|").list.get(1).alias("procedure_group"),
+            )
+            .drop("cohort")
+            .sort(["procedure_group", "docket_year"])
+        )
+        km = km.select(["docket_year", "procedure_group", *km.columns[:-2]])
+        _write(km, "s12_tcc_km_by_cohort", derived, site, publish=False)
+    closed = pl.col("final_disposition_date").is_not_null()
+    heard = pl.col("first_hearing_date").is_not_null()
+    mix = (
+        d.group_by(["docket_year", "procedure_group"])
+        .agg(
+            pl.len().alias("n_files"),
+            closed.mean().alias("closed_share"),
+            heard.mean().alias("hearing_held_share"),
+            (closed & ~heard).mean().alias("closed_without_hearing_share"),
+            pl.col("discontinuance_date").is_not_null().mean().alias("discontinued_share"),
+            pl.col("abeyance_date").is_not_null().mean().alias("abeyance_share"),
+            (pl.col("n_court_adjournments") > 0).mean().alias("court_adjourned_share"),
+            (pl.col("n_adjournment_requests") > 0).mean().alias("adjournment_requested_share"),
+            (pl.col("n_case_mgmt_conferences") > 0).mean().alias("case_managed_share"),
+            pl.col("scraped_date").max().alias("vintage"),
+        )
+        .filter(pl.col("n_files") >= 30)
+        .with_columns(pl.lit(S12_BIAS.replace("Kaplan-Meier, ", "")).alias("bias_statement"))
+        .sort(["procedure_group", "docket_year"])
+    )
+    _write(mix, "s12_tcc_file_outcomes_by_cohort", derived, site, publish=False)
+
+
 def build_all() -> None:
     derived, site = _out_dirs()
     build_s1(derived, site)
@@ -265,3 +330,4 @@ def build_all() -> None:
     build_s3(derived, site)
     build_s4(derived, site)
     build_s7(derived, site)
+    build_s12(derived, site)

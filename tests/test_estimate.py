@@ -127,3 +127,30 @@ def test_competing_event_censors_at_its_own_date():
     assert r["n_competing"] == 60
     # all remaining at-risk files have the event at day 100, so every quantile is 100
     assert r["p50_days"] == 100 and r["p90_days"] == 100
+
+
+def test_cohort_table_suppresses_quantiles_in_censored_tail():
+    from datetime import date, timedelta
+
+    import polars as pl
+
+    from courtdelay.estimate import survival
+
+    start = date(2025, 1, 1)
+    obs = date(2025, 12, 31)
+    # 100 files: 30 close early, 69 are still open at the observation date, and one filed a
+    # year earlier closes late, so the upper quantiles would be read off a single file
+    rows = [{"c": "a", "start": start, "end": start + timedelta(days=10 + i)} for i in range(30)]
+    rows += [{"c": "a", "start": start, "end": None} for _ in range(69)]
+    rows += [{"c": "a", "start": date(2024, 1, 1), "end": date(2025, 12, 1)}]
+    df = pl.DataFrame(rows).with_columns(pl.lit(obs).alias("obs"))
+    kw = dict(cohort_col="c", start_col="start", event_col="end", censor_col="obs", n_boot=20)
+    loose = survival.cohort_table(df, **kw)
+    strict = survival.cohort_table(df, min_at_risk=20, **kw)
+    assert loose["p50_days"][0] == 700.0
+    assert strict["p50_days"][0] is None and strict["p50_lo"][0] is None
+    # a fully observed small cohort keeps its quantiles
+    full = pl.DataFrame(
+        [{"c": "b", "start": start, "end": start + timedelta(days=i + 1)} for i in range(35)]
+    ).with_columns(pl.lit(obs).alias("obs"))
+    assert survival.cohort_table(full, min_at_risk=20, **kw)["p50_days"][0] is not None

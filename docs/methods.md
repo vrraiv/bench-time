@@ -101,3 +101,38 @@ only from about FY2021-22, because the census starts with 2018 docket numbers an
 files closing or heard in earlier years). Same idea for S10/S11 against the FC and FCA activity
 summaries (commenced, dispositions, pending). Report differences, not just agreement; a large gap in
 hearings tests whether "Minutes of Hearing" marks the trial.
+
+## Tax Court docket census (S12): provisional cohort tables
+
+Built by `courtdelay build` into `data/processed/derived/` only (not `site/src/data/`): the tables
+are provisional until the practitioner review of entry labels is back, and publishing aggregates
+from a Tier 2 docket source is an owner decision.
+
+- `s12_tcc_km_by_cohort`: Kaplan-Meier time from filing to the end of the file, by file-number year
+  and procedure group (General, Informal, Application, EI, CPP, OAS). Right-censored at the scrape
+  date; 200 bootstrap replicates for the 95% interval.
+- `s12_tcc_file_outcomes_by_cohort`: shares of files closed, heard, closed without a hearing,
+  discontinued, held in abeyance, case-managed, and with an adjournment request.
+
+Definitions and rules:
+
+- **Filing date.** The listing's filed date when its year is within one year of the file number's
+  year (December filings numbered in January are common). It is missing for most applications and
+  implausible for 136 files (typing errors such as year 0026, or dates years before the number).
+  Fallbacks, in order: the notice of appeal entry, then the first recorded entry. The source is
+  kept in `date_filed_source`; 67 of 29,714 files have no usable date and are left out.
+- **End of file.** The "file closed" entry when present; otherwise the earliest of a judgment, a
+  discontinuance, or a bare outcome entry (Dismissed, Allowed, Allowed in Part, Quashed, Dism. for
+  failure to appear, File Cancelled).
+- **Censored tails.** A quantile is reported as not yet estimable when fewer than 20 files are
+  still at risk at that time and that is under half of what a fully observed cohort would have.
+  Without this, recent cohorts show medians read off one or two old files.
+- **Abeyance.** Recorded (first date, number of entries) but not subtracted: only 1,016 of 3,738
+  files with an abeyance have an entry releasing it.
+- **"Hearing Adjourned by TCC".** All 702 entries are dated 2020, so this marks the pandemic
+  closures, not a general signal of court-initiated adjournments.
+
+Bias statement: file numbers are a census of what the court's search lists; confidential files are
+not listed. Entry labels are classified by pattern, and 56% of entries (clerical) are unclassified.
+Time to the end of the file mixes settlements, withdrawals and judgments, so it is not the wait
+for a hearing; that needs cumulative incidence with settlement as a competing event (not built).

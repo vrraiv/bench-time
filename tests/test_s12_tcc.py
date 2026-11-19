@@ -124,3 +124,24 @@ def test_dismissed_and_abeyance():
 def test_procedure_group(nbr, group):
     row, _ = s12.parse_file(dict(FIX["listing"], APPEAL_NBR=nbr), FIX["entries"], "2026-11-16")
     assert row["procedure_group"] == group
+
+
+def test_filing_date_fallbacks():
+    ents = [
+        {"INFO": "Receipt for Notice of Application", "CREATED_DATE": "2019-02-03T00:00:00"},
+        {"INFO": "Application Scheduled", "CREATED_DATE": "2019-06-01T00:00:00"},
+    ]
+    # applications usually have no listed filing date: first recorded entry is used
+    listing = dict(FIX["listing"], APPEAL_NBR="2019-77(IT)APP", FILED_DATE=None)
+    row, _ = s12.parse_file(listing, ents, "2026-11-18")
+    assert row["date_filed"].isoformat() == "2019-02-03"
+    assert row["date_filed_source"] == "first_entry"
+    # a mistyped listed date (year 0026) is rejected
+    listing = dict(FIX["listing"], APPEAL_NBR="2019-78(IT)G", FILED_DATE="0026-01-07T00:00:00")
+    row, _ = s12.parse_file(listing, ents, "2026-11-18")
+    assert row["listed_filed_date_implausible"] is True
+    assert row["date_filed"].isoformat() == "2019-02-03"
+    # a December filing numbered in January is kept
+    listing = dict(FIX["listing"], APPEAL_NBR="2019-3(IT)I", FILED_DATE="2018-12-28T00:00:00")
+    row, _ = s12.parse_file(listing, ents, "2026-11-18")
+    assert row["date_filed_source"] == "listing"
