@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# Encrypted, incremental backup of data/raw with restic (owner decision 2026-11-17).
+# Encrypted, incremental backup of data/raw and the request log with restic (owner decision 2026-11-17).
 #
 #   scripts/backup.sh init     create the repository (once)
-#   scripts/backup.sh          back up data/raw, then a quick integrity check
+#   scripts/backup.sh          back up data/raw + data/manifest.jsonl, then a quick integrity check
 #   scripts/backup.sh verify   deeper check: read 5% of packs + restore 25 random cached
 #                              responses and compare their SHA-256 with the fetch-time sidecars
 #   scripts/backup.sh list     list snapshots
 #
-# Repository: $RESTIC_REPOSITORY, required (an environment variable). Password: from
+# Repository: $RESTIC_REPOSITORY (required; set it as a user environment variable on the machine
+# that runs backups, pointing at a folder that syncs off the device). Password: from
 # $RESTIC_PASSWORD_FILE (preferred; a file OUTSIDE the repo, e.g. %USERPROFILE%\.restic-courtdelay)
 # or $RESTIC_PASSWORD. Never commit or print the password. If it is lost, the backup is unreadable.
 # data/raw contains party names in raw court responses; restic encrypts before anything leaves the PC.
@@ -15,7 +16,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-export RESTIC_REPOSITORY="${RESTIC_REPOSITORY:?set RESTIC_REPOSITORY to the backup folder}"
+if [ -z "${RESTIC_REPOSITORY:-}" ]; then
+  echo "RESTIC_REPOSITORY is not set: point it at the backup folder (see the header)."; exit 2
+fi
+export RESTIC_REPOSITORY
 
 RESTIC="$(command -v restic || true)"
 if [ -z "$RESTIC" ]; then
@@ -42,7 +46,8 @@ case "$cmd" in
     ;;
   backup)
     cd "$ROOT"
-    "$RESTIC" backup data/raw --tag bench-time --host bench-time-local \
+    # the request log sits beside data/raw and is not in git: back it up with the raw files
+    "$RESTIC" backup data/raw data/manifest.jsonl --tag bench-time --host bench-time-local \
       --exclude "data/raw/**/*.part"
     "$RESTIC" check
     "$RESTIC" snapshots --latest 3

@@ -234,3 +234,6 @@ site/src/.observablehq/
 
 # local progress tracker (owner request 2026-11-17)
 progress/
+
+# request log: local provenance record, backed up with data/raw, not published
+data/manifest.jsonl

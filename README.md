@@ -17,5 +17,13 @@ uv run courtdelay fetch s1    # fetch + parse + validate one source (cached, rat
 uv run courtdelay fetch s9 --no-fetch   # re-parse cached raw files only
 ```
 
-Raw responses are cached under `data/raw/<source>/` (gitignored) and logged in
+`data/manifest.jsonl` (also gitignored; backed up with the raw files); processed Parquet goes to `data/processed/` (gitignored).
 `data/manifest.jsonl`; processed Parquet goes to `data/processed/` (gitignored).
+
+## Backups
+
+`scripts/backup.sh` makes encrypted restic backups of `data/raw` and the request log. It reads the
+backup location from the `RESTIC_REPOSITORY` environment variable and the password from a file
+outside the repository; neither is stored here. With the code in this repository and a restored
+`data/raw`, `uv run courtdelay fetch <source> --no-fetch` and `uv run courtdelay build` rebuild
+every table.

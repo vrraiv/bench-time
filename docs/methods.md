@@ -1,7 +1,7 @@
 # Methods: estimands, estimators, caveats
 
 Every number the site publishes carries: the estimand definition below, n, an uncertainty range,
-the data vintage (fetch date in `data/manifest.jsonl`), the source id, and the bias statement.
+the data vintage (fetch date; the per-request log `data/manifest.jsonl` is kept locally, not in the repository), the source id, and the bias statement.
 Prefer medians and quantiles to means; the courts' own published figures are averages and are
 reported as such.
 

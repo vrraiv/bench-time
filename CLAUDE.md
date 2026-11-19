@@ -40,7 +40,8 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
 - User-Agent is `bench-time/<version> (court-delay research; <COURTDELAY_CONTACT>)`. The contact
   comes only from the env var — never hardcode an address.
 - Every raw response is cached on disk under `data/raw/<source>/` and logged to
-  `data/manifest.jsonl` (append-only: url, fetched_at, sha256, status). Only 2xx responses
+  `data/manifest.jsonl` (append-only: url, fetched_at, sha256, status; gitignored and backed up
+  with `data/raw`, owner decision 2026-11-19). Only 2xx responses
   are served from cache. Nothing is fetched twice.
 - If a host returns 403/429 or a bot challenge: stop, record it in `docs/sources.md`, report.
   Do not change User-Agent or switch to a browser to get around it.

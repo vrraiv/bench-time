@@ -2,7 +2,7 @@
 
 Aggregate tables produced by `uv run courtdelay build` from the sources below. They contain no
 party names, no decision texts and no per-file docket records. Each table carries a
-`bias_statement` column; definitions are in `docs/methods.md`, vintages in `data/manifest.jsonl`.
+`bias_statement` column; definitions are in `docs/methods.md`, each table carries its vintage; the per-request log (`data/manifest.jsonl`) is kept locally and is not part of this repository.
 
 | Prefix | Source | Licence / terms | Attribution |
 |---|---|---|---|
