@@ -57,6 +57,9 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
 - Derived aggregate tables in `site/src/data/` are committed (owner decision 2026-11-16) with the
   attribution table in `site/src/data/README.md`. Per-decision or per-docket rows are not.
 - A2AJ `upstream_license` reading (owner, 2026-11-16): no commercial use, no full-text reproduction.
+- No individual names in published results (owner, 2026-11-18): this includes judges. Judge names
+  may be used as a linking key in `data/processed/` but never appear in site tables, charts or text;
+  per-judge figures are published only as anonymous distributions.
 
 ## Statistics
 

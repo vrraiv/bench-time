@@ -156,3 +156,24 @@ the files that end with no published decision. Coverage is limited to what the d
 FCA files from 2010, FC general files from 2018, and a sample of 1,000 FC immigration files per
 year from 2023. The linked table is per-decision and stays in `data/processed/` (not published);
 only aggregates go to the site.
+
+### Further linkages (owner decision 2026-11-18: build all)
+
+1. **FC immigration decisions to Refugee Law Lab dockets (S3 to S4)** by IMM file number,
+   1997-2022. No new crawling.
+2. **Tax Court decisions to Tax Court dockets (S3 to S12)** by file number, 2018 on. Also a test
+   of whether the docket's "Minutes of Hearing" date matches the hearing date printed in the
+   decision.
+3. **Hearing dates in decisions against docket hearing entries (S3 to S4, S10)**, to repair the
+   docket hearing classifier.
+4. **Appeal chains** from a Tax Court or Federal Court file to its FCA appeal and on to the SCC,
+   using the decision under appeal. Report the match rate; unmatched appeals are not dropped
+   silently.
+5. **FC immigration 2022 overlap sample (S10)**: about 300 files from the court's site, to check
+   that the Refugee Law Lab series (to 2022) and our sample (from 2023) are measured alike.
+   Approved 2026-11-18; runs at the approved 3 s spacing after the FC general crawl.
+6. **Judges in decisions to the judicial complement (S3 to S9).** Judge names are used only as a
+   linking key. No published table, chart or text names an individual judge; per-judge figures
+   are published only as anonymous distributions.
+
+All linked tables are per-file or per-decision and stay in `data/processed/`.
