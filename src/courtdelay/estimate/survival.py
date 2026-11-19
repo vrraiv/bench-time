@@ -89,6 +89,7 @@ def cohort_table(
     label: str = "",
     competing_col: str | None = None,
     min_at_risk: int = 0,
+    min_followed_share: float = 0.0,
     bias_statement: str = "Kaplan-Meier, right-censored at observation date; "
     "regex-classified events; immigration dockets only",
 ) -> pl.DataFrame:
@@ -119,8 +120,13 @@ def cohort_table(
             .to_numpy()
             .astype(float)
         )
+        follow = (
+            sub.select((pl.col(censor_col) - pl.col(start_col)).dt.total_days().alias("f"))["f"]
+            .to_numpy()
+            .astype(float)
+        )
         keep = dur >= 0
-        dur, ev = dur[keep], ev[keep]
+        dur, ev, follow = dur[keep], ev[keep], follow[keep]
         if len(dur) < min_n:
             continue
         qv = km_quantiles(dur, ev, qs)
@@ -143,6 +149,11 @@ def cohort_table(
             # report it as not yet estimable
             at_risk = int((dur >= qv[q]).sum()) if qv[q] is not None else 0
             if qv[q] is not None and at_risk < min_at_risk and at_risk < 0.5 * (1 - q) * len(dur):
+                row[f"{name}_days"] = row[f"{name}_lo"] = row[f"{name}_hi"] = None
+            # a cohort still filling: the quantile sits at a duration that fewer than
+            # ``min_followed_share`` of its files have been observed for, so it rests on the
+            # earliest filings only
+            if qv[q] is not None and float((follow >= qv[q]).mean()) < min_followed_share:
                 row[f"{name}_days"] = row[f"{name}_lo"] = row[f"{name}_hi"] = None
         rows.append(row)
     return pl.DataFrame(rows, infer_schema_length=None) if rows else pl.DataFrame()

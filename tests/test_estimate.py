@@ -169,3 +169,24 @@ def test_cumulative_incidence_sums_to_one_and_respects_competing():
     # censoring before any event leaves the estimate on the remaining files
     out = cumulative_incidence([1, 10, 20], [0, 1, 2], (30,))
     assert abs(out[30][0] - 0.5) < 1e-9 and abs(out[30][1] - 0.5) < 1e-9
+
+
+def test_cohort_table_blanks_quantiles_of_a_cohort_still_filling():
+    from datetime import date, timedelta
+
+    import polars as pl
+
+    from courtdelay.estimate.survival import cohort_table
+
+    obs = date(2026, 11, 1)
+    rows = []
+    # 20 early filings observed for 600 days, all ended at 400; 80 recent filings seen for 100 days
+    for _ in range(20):
+        start = obs - timedelta(days=600)
+        rows.append(("c", start, start + timedelta(days=400), obs))
+    for _ in range(80):
+        rows.append(("c", obs - timedelta(days=100), None, obs))
+    df = pl.DataFrame(rows, schema=["cohort", "start", "end", "obs"], orient="row")
+    kw = dict(cohort_col="cohort", start_col="start", event_col="end", censor_col="obs", n_boot=20)
+    assert cohort_table(df, **kw)["p50_days"][0] == 400  # Kaplan-Meier alone reports it
+    assert cohort_table(df, min_followed_share=0.5, **kw)["p50_days"][0] is None

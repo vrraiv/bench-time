@@ -174,10 +174,10 @@ Results (inside the census frame only; all files kept, see the decision below):
   crawl (including 3 `A` numbers cited by FC decisions, likely typos). The census is not missing
   files that produce decisions.
 - **Decision date against docket entries.** A judgment or order entry falls on the decision date
-  for 88% of linked FC pairs and 87% of FCA pairs (92% and 95% within a week).
+  for 88% of linked FC pairs and 86% of FCA pairs (92% and 95% within a week).
 - **Hearing date against docket entries.** Where the decision states a hearing date, a recorded
-  hearing entry falls on it for 71% (FC) and 71% (FCA); 78% and 74% within a week. The rest are
-  mostly matters decided in writing or hearings the docket records under another entry type.
+  hearing entry falls on it for 83% (FC) and 88% (FCA); 91% and 92% within a week (after the
+  hearing-pattern fix below; 71% and 71% before it).
 - **Hearing to judgment, FC decisions from 2016.** All decisions: n = 14,157, median 26 days.
   Linked `T` files: n = 2,836, median 33 days, 47% within 28 days, 70 at a year or more. Where the
   docket confirms both dates (n = 2,227): median 31, 41 at a year or more. With the
@@ -266,9 +266,21 @@ completed chains (`link_appeal_chains_by_year`, not yet on the site):
 | 2023 | Federal Court, final | 71 | 516 | 403 | 927 |
 | 2023 | Tax Court | 21 | 1,372 | 433 | 1,818 |
 
-Bias: lower files start in 2018, so early appeal years hold only quick lower-court files and the
-totals rise partly for that reason; completed chains only. The Supreme Court leg is not built
-(no SCC docket source).
+Validation: where both the appeal and the lower file have a published decision (431 chains), the
+appeal decision cites the lower decision in 89%. For final Federal Court appeals, the lower file
+has a final-decision marker in the 60 days before the notice of appeal in 70% (82% have a marker
+at all); for Tax Court appeals, a judgment entry in that window in 73%.
+
+Bias: these totals are lower bounds, not a trend. Lower files start in 2018, so an appeal filed in
+2019 can only link to a lower file that took under two years; the rise from 778 to 1,056 days is
+mostly that truncation. Completed chains only. The Supreme Court leg is not built (no SCC docket
+source).
+
+Still unchecked on the end-of-file rule: 396 S10 files carry a final marker on more than one date
+(median 78 days apart) and the first is used; and the last entries of about 136 FCA files from
+2021 or earlier that still count as open have not been read. The cohort tables blank any
+quantile that fewer than half the cohort has been followed long enough to reach, so 2025 and
+2026 show no medians. S4 still uses the first-judgment fallback, for about 1% of its files.
 
 **Judges against complement (first version 2026-11-19).** `estimate/judges.py`. Federal Court
 and Tax Court only (one judge decides). The judge's surname from the decision header is a
@@ -373,7 +385,8 @@ no docket: 191 are 2022 files, mostly numbered above IMM-11000-22, where the Ref
 scrape stops (last filing date 2022-11-07), so they are outside the frame rather than misses; the
 other 330 cannot be told apart from the 667 files S4 drops for sealing markers, whose numbers are
 not kept. A judgment or order entry falls on the decision date for 80% to 97% by year, and a
-recorded hearing falls on the decision's hearing date for 71% to 86%. Decisions after the
+recorded hearing falls on the decision's hearing date for 84% to 96% (71% to 86% before the
+hearing-pattern fix). Decisions after the
 November 2022 scrape link to a file but have no entry to match.
 
 - The decision header's *first* hearing date precedes the file's filing date for 12% of linked
@@ -384,8 +397,9 @@ November 2022 scrape link to a file but have no entry to match.
   granted (a denominator that does not use the hearing classifier), the share with a published
   decision in A2AJ is 57% to 62% for files filed 2005 to 2011, 35% to 48% for 2012 to 2015, and
   54% to 62% for 2016 to 2021. Per file with a recorded hearing the pattern is the same (75% to
-  81%, then 46% to 67%, then 85% to 96%), though the 2012 figure is also pulled down by 491 files
-  with a hearing entry and no leave granted, which is a classifier problem. Any series built on
+  81%, then 46% to 67%, then 85% to 96%, computed before the hearing-pattern fix; the dip remains
+  after it), though the 2012 figure is also pulled down by 491 files with a hearing entry and no
+  leave granted, which is a classifier problem. Any series built on
   published decisions alone (ours in E3, and others using A2AJ) has a thinner base in those
   years. Not yet known whether the gap is in A2AJ or in what the court published.
 

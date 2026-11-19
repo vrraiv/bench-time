@@ -127,6 +127,7 @@ def build_s9(derived: Path, site: Path) -> pl.DataFrame | None:
     if not p.exists():
         return None
     v = panel.monthly_vacancy_panel(pl.read_parquet(p))
+    v = v.sort(["court_code", "month"])  # stable row order: the panel came out in group order
     _write(v, "s9_vacancy_panel_monthly", derived, site)
     return v
 
@@ -280,6 +281,7 @@ def build_s12(derived: Path, site: Path) -> None:
         n_boot=200,
         label="filing -> final disposition",
         min_at_risk=20,
+        min_followed_share=0.5,
         bias_statement=S12_BIAS,
     )
     if km.height:
@@ -404,6 +406,7 @@ def build_s10(derived: Path, site: Path) -> None:
         n_boot=200,
         label="filing -> end of file",
         min_at_risk=20,
+        min_followed_share=0.5,
         bias_statement=S10_BIAS,
     )
     if km.height:
