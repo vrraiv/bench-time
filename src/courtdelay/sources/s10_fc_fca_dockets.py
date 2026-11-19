@@ -236,6 +236,11 @@ INFO_FIELDS = {
 }
 
 
+# Owner decision 2026-11-19: keep files that carry a confidentiality marker; count the markers.
+DROP_MARKED_FILES = False
+PUBLICATION_BAN_RE = r"publication\s+ban|non-?publication|interdiction\s+de\s+publication"
+
+
 def ms_date(v):
     """'/Date(1735794000000)/' (UTC milliseconds) -> local (Eastern) calendar date. The Court stores
     midnight Eastern, i.e. 04:00 UTC in daylight time and 05:00 UTC in standard time (a few carry a
@@ -254,13 +259,21 @@ def ms_date(v):
 
 
 def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict | None, list[dict]]:
-    """One docket -> (docket row, entry rows), names dropped. Returns (None, []) for files with any
-    entry flagged confidential (dropped per docs/HANDOFF.md section 6; counted by the caller)."""
+    """One docket -> (docket row, entry rows), names dropped.
+
+    Confidentiality markers are counted per file, not acted on (owner decision 2026-11-19: the
+    court publishes these files, so the markers are presumed to mean a sealed document or a
+    commercial confidentiality order, not a sealed proceeding; pending practitioner review).
+    With ``DROP_MARKED_FILES`` set, a marked file returns (None, []) as the handoff first asked."""
+    import re
+
     from courtdelay.sources import s4_rll_fc_dockets as s4
 
-    if any(str(e.get("IS_CONFIDENTIAL", "N")).upper() == "Y" for e in entries):
-        return None, []
-    if any(s4.SEALED_RE.search(e.get("RECORDED_ENTRY") or "") for e in entries):
+    texts = [e.get("RECORDED_ENTRY") or "" for e in entries]
+    n_flag = sum(str(e.get("IS_CONFIDENTIAL", "N")).upper() == "Y" for e in entries)
+    n_sealed = sum(bool(s4.SEALED_RE.search(t)) for t in texts)
+    n_ban = sum(bool(re.search(PUBLICATION_BAN_RE, t, re.I)) for t in texts)
+    if DROP_MARKED_FILES and (n_flag or n_sealed):
         return None, []
     docket = info.get("COURT_NO")
     docs = [
@@ -287,6 +300,9 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "date_filed": ms_date(info.get("FILE_DT")),
             "track": track,
             "scraped": fetched_at[:10],
+            "n_confidential_flag_entries": n_flag,
+            "n_sealed_text_entries": n_sealed,
+            "n_publication_ban_entries": n_ban,
             **s4.derive_docket(ents),
         }
     )

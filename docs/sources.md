@@ -228,8 +228,8 @@ request); add the real hostname once the owner confirms it.
   a reboot, resumed from cache). No 403, 429 or challenge at any point. Parsed: 34,406 files and
   835,570 recorded entries. FCA `A` 2010–2026: 6,492 files. FC general `T` 2018–2026: 23,886
   files (1,954 / 1,816 / 1,289 / 1,734 / 2,457 / 2,523 / 3,261 / 4,464 / 4,388 by year). FC
-  immigration sample 2023–2026: 4,028 files. 2,115 further files are dropped at parse for a
-  confidentiality marker (see `docs/methods.md`, open issue). Cross-check from the decision link:
+  immigration sample 2023–2026: 4,028 files. (Counts before 2026-11-19 07:28, when 2,116 files with a
+  confidentiality marker were restored: 36,829 files in all; see `docs/methods.md`.) Cross-check from the decision link:
   of 8,179 in-frame file numbers cited by published decisions, 12 were not found.
 - **IMM-2022 overlap sample** (owner approval 2026-11-18): stratum `IMM-2022`, 300 files drawn at
   random, run 2026-11-19 at the same 3 s spacing; finished 07:20, no errors (frame top IMM-13672-22).

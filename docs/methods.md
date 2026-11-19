@@ -163,31 +163,40 @@ Code: `estimate/linkage.py`, run by `courtdelay build`. Grain is decision x cite
 (immigration file in a sampled year, not drawn), `out_of_frame`, `bad_key` (truncated or malformed
 number, 282 pairs). Vintage: A2AJ snapshot and docket crawl of 2026-11-19.
 
-First results (inside the census frame only):
+Results (inside the census frame only; all files kept, see the decision below):
 
-| Decisions citing | Pairs | Linked | Dropped by us | No docket found |
-|---|---|---|---|---|
-| FC `T` files, 2018 on | 3,779 | 3,096 (82%) | 680 (18%) | 3 |
-| FCA `A` files, 2010 on | 4,393 | 3,854 (88%) | 533 (12%) | 6 |
+| Decisions citing | Pairs | Linked | No docket found |
+|---|---|---|---|
+| FC `T` files, 2018 on | 3,786 | 3,780 (99.8%) | 6 |
+| FCA `A` files, 2010 on | 4,393 | 4,387 (99.9%) | 6 |
 
 - **Census completeness.** Only 12 of 8,179 cited in-frame file numbers were not found by the
   crawl (including 3 `A` numbers cited by FC decisions, likely typos). The census is not missing
   files that produce decisions.
 - **Decision date against docket entries.** A judgment or order entry falls on the decision date
-  for 88% of linked FC pairs and 86% of FCA pairs (92% and 94% within a week).
+  for 88% of linked FC pairs and 87% of FCA pairs (92% and 95% within a week).
 - **Hearing date against docket entries.** Where the decision states a hearing date, a recorded
-  hearing entry falls on it for 72% (FC) and 70% (FCA); 77% and 72% within a week. The rest are
+  hearing entry falls on it for 71% (FC) and 71% (FCA); 78% and 74% within a week. The rest are
   mostly matters decided in writing or hearings the docket records under another entry type.
 - **Hearing to judgment, FC decisions from 2016.** All decisions: n = 14,157, median 26 days.
-  Linked `T` files: n = 2,500, median 28 days, 50% within 28 days, 43 at a year or more. Where the
-  docket confirms both dates (n = 1,943): median 27, 22 at a year or more. So the centre of the
-  distribution does not depend on the decision header's dates; the far tail partly does (7 of 29
-  linked decisions at a year or more have a later docket hearing that shortens them).
+  Linked `T` files: n = 2,836, median 33 days, 47% within 28 days, 70 at a year or more. Where the
+  docket confirms both dates (n = 2,227): median 31, 41 at a year or more. With the
+  confidentiality-marked files left out, the linked median was 28 (n = 2,500): those files carry
+  longer reserve times. Non-immigration files run slower than the all-decision median, which is
+  dominated by immigration (median 21).
 - **Not yet reliable: interlocutory versus final.** The docket `judgment` entry type matches any
   entry that mentions a judgment, so "last judgment on the file" is not a usable marker of the
   final decision (FCA: only 15% of linked decisions are "last"). Needs the FCA closing rule.
 
-### Open issue: the confidentiality drop removes the largest files (found 2026-11-19)
+### Confidentiality markers: files kept, markers counted (owner decision 2026-11-19)
+
+**Decision:** S10 no longer drops files that carry a confidentiality marker. The court publishes
+these files, so the markers are presumed to mean something narrower than a sealed proceeding. Each
+file now carries `n_confidential_flag_entries`, `n_sealed_text_entries` and
+`n_publication_ban_entries` so the earlier rule can be reproduced (`DROP_MARKED_FILES`). What the
+markers mean goes to the practitioner in a second review document. S4 (Refugee Law Lab) still
+drops 667 files under the old rule. The analysis that led here, as first written:
+
 
 S10 drops a whole file when any entry carries the court's confidential flag or its text matches
 `sealed`, `confidential order`, `publication ban` (rule from the handoff, section 6). 2,115 files
@@ -230,7 +239,8 @@ So court-wide medians barely move, but any breakdown by subject is distorted (pa
 their longer half) and counts of files and decisions are short by 6% to 9%. No entry text or names
 are kept for any file either way. Options for the owner: (a) keep these files and drop only the
 flagged entries, still dropping the 18 publication-ban files whole; (b) keep dropping and state
-the bias; (c) drop a file only when the court's own flag is set. Unchanged until decided.
+the bias; (c) drop a file only when the court's own flag is set. The owner chose to keep all
+files for now (above).
 
 ### Immigration and Tax Court links (first version 2026-11-19)
 

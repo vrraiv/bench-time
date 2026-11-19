@@ -34,6 +34,10 @@ def test_cancelled_document_does_not_end_the_file():
     assert row["final_disposition_date"] is None, "a later hearing order means the file continued"
 
 
-def test_confidential_file_is_dropped():
+def test_confidential_file_is_kept_and_counted(monkeypatch):
     entries = [dict(FIX["entries"][0], IS_CONFIDENTIAL="Y")]
+    row, ents = s10.parse_file(FIX["info"], entries, "2026-11-16")
+    assert row["n_confidential_flag_entries"] == 1 and len(ents) == 1
+    assert row["n_sealed_text_entries"] == 0 and row["n_publication_ban_entries"] == 0
+    monkeypatch.setattr(s10, "DROP_MARKED_FILES", True)
     assert s10.parse_file(FIX["info"], entries, "2026-11-16") == (None, [])
