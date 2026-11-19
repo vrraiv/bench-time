@@ -94,6 +94,18 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
             re.I | re.S,
         ),
     ),
+    # Registry minutes of a hearing. Checked before "judgment" because minutes often say that
+    # judgment was reserved or delivered from the bench. French minutes and the appeal court's
+    # English wording were not recognised before 2026-11-19 (about 6,300 entries in S10).
+    (
+        "hearing",
+        re.compile(
+            r"^\W*this\s+matter\s+c(?:omes|ame)\s+on\s+for\s+hearing\b|"
+            r"^\W*l['’]audition\s+de\s+cette\s+affaire\s+a\s+(?:eu\s+)?lieu|"
+            r"^.{0,60}?\ben\s+pr[ée]sence\s+de\s.{0,200}?mati[èe]re\s+en\s+litige",
+            re.I | re.S,
+        ),
+    ),
     (
         "judgment",
         re.compile(
@@ -155,8 +167,15 @@ VERB_RESULT = [
     (re.compile(r"\badjourned\b|\bajourn", re.I), "adjourned"),
 ]
 SUBJECT_RE = re.compile(
-    r"before\s+the\s+court\s*:\s*([A-Za-z][A-Za-z\s/]{2,40}?)"
-    r"(?=\s+(?:doc\.|result|on\s+behalf|language)|$)",
+    r"(?:before\s+the\s+court|mati[èe]re\s+en\s+litige)\s*:\s*"
+    r"([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s/'’()]{2,40}?)"
+    r"(?=\s+(?:doc\.|result|r[ée]sultat|on\s+behalf|de\s+la\s+part|language|langue)|$)",
+    re.I,
+)
+# hearing subjects that are not a hearing of the proceeding itself
+NON_MERITS_RE = re.compile(
+    r"motion|requ[êe]te|conf[ée]rence|m[ée]diation|meeting|r[ée]union|neutral\s+evaluation|"
+    r"next\s+steps|show\s+cause|status\s+review|[ée]tat\s+de\s+l['’]instance",
     re.I,
 )
 FIXED_DATE_RE = re.compile(
@@ -214,9 +233,9 @@ def hearing_subject(text: str | None) -> str | None:
     if not m:
         return None
     s = m.group(1).strip().lower()
-    if "judicial review" in s:
+    if "judicial review" in s or "contrôle judiciaire" in s or "controle judiciaire" in s:
         return "judicial_review"
-    if "motion" in s:
+    if "motion" in s or "requête" in s or "requete" in s:
         return "motion"
     return s[:40]
 
@@ -324,7 +343,10 @@ def derive_docket(entries: list[dict], *, judgment_fallback: bool = True) -> dic
         elif t == "hearing_scheduled" and out["scheduled_hearing_date"] is None:
             out["scheduled_hearing_date"] = e.get("_fixed") or d
         elif (
-            t == "hearing" and e.get("hearing_subject") != "motion" and out["hearing_date"] is None
+            t == "hearing"
+            and out["hearing_date"] is None
+            # motions, case conferences and mediations are not the hearing of the proceeding
+            and not NON_MERITS_RE.search(e.get("hearing_subject") or "")
         ):
             out["hearing_date"], out["hearing_result"] = d, e.get("result")
         elif t == "judgment" and out["judgment_date"] is None:

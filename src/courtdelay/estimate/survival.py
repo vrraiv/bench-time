@@ -146,3 +146,105 @@ def cohort_table(
                 row[f"{name}_days"] = row[f"{name}_lo"] = row[f"{name}_hi"] = None
         rows.append(row)
     return pl.DataFrame(rows, infer_schema_length=None) if rows else pl.DataFrame()
+
+
+def cumulative_incidence(durations, causes, times) -> dict[float, tuple[float, float]]:
+    """Aalen-Johansen cumulative incidence with one competing risk.
+
+    ``causes``: 0 = censored, 1 = the event of interest, 2 = the competing event (the file ended
+    another way first). Returns {t: (P(event by t), P(competing event by t))}. Unlike 1 - KM with
+    competing events censored, the two shares and the still-open share sum to one."""
+    t = np.asarray(durations, dtype=float)
+    c = np.asarray(causes, dtype=int)
+    order = np.argsort(t, kind="stable")
+    t, c = t[order], c[order]
+    n = len(t)
+    uniq = np.unique(t[c > 0])
+    surv, f1, f2 = 1.0, 0.0, 0.0
+    steps = []
+    for ti in uniq:
+        at_risk = n - np.searchsorted(t, ti, side="left")
+        if at_risk <= 0:
+            break
+        here = t == ti
+        d1, d2 = int(np.sum(here & (c == 1))), int(np.sum(here & (c == 2)))
+        f1 += surv * d1 / at_risk
+        f2 += surv * d2 / at_risk
+        surv *= 1.0 - (d1 + d2) / at_risk
+        steps.append((ti, f1, f2))
+    out = {}
+    for q in times:
+        last = (0.0, 0.0)
+        for ti, a, b in steps:
+            if ti > q:
+                break
+            last = (a, b)
+        out[q] = last
+    return out
+
+
+def cif_table(
+    df: pl.DataFrame,
+    *,
+    cohort_col: str,
+    start_col: str,
+    event_col: str,
+    competing_col: str,
+    censor_col: str,
+    times=(365, 730, 1095),
+    n_boot: int = 200,
+    min_n: int = 30,
+    seed: int = 20261119,
+    label: str = "",
+    bias_statement: str = "",
+) -> pl.DataFrame:
+    """Cumulative incidence of ``event_col`` by cohort, with ``competing_col`` as the competing
+    end and ``censor_col`` the observation date. A time point is reported only when the cohort
+    has been observed that long (the latest start plus the time is before the observation date
+    for at least half the cohort); bootstrap percentile intervals."""
+    rows = []
+    rng = np.random.default_rng(seed)
+    for cohort, sub in df.group_by(cohort_col, maintain_order=True):
+        key = cohort[0] if isinstance(cohort, tuple) else cohort
+        sub = sub.filter(pl.col(start_col).is_not_null() & pl.col(censor_col).is_not_null())
+        ev, comp = pl.col(event_col), pl.col(competing_col)
+        first = pl.min_horizontal(ev, comp, pl.col(censor_col))
+        x = sub.select(
+            (first - pl.col(start_col)).dt.total_days().alias("d"),
+            pl.when(ev.is_not_null() & (ev <= first))
+            .then(1)
+            .when(comp.is_not_null() & (comp <= first))
+            .then(2)
+            .otherwise(0)
+            .alias("c"),
+            (pl.col(censor_col) - pl.col(start_col)).dt.total_days().alias("follow"),
+        ).filter(pl.col("d") >= 0)
+        if x.height < min_n:
+            continue
+        d, c = x["d"].to_numpy().astype(float), x["c"].to_numpy()
+        follow = x["follow"].to_numpy()
+        est = cumulative_incidence(d, c, times)
+        boots = {q: [] for q in times}
+        for _ in range(n_boot):
+            idx = rng.integers(0, len(d), len(d))
+            b = cumulative_incidence(d[idx], c[idx], times)
+            for q in times:
+                boots[q].append(b[q][0])
+        row = {
+            cohort_col: key,
+            "n": int(len(d)),
+            "n_events": int((c == 1).sum()),
+            "n_competing": int((c == 2).sum()),
+            "open_share": float((c == 0).mean()),
+            "estimand": label or f"{start_col} -> {event_col}",
+            "bias_statement": bias_statement,
+        }
+        for q in times:
+            name = f"by_{int(q)}d"
+            seen = float((follow >= q).mean()) >= 0.5
+            row[f"event_{name}"] = est[q][0] if seen else None
+            row[f"event_{name}_lo"] = float(np.quantile(boots[q], 0.025)) if seen else None
+            row[f"event_{name}_hi"] = float(np.quantile(boots[q], 0.975)) if seen else None
+            row[f"competing_{name}"] = est[q][1] if seen else None
+        rows.append(row)
+    return pl.DataFrame(rows, infer_schema_length=None) if rows else pl.DataFrame()

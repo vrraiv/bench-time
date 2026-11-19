@@ -314,6 +314,31 @@ def build_s12(derived: Path, site: Path) -> None:
         .sort(["procedure_group", "docket_year"])
     )
     _write(mix, "s12_tcc_file_outcomes_by_cohort", derived, site, publish=False)
+    # wait for a hearing: most files end without one, so this is a cumulative incidence with
+    # "ended without a hearing" as the competing outcome, not a Kaplan-Meier median
+    wait = survival.cif_table(
+        d.filter(pl.col("procedure_group").is_in(["General", "Informal", "EI", "CPP"])),
+        cohort_col="cohort",
+        start_col="date_filed",
+        event_col="first_hearing_date",
+        competing_col="final_disposition_date",
+        censor_col="scraped_date",
+        label="filing -> first hearing entry (competing: file ended without one)",
+        bias_statement=S12_BIAS
+        + " The first 'Minutes of Hearing' entry is used; it is sometimes a motion or status "
+        "hearing, not the trial (practitioner review pending).",
+    )
+    if wait.height:
+        wait = (
+            wait.with_columns(
+                pl.col("cohort").str.split("|").list.get(0).cast(pl.Int32).alias("docket_year"),
+                pl.col("cohort").str.split("|").list.get(1).alias("procedure_group"),
+                pl.lit(d["scraped_date"].max()).alias("vintage"),
+            )
+            .drop("cohort")
+            .sort(["procedure_group", "docket_year"])
+        )
+        _write(wait, "s12_tcc_hearing_wait_by_cohort", derived, site, publish=False)
 
 
 S10_BIAS = (

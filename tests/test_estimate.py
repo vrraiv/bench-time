@@ -154,3 +154,18 @@ def test_cohort_table_suppresses_quantiles_in_censored_tail():
         [{"c": "b", "start": start, "end": start + timedelta(days=i + 1)} for i in range(35)]
     ).with_columns(pl.lit(obs).alias("obs"))
     assert survival.cohort_table(full, min_at_risk=20, **kw)["p50_days"][0] is not None
+
+
+def test_cumulative_incidence_sums_to_one_and_respects_competing():
+    from courtdelay.estimate.survival import cumulative_incidence
+
+    # 10 files: 4 heard (days 10..40), 4 end without a hearing (days 5..35), 2 still open at 100
+    d = [10, 20, 30, 40, 5, 15, 25, 35, 100, 100]
+    c = [1, 1, 1, 1, 2, 2, 2, 2, 0, 0]
+    out = cumulative_incidence(d, c, (20, 50, 100))
+    assert out[20] == (0.2, 0.2)
+    heard, other = out[50]
+    assert abs(heard - 0.4) < 1e-9 and abs(other - 0.4) < 1e-9  # 20% still open
+    # censoring before any event leaves the estimate on the remaining files
+    out = cumulative_incidence([1, 10, 20], [0, 1, 2], (30,))
+    assert abs(out[30][0] - 0.5) < 1e-9 and abs(out[30][1] - 0.5) < 1e-9

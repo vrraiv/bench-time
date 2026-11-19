@@ -166,3 +166,21 @@ def test_judgment_fallback_can_be_turned_off():
     open_file = s4.derive_docket(ents, judgment_fallback=False)
     assert open_file["final_disposition_date"] is None
     assert open_file["final_disposition_source"] is None
+
+
+def test_french_and_appeal_court_hearing_minutes():
+    fr = "L'audition de cette affaire a lieu le 30-NOV-2016 à Montréal en présence de : le juge X"
+    en = "This matter comes on for hearing on 07-JUN-2017 at Toronto. Judgment reserved"
+    head = "Montréal 12-MAI-2020 En présence de Madame la juge X Langue : F Matière en litige : "
+    fr2 = head + "Contrôle judiciaire Résultat de l'audition : en délibéré"
+    cmc = head + "Conférence de gestion de l'instance Résultat : tenue"
+    for t in (fr, en, fr2, cmc):
+        assert s4.classify_entry(t) == "hearing", t
+    assert s4.hearing_subject(fr2) == "judicial_review"
+    docs = [
+        _doc(1, "2020-01-10", "Notice of application filed"),
+        _doc(2, "2020-03-01", cmc),
+        _doc(3, "2020-05-12", fr2),
+    ]
+    d = s4.derive_docket(s4.classify_docket_entries(docs, "T-9-20"))
+    assert d["hearing_date"] == date(2020, 5, 12)  # the case conference is not the hearing
