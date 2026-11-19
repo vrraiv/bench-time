@@ -14,7 +14,7 @@ from pathlib import Path
 import polars as pl
 
 from courtdelay.common import paths
-from courtdelay.estimate import panel, reserve_time, stock_flow, survival
+from courtdelay.estimate import linkage, panel, reserve_time, stock_flow, survival
 
 log = logging.getLogger(__name__)
 
@@ -316,6 +316,42 @@ def build_s12(derived: Path, site: Path) -> None:
     _write(mix, "s12_tcc_file_outcomes_by_cohort", derived, site, publish=False)
 
 
+def build_links(derived: Path, site: Path) -> None:
+    """Decision-to-docket links (S3 x S10). Per-decision rows go to data/processed/links/ and are
+    never published; only aggregate match rates are written as a derived table."""
+    proc = paths.processed_dir()
+    need = [proc / "s3" / "decisions_meta.parquet", proc / "s10" / "dockets.parquet"]
+    if not all(p.exists() for p in need):
+        return
+    dockets = pl.read_parquet(need[1])
+    dropped_p = proc / "s10" / "dropped_confidential.parquet"
+    keys = linkage.decision_keys(pl.read_parquet(need[0]), ["FC", "FCA"], linkage.normalise_fc_key)
+    # the frame is what the crawl covered: census strata, and sampled strata (never a "miss")
+    cov = dockets.group_by("prefix").agg(
+        pl.col("docket_year").min().alias("lo"), pl.col("docket_year").max().alias("hi")
+    )
+    span = {r["prefix"]: (r["lo"], r["hi"]) for r in cov.iter_rows(named=True)}
+    links = linkage.link_decisions(
+        keys,
+        dockets,
+        pl.read_parquet(proc / "s10" / "entries.parquet"),
+        census={p: span[p] for p in ("A", "T") if p in span},
+        sample={p: span[p] for p in ("IMM",) if p in span},
+        dropped=pl.read_parquet(dropped_p) if dropped_p.exists() else None,
+    )
+    out = proc / "links"
+    out.mkdir(exist_ok=True)
+    links.write_parquet(out / "fc_decision_docket.parquet")
+    rates = linkage.match_rates(links).with_columns(
+        pl.lit(
+            "Published decisions (A2AJ) joined to docket files by court file number; census "
+            "strata only (FCA from 2010, FC non-immigration from 2018); files we drop for a "
+            "confidentiality marker are counted, not linked"
+        ).alias("bias_statement")
+    )
+    _write(rates, "link_fc_decision_docket_match_rates", derived, site, publish=False)
+
+
 def build_all() -> None:
     derived, site = _out_dirs()
     build_s1(derived, site)
@@ -331,3 +367,4 @@ def build_all() -> None:
     build_s4(derived, site)
     build_s7(derived, site)
     build_s12(derived, site)
+    build_links(derived, site)

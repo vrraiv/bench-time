@@ -317,11 +317,13 @@ def _cached_pairs():
 def parse(client: Client | None = None):
     import polars as pl
 
-    dockets, entries, dropped = [], [], 0
-    for _key, info, ents, fetched_at in _cached_pairs():
+    dockets, entries, dropped, dropped_nos = [], [], 0, []
+    for key, info, ents, fetched_at in _cached_pairs():
         row, erows = parse_file(info, ents, fetched_at)
         if row is None:
             dropped += 1
+            # file number only: lets the decision link tell "dropped by us" from "never found"
+            dropped_nos.append({"docket": info.get("COURT_NO") or key[1]})
             continue
         dockets.append(row)
         entries.extend(erows)
@@ -332,6 +334,9 @@ def parse(client: Client | None = None):
     if d.height:
         d.write_parquet(out / "dockets.parquet")
         e.write_parquet(out / "entries.parquet")
+        pl.DataFrame(dropped_nos, schema={"docket": pl.String}).write_parquet(
+            out / "dropped_confidential.parquet"
+        )
     log.info("S10: %d dockets parsed, %d dropped as confidential/sealed", d.height, dropped)
     return {"dockets": d, "entries": e, "dropped": dropped}
 
