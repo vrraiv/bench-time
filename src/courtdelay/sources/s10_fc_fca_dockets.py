@@ -67,6 +67,9 @@ def default_plan(
     plan = [Stratum(f"FCA-{y}", "A", "a", y, "census") for y in fca_years]
     plan += [Stratum(f"FCT-{y}", "T", "t", y, "census") for y in fc_general_years]
     plan += [Stratum(f"IMM-{y}", "IMM", "t", y, "sample", 1000) for y in imm_years]
+    # overlap sample (owner approval 2026-11-18): 300 files from the last filing year the Refugee
+    # Law Lab series covers, to check that S4 and this source measure the same stages alike
+    plan.append(Stratum("IMM-2022", "IMM", "t", 2022, "sample", 300))
     return plan
 
 

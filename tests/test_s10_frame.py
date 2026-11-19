@@ -64,9 +64,13 @@ def test_default_plan_matches_owner_decision():
     plan = s10.default_plan()
     assert {s.mode for s in plan if s.prefix in {"A", "T"}} == {"census"}
     imm = [s for s in plan if s.prefix == "IMM"]
-    assert [s.year for s in imm] == [2023, 2024, 2025, 2026] and all(
-        s.n_sample == 1000 for s in imm
-    )
+    assert [(s.year, s.n_sample) for s in imm] == [
+        (2023, 1000),
+        (2024, 1000),
+        (2025, 1000),
+        (2026, 1000),
+        (2022, 300),  # overlap sample with the Refugee Law Lab series
+    ]
 
 
 class FlakyClient(FakeClient):
