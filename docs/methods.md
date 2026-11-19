@@ -206,6 +206,38 @@ durations from S10 are biased downward. No entry text or names are kept for any 
 Options for the owner: (a) keep these files and drop only the flagged entries; (b) keep dropping
 and state the bias; (c) drop only when the court's own flag is set. Unchanged until decided.
 
+### Immigration and Tax Court links (first version 2026-11-19)
+
+Same code, run by `courtdelay build`; per-decision rows in `data/processed/links/`.
+
+**FC immigration decisions to Refugee Law Lab dockets (S3 to S4).** 22,973 decision x file pairs;
+19,482 linked. For decisions dated 2001 to 2022, 94% to 99% link each year (521 cited files have
+no docket; S4 drops 667 for sealing markers and their numbers are not kept, so the two cannot be
+told apart). A judgment or order entry falls on the decision date for 80% to 97% by year, and a
+recorded hearing falls on the decision's hearing date for 71% to 86%. Decisions after the
+November 2022 scrape link to a file but have no entry to match.
+
+- The decision header's *first* hearing date precedes the file's filing date for 12% of linked
+  decisions (2,281): it is picking up another date in the header. The *last* hearing date, which
+  reserve time uses, does so for under 1% (158). Reserve time is unaffected; `hearing_dates_n` and
+  any multi-day measure from S3 are not reliable.
+- **Coverage of published decisions is uneven.** Among immigration files with a recorded hearing,
+  the share with a published decision in A2AJ is 75% to 81% for files filed 2005 to 2011, falls to
+  46% to 67% for 2012 to 2015, and is 85% to 96% for 2016 to 2021. Any series built on published
+  decisions alone (ours in E3, and others using A2AJ) has a thinner base in 2012 to 2015. Not yet
+  known whether the gap is in A2AJ, in what the court published, or in our hearing classifier.
+
+**Tax Court decisions to Tax Court dockets (S3 to S12).** The S3 file-number pattern required a
+`G` or `I` suffix, so it missed EI, CPP, OAS and application files: fixed, and 1,692 Tax Court
+decisions gained a file number (no other court changed). Of 967 pairs citing files from 2018 on,
+956 link; the 11 misses are 6 file numbers. A hearing entry ("Minutes of Hearing") falls on the
+decision's hearing date for 79% and within a week for 93%. The docket's judgment entry is on the
+decision date for only about 42% but within a week for 94%: the docket records it a few days
+later. Share of files filed 2018 to 2022 with a published decision: General 4.1%, Informal 3.2%,
+EI 9.1%, CPP 8.7%, Applications 2.6%; among files with a hearing entry, 13% (General) and 8%
+(Informal). Most Tax Court files end without published reasons, so decision-based measures for
+this court describe a small and selected group.
+
 ### Further linkages (owner decision 2026-11-18: build all)
 
 1. **FC immigration decisions to Refugee Law Lab dockets (S3 to S4)** by IMM file number,

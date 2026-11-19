@@ -97,3 +97,12 @@ def test_link_statuses_and_entry_matches():
     # census frame only: the 2012 and immigration decisions are not counted as misses
     assert rates["n_decision_files"].sum() == 4
     assert "judges_line" not in out.columns
+
+
+def test_tcc_keys():
+    assert lk.normalise_tcc_key("2019-0123 (it) g") == "2019-123(IT)G"
+    assert lk.normalise_tcc_key("2019-45(GST)APP") == "2019-45(GST)APP"
+    assert lk.normalise_tcc_key("2018-826(EI)") == "2018-826(EI)"
+    assert lk.normalise_tcc_key("97-1896(IT)G") == "1997-1896(IT)G"
+    assert lk.normalise_tcc_key("2019-45") is None
+    assert lk.tcc_key_parts("2019-123(IT)G") == ("TCC", 2019)

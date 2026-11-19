@@ -78,10 +78,34 @@ def decision_keys(
     return out
 
 
-def _frame_status(key: str | None, census: dict, sample: dict) -> str:
+def fc_key_parts(key: str) -> tuple[str, int]:
+    """'T-123-19' -> ('T', 2019)."""
+    return key.split("-", 1)[0], key_year(key)
+
+
+TCC_KEY_RE = re.compile(r"^(\d{4}|\d{2})-(\d{1,6})\(([A-Z]{2,4})\)(G|I|APP)?$")
+
+
+def normalise_tcc_key(raw: str | None) -> str | None:
+    """'2019-0123 (it) g' -> '2019-123(IT)G'. None when malformed."""
+    if not raw:
+        return None
+    m = TCC_KEY_RE.match(raw.strip().upper().replace(" ", ""))
+    if not m:
+        return None
+    year = m.group(1) if len(m.group(1)) == 4 else f"19{m.group(1)}"  # two digits: 1990s
+    return f"{year}-{int(m.group(2))}({m.group(3)}){m.group(4) or ''}"
+
+
+def tcc_key_parts(key: str) -> tuple[str, int]:
+    """'2019-123(IT)G' -> ('TCC', 2019): Tax Court numbers carry the year first."""
+    return "TCC", int(key[:4])
+
+
+def _frame_status(key: str | None, census: dict, sample: dict, key_parts) -> str:
     if key is None:
         return "bad_key"
-    prefix, year = key.split("-", 1)[0], key_year(key)
+    prefix, year = key_parts(key)
     if prefix in census and census[prefix][0] <= year <= census[prefix][1]:
         return "in_frame"
     if prefix in sample and sample[prefix][0] <= year <= sample[prefix][1]:
@@ -131,6 +155,7 @@ def link_decisions(
     census: dict[str, tuple[int, int]],
     sample: dict[str, tuple[int, int]] | None = None,
     dropped: pl.DataFrame | None = None,
+    key_parts: Callable[[str], tuple[str, int]] = fc_key_parts,
 ) -> pl.DataFrame:
     """Left-join decision keys to dockets and match each linked pair to docket entries.
 
@@ -152,8 +177,11 @@ def link_decisions(
     sealed = set(dropped["docket"]) if dropped is not None else set()
     out = keys.join(dk, on="key", how="left")
     assert out.height == n0, "join must not duplicate decision rows"
-    frame = [_frame_status(k, census, sample or {}) for k in out["key"]]
-    out = out.with_columns(pl.Series("_frame", frame)).with_columns(
+    frame = [_frame_status(k, census, sample or {}, key_parts) for k in out["key"]]
+    prefix = [key_parts(k)[0] if k is not None else None for k in out["key"]]
+    out = out.with_columns(
+        pl.Series("_frame", frame), pl.Series("prefix", prefix, dtype=pl.String)
+    ).with_columns(
         pl.when(pl.col("_has_docket").fill_null(False))
         .then(pl.lit("linked"))
         .when(pl.col("key").is_in(list(sealed)))
@@ -216,7 +244,6 @@ def link_decisions(
 def match_rates(links: pl.DataFrame) -> pl.DataFrame:
     """Aggregate match rates by court, file prefix and decision year (census frame only)."""
     f = links.filter(pl.col("in_census_frame")).with_columns(
-        pl.col("key").str.split("-").list.first().alias("prefix"),
         pl.col("decision_date").dt.year().alias("decision_year"),
     )
     lk = pl.col("status") == "linked"

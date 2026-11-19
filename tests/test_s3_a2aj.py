@@ -173,3 +173,12 @@ def test_judges_line_never_captures_party_block():
     text = "Before the court were the applicant and respondent.\nBETWEEN:\nX\nApplicant\n"
     p = s3.parse_header(text, "FC", tail="")
     assert p["judges_line"] is None or "applicant" not in p["judges_line"].lower()
+
+
+def test_tcc_file_numbers_without_procedure_letter():
+    for nbr in ("2019-1234(EI)", "2019-88(CPP)", "2020-45(GST)APP", "2021-7(IT)APP", "98-123(IT)G"):
+        p = s3.parse_header(TCC_HEADER.replace("2019-1234(IT)G", nbr), "TCC")
+        assert p["file_numbers"] == nbr, nbr
+    # the letter that starts the next word is not taken for a procedure suffix
+    p = s3.parse_header(TCC_HEADER.replace("2019-1234(IT)G", "2019-1234(EI) IN"), "TCC")
+    assert p["file_numbers"] == "2019-1234(EI)"

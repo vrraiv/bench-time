@@ -350,6 +350,62 @@ def build_links(derived: Path, site: Path) -> None:
         ).alias("bias_statement")
     )
     _write(rates, "link_fc_decision_docket_match_rates", derived, site, publish=False)
+    meta = pl.read_parquet(need[0])
+
+    # FC immigration decisions x Refugee Law Lab dockets (S4: filed to 2022, scraped Nov 2022)
+    s4d, s4e = proc / "s4" / "dockets.parquet", proc / "s4" / "entries.parquet"
+    if s4d.exists() and s4e.exists():
+        d4 = pl.read_parquet(s4d).with_columns(
+            pl.lit(None, dtype=pl.String).alias("proceeding_type")
+        )
+        k4 = linkage.decision_keys(meta, ["FC"], linkage.normalise_fc_key).filter(
+            pl.col("key").str.starts_with("IMM-")
+        )
+        lo, hi = max(int(d4["filing_year"].min()), 1997), int(d4["filing_year"].max())
+        l4 = linkage.link_decisions(k4, d4, pl.read_parquet(s4e), census={"IMM": (lo, hi)})
+        l4.write_parquet(out / "fc_imm_decision_docket.parquet")
+        r4 = linkage.match_rates(l4).with_columns(
+            pl.lit(
+                "Published FC immigration decisions (A2AJ) joined to Refugee Law Lab dockets by "
+                "file number; dockets scraped November 2022, so later decisions on these files "
+                "have no docket entry to match"
+            ).alias("bias_statement")
+        )
+        _write(r4, "link_fc_imm_decision_docket_match_rates", derived, site, publish=False)
+
+    # Tax Court decisions x Tax Court dockets (S12 census from 2018)
+    s12d, s12e = proc / "s12" / "dockets.parquet", proc / "s12" / "entries.parquet"
+    if s12d.exists() and s12e.exists():
+        t = pl.read_parquet(s12d)
+        dt = t.select(
+            "docket",
+            "date_filed",
+            pl.col("procedure_group").alias("proceeding_type"),
+            "nature",
+            "final_disposition_date",
+            pl.col("first_hearing_date").alias("hearing_date"),
+            "judgment_date",
+        )
+        et = pl.read_parquet(s12e).with_columns(
+            pl.col("entry_type").replace({"hearing_held": "hearing"}),
+            pl.lit(None, dtype=pl.String).alias("hearing_subject"),
+        )
+        kt = linkage.decision_keys(meta, ["TCC"], linkage.normalise_tcc_key)
+        lt = linkage.link_decisions(
+            kt,
+            dt,
+            et,
+            census={"TCC": (int(t["docket_year"].min()), int(t["docket_year"].max()))},
+            key_parts=linkage.tcc_key_parts,
+        )
+        lt.write_parquet(out / "tcc_decision_docket.parquet")
+        rt = linkage.match_rates(lt).with_columns(
+            pl.lit(
+                "Published Tax Court decisions (A2AJ) joined to docket files by file number; "
+                "files from 2018 on; only a few percent of files end in a published decision"
+            ).alias("bias_statement")
+        )
+        _write(rt, "link_tcc_decision_docket_match_rates", derived, site, publish=False)
 
 
 def build_all() -> None:

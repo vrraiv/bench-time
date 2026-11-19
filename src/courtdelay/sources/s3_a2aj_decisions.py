@@ -108,7 +108,8 @@ DOCKET_RE = re.compile(
 )
 FILE_TOKEN_RE = re.compile(
     r"\b(?:IMM|T|A|DES|ITA|GST|ETA|CPP|EI|P|C|M|COA|CR|CV|\d{2}-A)-?\d{1,6}-?\d{0,4}\b|"
-    r"\b\d{4}-\d{1,5}\((?:IT|GST|EI|CPP|OAS|EA)\)[GI]\b|\b\d{5}\b|\bCOA-\d{2}-(?:CR|CV|OM)-\d{3,5}\b",
+    # Tax Court: 2019-123(IT)G, 2019-123(GST)APP, and EI/CPP/OAS files with no procedure letter
+    r"\b\d{2,4}-\d{1,5}\([A-Z]{2,4}\)(?:(?:APP|G|I)(?![A-Za-z]))?|\b\d{5}\b|\bCOA-\d{2}-(?:CR|CV|OM)-\d{3,5}\b",
     re.I,
 )
 TCC_PROC_RE = re.compile(r"\((?:IT|GST|EI|CPP|OAS|EA)\)([GI])", re.I)
