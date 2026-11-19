@@ -14,7 +14,7 @@ from pathlib import Path
 import polars as pl
 
 from courtdelay.common import paths
-from courtdelay.estimate import linkage, panel, reserve_time, stock_flow, survival
+from courtdelay.estimate import judges, linkage, panel, reserve_time, stock_flow, survival
 
 log = logging.getLogger(__name__)
 
@@ -443,6 +443,28 @@ def build_s10(derived: Path, site: Path) -> None:
     _write(mix, "s10_fc_fca_file_outcomes_by_cohort", derived, site, publish=False)
 
 
+def build_judges(derived: Path, site: Path, complement: pl.DataFrame | None) -> None:
+    """Judges deciding vs complement. Per-judge rows (names as a key) stay in
+    data/processed/links/; the derived table holds counts and anonymous distributions only."""
+    p = paths.processed_dir() / "s3" / "decisions_meta.parquet"
+    if not p.exists():
+        return
+    dec = judges.judge_decisions(pl.read_parquet(p))
+    out = paths.processed_dir() / "links"
+    out.mkdir(exist_ok=True)
+    dec.write_parquet(out / "judge_decisions_internal.parquet")
+    t = judges.court_year_table(dec, complement).with_columns(
+        pl.lit(
+            "Published decisions only (A2AJ); Federal Court and Tax Court, where one judge "
+            "decides; associate judges and prothonotaries excluded; judges matched by surname "
+            "from the decision header; complement from FJA snapshots (persons, not full-time "
+            "equivalents). No individual is identified: figures are counts or distributions "
+            "across judges, and distributions over fewer than five judges are withheld."
+        ).alias("bias_statement")
+    )
+    _write(t, "link_judges_vs_complement_by_court_year", derived, site, publish=False)
+
+
 def build_appeal_chains(derived: Path, site: Path) -> None:
     """FCA appeal -> the file appealed from, where the appeal's opening entries name it. Lower
     files come from S10 (Federal Court non-immigration, 2018 on), S4 (immigration to 2022) and
@@ -663,3 +685,4 @@ def build_all() -> None:
     build_s10(derived, site)
     build_links(derived, site)
     build_appeal_chains(derived, site)
+    build_judges(derived, site, v)
