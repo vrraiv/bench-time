@@ -241,7 +241,7 @@ def link_decisions(
     return out.drop("_has_docket", "_frame")
 
 
-def match_rates(links: pl.DataFrame) -> pl.DataFrame:
+def match_rates(links: pl.DataFrame, min_n: int = 0) -> pl.DataFrame:
     """Aggregate match rates by court, file prefix and decision year (census frame only)."""
     f = links.filter(pl.col("in_census_frame")).with_columns(
         pl.col("decision_date").dt.year().alias("decision_year"),
@@ -268,5 +268,6 @@ def match_rates(links: pl.DataFrame) -> pl.DataFrame:
             (pl.col("_h7") / pl.col("n_with_hearing_date")).alias("hearing_within_7d_share"),
         )
         .drop("_e0", "_e7", "_h0", "_h7")
+        .filter(pl.col("n_decision_files") >= min_n)  # published tables: no tiny cells
         .sort("court", "prefix", "decision_year")
     )

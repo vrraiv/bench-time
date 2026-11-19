@@ -62,6 +62,10 @@ COPY_RE = re.compile(
     r"accus[ée]\s+de\s+r[ée]ception|carte\s+d['’]accus[ée])",
     re.I,
 )
+# Owner decision 2026-11-19: files with a sealing or confidentiality mention are kept (they are
+# public files with a sealed document, 0.3% of the total) and the mentions are counted per file.
+DROP_MARKED_FILES = False
+
 # The Registry marks the entry that ends a file. Older entries carry "(Final decision)" at the
 # start; entries from the current system carry "Final Decision" on a line of its own after the
 # text (found 2026-11-19: a start-only match saw the marker on no FCA file at all). A mention in
@@ -418,13 +422,17 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
     log.info("S4: %d dockets in parquet", df.height)
     docket_rows, entry_rows = [], []
     sealed = 0
+    marked = 0
     unclassified = 0
     n_entries = 0
     for row in df.iter_rows(named=True):
         docs = row.get("documents") or []
-        if any(SEALED_RE.search(d.get("RECORDED_ENTRY") or "") for d in docs):
-            sealed += 1
-            continue
+        n_marked = sum(bool(SEALED_RE.search(d.get("RECORDED_ENTRY") or "")) for d in docs)
+        if n_marked:
+            marked += 1
+            if DROP_MARKED_FILES:
+                sealed += 1
+                continue
         ents = classify_docket_entries(docs, row["citation"])
         n_entries += len(ents)
         unclassified += sum(e["entry_type"] == "other" for e in ents)
@@ -440,6 +448,7 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
                 "track": row.get("track"),
                 "scraped": parse_entry_date(row.get("scraped_timestamp")),
                 "source_url": row.get("source_url"),
+                "n_sealed_text_entries": n_marked,
                 **derive_docket(ents),
             }
         )
@@ -456,6 +465,7 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
             "dockets_in": [df.height],
             "dockets_kept": [dockets.height],
             "sealed_dropped": [sealed],
+            "sealed_marked_kept": [marked - sealed],
             "entries": [n_entries],
             "unclassified_share": [unclassified / max(n_entries, 1)],
         }

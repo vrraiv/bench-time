@@ -14,5 +14,7 @@ party names, no decision texts and no per-file docket records. Each table carrie
 | s7_ | Ontario Court of Justice criminal statistics | Ministry of the Attorney General data; the Court disclaims accuracy | Ontario Court of Justice |
 | s8_ | Federal Court, Federal Court of Appeal activity summaries | Government of Canada non-commercial reproduction | Federal Court; Federal Court of Appeal |
 | s9_ | Commissioner for Federal Judicial Affairs, via the Internet Archive | Government of Canada non-commercial reproduction | Office of the Commissioner for Federal Judicial Affairs Canada |
+| s10_ | Federal Court and Federal Court of Appeal public court-file search (census of file records; aggregates only) | Government of Canada non-commercial reproduction (Crown copyright) | Federal Court; Federal Court of Appeal (Courts Administration Service). Durations and counts are our own derivation, not the courts' statistics. |
+| link_ | Our linkage of A2AJ decisions to court files (S10) and to Refugee Law Lab dockets (S4): match rates only | As for s3_, s4_ and s10_ | As for s3_, s4_ and s10_ |
 
 Use is non-commercial (inherited from the CC BY-NC and court terms above).

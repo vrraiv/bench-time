@@ -380,8 +380,8 @@ def s10_proceeding_group() -> pl.Expr:
 
 
 def build_s10(derived: Path, site: Path) -> None:
-    """FCA and Federal Court (non-immigration) cohort tables from the docket census. Not written
-    to site/src/data until the owner decides on publishing aggregates from the docket sites."""
+    """FCA and Federal Court (non-immigration) cohort tables from the docket census. Published
+    (owner decision 2026-11-19); Tax Court, appeal-chain and judge tables are still held back."""
     p = paths.processed_dir() / "s10" / "dockets.parquet"
     if not p.exists():
         return
@@ -420,7 +420,7 @@ def build_s10(derived: Path, site: Path) -> None:
         )
         km = km.select(["docket_year", "proceeding_group", *km.columns[:-2]])
         km = km.with_columns(pl.lit(d["scraped_date"].max()).alias("vintage"))
-        _write(km, "s10_fc_fca_km_by_cohort", derived, site, publish=False)
+        _write(km, "s10_fc_fca_km_by_cohort", derived, site)
     ended = pl.col("final_disposition_date").is_not_null()
     mix = (
         both.group_by(["docket_year", "proceeding_group"])
@@ -443,7 +443,7 @@ def build_s10(derived: Path, site: Path) -> None:
             pl.lit(S10_BIAS).alias("bias_statement"),
         )
     )
-    _write(mix, "s10_fc_fca_file_outcomes_by_cohort", derived, site, publish=False)
+    _write(mix, "s10_fc_fca_file_outcomes_by_cohort", derived, site)
 
 
 def build_judges(derived: Path, site: Path, complement: pl.DataFrame | None) -> None:
@@ -604,14 +604,14 @@ def build_links(derived: Path, site: Path) -> None:
     out = proc / "links"
     out.mkdir(exist_ok=True)
     links.write_parquet(out / "fc_decision_docket.parquet")
-    rates = linkage.match_rates(links).with_columns(
+    rates = linkage.match_rates(links, min_n=30).with_columns(
         pl.lit(
             "Published decisions (A2AJ) joined to docket files by court file number; census "
             "strata only (FCA from 2010, FC non-immigration from 2018); files we drop for a "
             "confidentiality marker are counted, not linked"
         ).alias("bias_statement")
     )
-    _write(rates, "link_fc_decision_docket_match_rates", derived, site, publish=False)
+    _write(rates, "link_fc_decision_docket_match_rates", derived, site)
     meta = pl.read_parquet(need[0])
 
     # FC immigration decisions x Refugee Law Lab dockets (S4: filed to 2022, scraped Nov 2022)
@@ -626,14 +626,14 @@ def build_links(derived: Path, site: Path) -> None:
         lo, hi = max(int(d4["filing_year"].min()), 1997), int(d4["filing_year"].max())
         l4 = linkage.link_decisions(k4, d4, pl.read_parquet(s4e), census={"IMM": (lo, hi)})
         l4.write_parquet(out / "fc_imm_decision_docket.parquet")
-        r4 = linkage.match_rates(l4).with_columns(
+        r4 = linkage.match_rates(l4, min_n=30).with_columns(
             pl.lit(
                 "Published FC immigration decisions (A2AJ) joined to Refugee Law Lab dockets by "
                 "file number; dockets scraped November 2022, so later decisions on these files "
                 "have no docket entry to match"
             ).alias("bias_statement")
         )
-        _write(r4, "link_fc_imm_decision_docket_match_rates", derived, site, publish=False)
+        _write(r4, "link_fc_imm_decision_docket_match_rates", derived, site)
 
     # Tax Court decisions x Tax Court dockets (S12 census from 2018)
     s12d, s12e = proc / "s12" / "dockets.parquet", proc / "s12" / "entries.parquet"
@@ -661,7 +661,7 @@ def build_links(derived: Path, site: Path) -> None:
             key_parts=linkage.tcc_key_parts,
         )
         lt.write_parquet(out / "tcc_decision_docket.parquet")
-        rt = linkage.match_rates(lt).with_columns(
+        rt = linkage.match_rates(lt, min_n=30).with_columns(
             pl.lit(
                 "Published Tax Court decisions (A2AJ) joined to docket files by file number; "
                 "files from 2018 on; only a few percent of files end in a published decision"

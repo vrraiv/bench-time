@@ -54,9 +54,12 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
 - Licences: A2AJ and Refugee Law Lab are CC BY-NC 4.0 + upstream court terms (non-commercial,
   attribution, not search-indexable). StatCan is Open Government Licence. Attribute everything.
 - Drop any record carrying a sealing / publication-ban marker.
-  Exception (owner, 2026-11-19): Federal Court and FCA docket files (S10) are kept even when an
-  entry carries a confidentiality marker; the markers are counted per file. Pending practitioner
-  review of what the markers mean.
+  Exception (owner, 2026-11-19): Federal Court and FCA docket files (S10) and Refugee Law Lab
+  dockets (S4) are kept even when an entry carries a confidentiality marker; the markers are
+  counted per file. Pending practitioner review of what the markers mean.
+- Aggregates from the docket sites (owner, 2026-11-19): the FC/FCA cohort tables and the link
+  match rates are published. Held back until the owner says otherwise: Tax Court tables
+  (practitioner review), appeal-chain totals, pending-file counts and the judges table.
 - Derived aggregate tables in `site/src/data/` are committed (owner decision 2026-11-16) with the
   attribution table in `site/src/data/README.md`. Per-decision or per-docket rows are not.
 - A2AJ `upstream_license` reading (owner, 2026-11-16): no commercial use, no full-text reproduction.
