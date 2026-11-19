@@ -173,6 +173,57 @@ a {{ color:inherit; }}
     return page, counts
 
 
+ARTIFACT_CSS = """
+:root { --bg:#f6f7f9; --fg:#1d2433; --muted:#5b6475; --card:#ffffff; --line:#e3e6ec;
+  --done:#2e8b57; --prog:#b98500; --todo:#7c8799; --block:#c2453d; --pill:#ffffff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#14171c;
+  --fg:#e7eaf0; --muted:#9aa3b2; --card:#1d2128; --line:#2c323c; --done:#3aa76d; --prog:#d9a520;
+  --todo:#8a94a6; --block:#d9574f; --pill:#14171c; color-scheme: dark } }
+:root[data-theme="dark"] { --bg:#14171c; --fg:#e7eaf0; --muted:#9aa3b2; --card:#1d2128;
+  --line:#2c323c; --done:#3aa76d; --prog:#d9a520; --todo:#8a94a6; --block:#d9574f;
+  --pill:#14171c; color-scheme: dark }
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--fg); padding-block:24px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+  font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+header { max-width:1400px; margin:0 auto 8px; }
+h1 { font-size:22px; margin:0 0 4px; text-wrap:balance; }
+.meta { color:var(--muted); margin-bottom:10px; }
+.legend { display:flex; flex-wrap:wrap; gap:6px 16px; }
+.leg { display:inline-flex; align-items:center; gap:6px; color:var(--muted);
+  font-variant-numeric:tabular-nums; }
+.leg i { width:12px; height:12px; border-radius:3px; background:var(--c); display:inline-block; }
+main { max-width:1400px; margin:0 auto; display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr)); }
+h2 { grid-column:1/-1; font-size:15px; margin:18px 0 0; padding-bottom:4px;
+  border-bottom:1px solid var(--line); }
+.card { background:var(--card); border:1px solid var(--line); border-left:6px solid var(--c);
+  border-radius:8px; padding:10px 12px 12px; min-width:0; overflow-wrap:anywhere; }
+.card h3 { font-size:14px; margin:6px 0 4px; }
+.card p { margin:0; color:var(--muted); font-size:13px; }
+.pill { display:inline-block; font-size:11px; font-weight:600; letter-spacing:.02em;
+  color:var(--pill); background:var(--c); border-radius:999px; padding:1px 8px; }
+.bar { height:8px; background:var(--line); border-radius:999px; margin-top:10px; overflow:hidden; }
+.bar span { display:block; height:100%; background:var(--c); }
+.barlabel { font-size:12px; color:var(--muted); margin-top:4px; }
+a { color:inherit; }
+"""
+
+
+def artifact_page(page: str) -> str:
+    """Same cards as plan.html, as a fragment for publishing as a Claude artifact (the publisher
+    adds the document skeleton; colours are theme tokens so it reads in light and dark)."""
+    body = page.split("<body>", 1)[1].rsplit("</body>", 1)[0]
+    body = body.replace("<div>" + '<span class="leg"', '<div class="legend"><span class="leg"', 1)
+    body = body.replace(" · crawl cards read live progress files", "")
+    return (
+        "<title>Bench-time Progress Tracker</title>\n"
+        '<meta name="claude:viewport-fit-sides" content="cover">\n'
+        f"<style>{ARTIFACT_CSS}</style>\n{body}\n"
+    )
+
+
 def screenshot(html_path: Path, png_path: Path) -> bool:
     browser = next((b for b in BROWSERS if b.exists()), None)
     if browser is None:
@@ -202,6 +253,8 @@ def main() -> int:
     page, counts = render(plan)
     out = OUT / "plan.html"
     out.write_text(page, encoding="utf-8")
+    # fragment published as a Claude artifact (owner request 2026-11-19); republish after each run
+    (OUT / "tracker.html").write_text(artifact_page(page), encoding="utf-8")
     print(f"wrote {out}  {counts}")
     if args.png:
         png = OUT / "plan.png"
