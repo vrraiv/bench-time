@@ -145,3 +145,22 @@ def test_filing_date_fallbacks():
     listing = dict(FIX["listing"], APPEAL_NBR="2019-3(IT)I", FILED_DATE="2018-12-28T00:00:00")
     row, _ = s12.parse_file(listing, ents, "2026-11-18")
     assert row["date_filed_source"] == "listing"
+
+
+def test_active_status_overrides_motion_judgment():
+    ents = [
+        {"INFO": "Notice of Appeal", "CREATED_DATE": "2021-01-05T00:00:00"},
+        {"INFO": "Withdrawal of Motion", "CREATED_DATE": "2021-06-01T00:00:00"},
+        {"INFO": "Judgment", "CREATED_DATE": "2021-07-01T00:00:00"},
+    ]
+    listing = dict(FIX["listing"], APPEAL_NBR="2021-9(IT)G", FILED_DATE="2021-01-05T00:00:00")
+    row, _ = s12.parse_file(dict(listing, STATUS="Ready To Be Scheduled"), ents, "2026-11-18")
+    assert row["court_status_active"] is True and row["final_disposition_date"] is None
+    row, _ = s12.parse_file(dict(listing, STATUS="Heard"), ents, "2026-11-18")
+    assert row["final_disposition_date"].isoformat() == "2021-07-01"
+    assert row["discontinuance_date"] is None
+    assert s12.classify("Notice of Withdrawal/Discontinuance") == "discontinuance"
+    assert s12.classify("Notice of Withdrawal of Intervention") != "discontinuance"
+    assert s12.classify("Judgment/Order remailed") != "judgment"
+    assert s12.classify("Judgment with Reasons") == "judgment"
+    assert s12.classify("Held in Abeyance denied") != "abeyance"

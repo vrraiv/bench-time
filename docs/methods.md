@@ -121,9 +121,19 @@ Definitions and rules:
   implausible for 136 files (typing errors such as year 0026, or dates years before the number).
   Fallbacks, in order: the notice of appeal entry, then the first recorded entry. The source is
   kept in `date_filed_source`; 67 of 29,714 files have no usable date and are left out.
-- **End of file.** The "file closed" entry when present; otherwise the earliest of a judgment, a
-  discontinuance, or a bare outcome entry (Dismissed, Allowed, Allowed in Part, Quashed, Dism. for
-  failure to appear, File Cancelled).
+- **End of file.** The court's status field decides whether a file has ended. Files it lists as
+  active (case management in progress, ready or not ready to be scheduled, scheduled, hold,
+  awaiting timetable, settled or settlement received) are treated as open even when they carry a
+  judgment or withdrawal entry, because those are usually on a motion: 18,713 of 18,722 "Closed"
+  files have a "File Closed" entry and almost no active file does. For the rest, the end is the
+  "File Closed" entry, else the earliest of a judgment, a withdrawal of the appeal, or a bare
+  outcome entry (Dismissed, Allowed, Allowed in Part, Quashed, Dism. for failure to appear, File
+  Cancelled). Before this rule about 700 active files were wrongly counted as ended.
+- **Listed filing date later than the first entry.** For 9% of files the first recorded entry is
+  more than a week before the listed filing date (median 198 days for the 946 files whose listed
+  date falls in the year after the file number). The listed date is used for now, so those
+  durations are understated; `first_entry_date` is kept for a sensitivity check (practitioner
+  question 5).
 - **Censored tails.** A quantile is reported as not yet estimable when fewer than 20 files are
   still at risk at that time and that is under half of what a fully observed cohort would have.
   Without this, recent cohorts show medians read off one or two old files.

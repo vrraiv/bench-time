@@ -135,7 +135,16 @@ LIST_FIELDS = {
 ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("notice_of_appeal", re.compile(r"^notice of appeal\b", re.I)),
     ("reply", re.compile(r"^(?:amended )?reply to (?:the )?notice of appeal", re.I)),
-    ("discontinuance", re.compile(r"discontinu|d[ée]sistement|withdraw", re.I)),
+    # withdrawal of the appeal itself, not of a motion, an intervention, a bill of costs or part
+    # of the appeal
+    (
+        "discontinuance",
+        re.compile(
+            r"^notice of withdrawal(?!.* of intervention)|^withdrawal accepted|discontinu"
+            r"|d[ée]sistement",
+            re.I,
+        ),
+    ),
     ("file_closed", re.compile(r"^file closed", re.I)),
     ("hearing_held", re.compile(r"^minutes of hearing", re.I)),
     ("adjournment", re.compile(r"^adj(?:\.|ournment)", re.I)),
@@ -151,7 +160,15 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ),
     ("case_mgmt_held", re.compile(r"^case management conference held", re.I)),
     ("adjournment_requested", re.compile(r"^request for adjournment", re.I)),
-    ("judgment", re.compile(r"^(?:amended )?judgment\b(?!.*\bsent\b)", re.I)),
+    # the judgment itself: not its mailing, translation, publication, or a Federal Court one
+    (
+        "judgment",
+        re.compile(
+            r"^(?:amended )?judgment\b"
+            r"(?!.*\b(?:sent|remailed|translation|transmitted|published|from f[.]c[.]c)\b)",
+            re.I,
+        ),
+    ),
     ("consent", re.compile(r"consent (?:to judgment|allowed|dismissed)", re.I)),
     # bare outcome entries end the file ("Dismissed", "Allowed", "Quashed", "Dism. for failure
     # to appear", "File Cancelled"); some files have no other end event
@@ -173,10 +190,23 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     # abeyance pauses the file at a party's request (often pending a related decision): time
     # in abeyance is not calendar delay, so it is recorded separately
     ("abeyance_requested", re.compile(r"^request to be held in abeyance", re.I)),
-    ("abeyance", re.compile(r"^held in abeyance", re.I)),
+    ("abeyance", re.compile(r"^held in abeyance(?! denied)", re.I)),
     ("case_mgmt_scheduled", re.compile(r"^case management conference scheduled", re.I)),
     ("order", re.compile(r"\border\b", re.I)),
 ]
+
+
+# court STATUS values (lower case prefixes) meaning the appeal has not been decided or closed;
+# any status ending in "scheduled" is also active
+ACTIVE_STATUS_PREFIXES = (
+    "case management in progress",
+    "ready to be scheduled",
+    "not ready to be scheduled",
+    "hold",
+    "awaiting timetable",
+    "settled",
+    "settlement received",
+)
 
 
 def classify(label: str | None) -> str:
@@ -293,7 +323,19 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
         )
         if d
     ]
-    row["final_disposition_date"] = row["closed_date"] or (min(ends) if ends else None)
+    # The court's own status decides whether the file has ended. Files it lists as still active
+    # (in case management, on hold, waiting for or given a hearing date, settlement pending)
+    # often carry a judgment or withdrawal on a motion, which is not the end of the appeal:
+    # 18,713 of 18,722 "Closed" files have a "File Closed" entry, almost no active ones do.
+    status = (row.get("status") or "").strip().lower()
+    row["court_status_active"] = status.startswith(ACTIVE_STATUS_PREFIXES) or status.endswith(
+        "scheduled"
+    )
+    if row["court_status_active"]:
+        row["final_disposition_date"] = None
+    else:
+        row["final_disposition_date"] = row["closed_date"] or (min(ends) if ends else None)
+    row["first_entry_date"] = first_entry
     return row, ents
 
 

@@ -292,6 +292,7 @@ def build_s12(derived: Path, site: Path) -> None:
             .sort(["procedure_group", "docket_year"])
         )
         km = km.select(["docket_year", "procedure_group", *km.columns[:-2]])
+        km = km.with_columns(pl.lit(d["scraped_date"].max()).alias("vintage"))
         _write(km, "s12_tcc_km_by_cohort", derived, site, publish=False)
     closed = pl.col("final_disposition_date").is_not_null()
     heard = pl.col("first_hearing_date").is_not_null()
@@ -304,7 +305,6 @@ def build_s12(derived: Path, site: Path) -> None:
             (closed & ~heard).mean().alias("closed_without_hearing_share"),
             pl.col("discontinuance_date").is_not_null().mean().alias("discontinued_share"),
             pl.col("abeyance_date").is_not_null().mean().alias("abeyance_share"),
-            (pl.col("n_court_adjournments") > 0).mean().alias("court_adjourned_share"),
             (pl.col("n_adjournment_requests") > 0).mean().alias("adjournment_requested_share"),
             (pl.col("n_case_mgmt_conferences") > 0).mean().alias("case_managed_share"),
             pl.col("scraped_date").max().alias("vintage"),
