@@ -237,3 +237,7 @@ progress/
 
 # request log: local provenance record, backed up with data/raw, not published
 data/manifest.jsonl
+
+# held-back tables for the access-gated preview site only (owner decision 2026-11-19)
+site/src/review-data/
+site/.wrangler/

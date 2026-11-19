@@ -1,0 +1,21 @@
+// Cloudflare Worker that serves the built site (dist/) as static assets: a restricted preview.
+//
+// Order of operations (owner approval 2026-11-19), so the site is never reachable without a login:
+//   1. Deploy with both addresses switched off (as below).
+//   2. In the Cloudflare dashboard: Worker > Settings > Domains & Routes > enable Cloudflare
+//      Access for workers.dev and preview URLs, and list the allowed email addresses.
+//   3. Only then set "workers_dev": true and deploy again.
+//
+// The Worker name is part of the address; it is a working name and can be changed before step 1.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "docket-watch",
+  "compatibility_date": "2026-11-01",
+  "send_metrics": false,
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}

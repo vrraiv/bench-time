@@ -28,11 +28,17 @@ def _out_dirs() -> tuple[Path, Path]:
 
 
 def _write(df: pl.DataFrame, name: str, derived: Path, site: Path, *, publish: bool = True) -> None:
-    """``publish=False`` keeps a table out of site/src/data (committed) until the owner decides."""
+    """Published tables go to site/src/data (committed). ``publish=False`` tables are held back
+    from the repository until the owner decides; their CSV goes to site/src/review-data
+    (gitignored) so the access-gated preview site can show them as results under review."""
     df.write_parquet(derived / f"{name}.parquet")
     if publish:
         df.write_csv(site / f"{name}.csv")
-    log.info("build: %s (%d rows)", name, df.height)
+    else:
+        review = site.parent / "review-data"
+        review.mkdir(exist_ok=True)
+        df.write_csv(review / f"{name}.csv")
+    log.info("build: %s (%d rows%s)", name, df.height, "" if publish else ", held back")
 
 
 def build_s1(derived: Path, site: Path) -> None:
