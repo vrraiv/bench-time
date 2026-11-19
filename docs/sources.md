@@ -199,7 +199,7 @@ request); add the real hostname once the owner confirms it.
 
 ## Tier 2 (landing and notice pages only; no docket queries made)
 
-### S10 + S11 — Federal Court and FCA dockets — **ENDPOINTS VERIFIED, NOT YET QUERIED**
+### S10 + S11 — Federal Court and FCA dockets — **CENSUS COMPLETE 2026-11-19**
 
 - Landing page `https://www.fct-cf.ca/en/court-files-and-decisions/court-files`. Its scripts
   (`/Content/js/pages/courtfiles.js`, `/Content/js/base/data.js`, read 2026-11-16) call JSON
@@ -223,6 +223,16 @@ request); add the real hostname once the owner confirms it.
   Traffic Manager, so earlier requests were presumably routed to a backend with a valid certificate).
   The crawl stopped at A-193-11; certificate verification is not bypassed. 1,576 requests made,
   5 non-200. Resume once the certificate is renewed; cached files are not re-fetched.
+- **Crawl complete 2026-11-19 06:27** (resumed after the certificate was renewed; 3 s spacing on
+  this host by owner approval 2026-11-16; interrupted twice on 2026-11-18 by a low-memory kill and
+  a reboot, resumed from cache). No 403, 429 or challenge at any point. Parsed: 34,406 files and
+  835,570 recorded entries. FCA `A` 2010–2026: 6,492 files. FC general `T` 2018–2026: 23,886
+  files (1,954 / 1,816 / 1,289 / 1,734 / 2,457 / 2,523 / 3,261 / 4,464 / 4,388 by year). FC
+  immigration sample 2023–2026: 4,028 files. 2,115 further files are dropped at parse for a
+  confidentiality marker (see `docs/methods.md`, open issue). Cross-check from the decision link:
+  of 8,179 in-frame file numbers cited by published decisions, 12 were not found.
+- **IMM-2022 overlap sample** (owner approval 2026-11-18): stratum `IMM-2022`, 300 files drawn at
+  random, started 2026-11-19 at the same 3 s spacing.
 
 ### S12 — Tax Court dockets — **ENDPOINTS VERIFIED, PILOTED**
 
