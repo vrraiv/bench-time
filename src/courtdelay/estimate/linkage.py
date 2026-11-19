@@ -5,8 +5,8 @@ costs, the final judgment). The link is therefore kept at the grain *decision x 
 each linked pair is then matched to the docket's own recorded entries:
 
 * ``entry_match``    is there a judgment or order entry on (or within 7 days of) the decision date?
-* ``is_last_judgment``  no later judgment entry on the file: a proxy for "final" (the docket's own
-  ``is_final`` flag is rarely set outside immigration leave decisions)
+* ``decision_is_final``  the Registry's final-decision marker falls within 7 days of the decision
+  date: the decision ended the file (otherwise it is interlocutory or a later costs ruling)
 * ``hearing_match``  is there a recorded hearing entry on the decision's stated hearing dates?
 
 Neither source overwrites the other: the output records agreement categories. Match rates are
@@ -199,13 +199,13 @@ def link_decisions(
         "docket", "entry_date", "entry_type"
     )
     m_entry = _nearest(linked, jo, "decision_date", "entry")
-    # last judgment entry on the file
-    last_j = (
-        entries.filter(pl.col("entry_type") == "judgment")
-        .group_by("docket")
-        .agg(pl.col("entry_date").max().alias("docket_last_judgment_date"))
-        .rename({"docket": "key"})
-    )
+    # the Registry's final-decision marker nearest the decision date (sources without the marker,
+    # such as the Tax Court, leave decision_is_final null)
+    if "is_final" in entries.columns:
+        fin = entries.filter(pl.col("is_final")).select("docket", "entry_date")
+    else:
+        fin = entries.clear().select("docket", "entry_date")
+    m_final = _nearest(linked, fin, "decision_date", "final")
     # recorded hearing entries: nearest to the decision's (last) hearing date
     he = entries.filter(pl.col("entry_type") == "hearing").select(
         "docket",
@@ -215,7 +215,7 @@ def link_decisions(
     m_hear = _nearest(linked, he, "hearing_last_date", "hearing")
     out = (
         out.join(m_entry, on=["decision_id", "key"], how="left")
-        .join(last_j, on="key", how="left")
+        .join(m_final, on=["decision_id", "key"], how="left")
         .join(m_hear, on=["decision_id", "key"], how="left")
     )
     assert out.height == n0
@@ -225,9 +225,9 @@ def link_decisions(
         pl.when(is_linked & pl.col("hearing_last_date").is_not_null())
         .then(_match_cat("hearing_gap_days"))
         .alias("hearing_match"),
-        pl.when(is_linked & pl.col("docket_last_judgment_date").is_not_null())
-        .then(pl.col("decision_date") >= pl.col("docket_last_judgment_date") - pl.duration(days=7))
-        .alias("is_last_judgment"),
+        pl.when(is_linked & pl.lit("is_final" in entries.columns))
+        .then(pl.col("final_gap_days").abs().le(7).fill_null(False))
+        .alias("decision_is_final"),
         pl.when(is_linked)
         .then(pl.col("hearing_subject").str.contains(CONFERENCE_RE).fill_null(False))
         .alias("hearing_entry_is_conference"),

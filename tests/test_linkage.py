@@ -66,6 +66,7 @@ def test_link_statuses_and_entry_matches():
             ],
             "entry_type": ["order", "hearing", "judgment", "hearing"],
             "hearing_subject": [None, "judicial_review", None, "case management conference"],
+            "is_final": [False, False, True, False],
         }
     )
     keys = lk.decision_keys(_meta(), ["FC"], lk.normalise_fc_key)
@@ -82,11 +83,11 @@ def test_link_statuses_and_entry_matches():
     st = {(r["decision_id"], r["file_raw"]): r for r in out.iter_rows(named=True)}
     final = st[("2020 FC 1", "T-10-19")]
     assert final["status"] == "linked" and final["entry_match"] == "exact"
-    assert final["hearing_match"] == "exact" and final["is_last_judgment"] is True
+    assert final["hearing_match"] == "exact" and final["decision_is_final"] is True
     assert final["hearing_entry_is_conference"] is False
     assert final["filing_to_decision_days"] == 514
     inter = st[("2019 FC 9", "T-10-19")]
-    assert inter["entry_match"] == "within_7d" and inter["is_last_judgment"] is False
+    assert inter["entry_match"] == "within_7d" and inter["decision_is_final"] is False
     assert inter["hearing_match"] is None  # the decision states no hearing date
     assert st[("2019 FC 9", "T-12")]["status"] == "bad_key"
     assert st[("2021 FC 2", "T-77-20")]["status"] == "in_frame_no_docket"

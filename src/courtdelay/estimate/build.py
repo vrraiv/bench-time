@@ -316,6 +316,108 @@ def build_s12(derived: Path, site: Path) -> None:
     _write(mix, "s12_tcc_file_outcomes_by_cohort", derived, site, publish=False)
 
 
+S10_BIAS = (
+    "Census of court files from the court's public file search (FCA from 2010, Federal Court "
+    "non-immigration from 2018). End of file = the Registry's final-decision marker, else a "
+    "discontinuance; files with neither are treated as still open, which overstates open files "
+    "by a few percent (the court's own disposition counts are 1-6% higher per year). Tribunal "
+    "decisions and certificates registered for enforcement are excluded. Kaplan-Meier, censored "
+    "at the scrape date. A cluster of 2018 actions against the Crown with no entries since 2020 "
+    "is counted as open."
+)
+
+
+def s10_proceeding_group() -> pl.Expr:
+    nat = pl.col("nature").fill_null("")
+    fca = (
+        pl.when(nat.str.starts_with("Appeal (S.27 - Final)"))
+        .then(pl.lit("FCA: appeal from Federal Court (final)"))
+        .when(nat.str.starts_with("Appeal (S.27 - Interloc"))
+        .then(pl.lit("FCA: appeal from Federal Court (interlocutory)"))
+        .when(nat.str.contains("Tax Court"))
+        .then(pl.lit("FCA: appeal from Tax Court"))
+        .when(nat.str.starts_with("S.28"))
+        .then(pl.lit("FCA: judicial review (s. 28)"))
+        .otherwise(pl.lit("FCA: other"))
+    )
+    fc = (
+        pl.when(nat.str.contains("Judicial Review"))
+        .then(pl.lit("FC: judicial review"))
+        .when(nat.str.contains("Citizenship"))
+        .then(pl.lit("FC: citizenship"))
+        .when(pl.col("proceeding_class").is_in(["Ordinary", "Simplified"]))
+        .then(pl.lit("FC: actions"))
+        .otherwise(pl.lit("FC: other applications"))
+    )
+    return pl.when(pl.col("prefix") == "A").then(fca).otherwise(fc).alias("proceeding_group")
+
+
+def build_s10(derived: Path, site: Path) -> None:
+    """FCA and Federal Court (non-immigration) cohort tables from the docket census. Not written
+    to site/src/data until the owner decides on publishing aggregates from the docket sites."""
+    p = paths.processed_dir() / "s10" / "dockets.parquet"
+    if not p.exists():
+        return
+    d = (
+        pl.read_parquet(p)
+        .filter(pl.col("prefix").is_in(["A", "T"]) & ~pl.col("is_registration"))
+        .with_columns(
+            pl.col("scraped").str.to_date(strict=False).alias("scraped_date"),
+            s10_proceeding_group(),
+        )
+    )
+    court = pl.when(pl.col("prefix") == "A").then(pl.lit("FCA: all")).otherwise(pl.lit("FC: all"))
+    both = pl.concat([d, d.with_columns(court.alias("proceeding_group"))]).with_columns(
+        (pl.col("docket_year").cast(pl.Utf8) + "|" + pl.col("proceeding_group")).alias("cohort")
+    )
+    km = survival.cohort_table(
+        both,
+        cohort_col="cohort",
+        start_col="date_filed",
+        event_col="final_disposition_date",
+        censor_col="scraped_date",
+        n_boot=200,
+        label="filing -> end of file",
+        min_at_risk=20,
+        bias_statement=S10_BIAS,
+    )
+    if km.height:
+        km = (
+            km.with_columns(
+                pl.col("cohort").str.split("|").list.get(0).cast(pl.Int32).alias("docket_year"),
+                pl.col("cohort").str.split("|").list.get(1).alias("proceeding_group"),
+            )
+            .drop("cohort")
+            .sort(["proceeding_group", "docket_year"])
+        )
+        km = km.select(["docket_year", "proceeding_group", *km.columns[:-2]])
+        km = km.with_columns(pl.lit(d["scraped_date"].max()).alias("vintage"))
+        _write(km, "s10_fc_fca_km_by_cohort", derived, site, publish=False)
+    ended = pl.col("final_disposition_date").is_not_null()
+    mix = (
+        both.group_by(["docket_year", "proceeding_group"])
+        .agg(
+            pl.len().alias("n_files"),
+            ended.mean().alias("ended_share"),
+            (pl.col("final_disposition_type") == "discontinuance")
+            .fill_null(False)
+            .mean()
+            .alias("discontinued_share"),
+            (pl.col("final_disposition_source") == "marker")
+            .fill_null(False)
+            .mean()
+            .alias("ended_by_decision_share"),
+        )
+        .filter(pl.col("n_files") >= 30)
+        .sort(["proceeding_group", "docket_year"])
+        .with_columns(
+            pl.lit(d["scraped_date"].max()).alias("vintage"),
+            pl.lit(S10_BIAS).alias("bias_statement"),
+        )
+    )
+    _write(mix, "s10_fc_fca_file_outcomes_by_cohort", derived, site, publish=False)
+
+
 def build_links(derived: Path, site: Path) -> None:
     """Decision-to-docket links (S3 x S10). Per-decision rows go to data/processed/links/ and are
     never published; only aggregate match rates are written as a derived table."""
@@ -423,4 +525,5 @@ def build_all() -> None:
     build_s4(derived, site)
     build_s7(derived, site)
     build_s12(derived, site)
+    build_s10(derived, site)
     build_links(derived, site)

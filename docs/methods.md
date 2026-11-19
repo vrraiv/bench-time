@@ -184,9 +184,59 @@ Results (inside the census frame only; all files kept, see the decision below):
   confidentiality-marked files left out, the linked median was 28 (n = 2,500): those files carry
   longer reserve times. Non-immigration files run slower than the all-decision median, which is
   dominated by immigration (median 21).
-- **Not yet reliable: interlocutory versus final.** The docket `judgment` entry type matches any
-  entry that mentions a judgment, so "last judgment on the file" is not a usable marker of the
-  final decision (FCA: only 15% of linked decisions are "last"). Needs the FCA closing rule.
+- **Final versus interlocutory (added 2026-11-19).** A decision is final when the Registry's
+  final-decision marker falls within 7 days of it (`decision_is_final`). Linked FCA pairs: 3,593
+  final, 794 not. Linked FC pairs: 2,331 final, 1,449 not. Hearing to judgment, decisions from
+  2016: FC final median 35 days (n = 1,956), FC interlocutory 29 (n = 880); FCA final 15
+  (n = 1,862), FCA interlocutory 21 (n = 217). Of FCA files the Registry marks as ended by a
+  judgment, 91% have a published final decision; FC files, 64%; files ended by an order, 12%.
+
+## Federal Court and FCA docket census (S10): end of file and cohort tables (2026-11-19)
+
+**End of file.** The Registry marks the entry that ends a file with "Final Decision". Entries
+from the court's current system carry it on a line of its own after the entry text; the parser
+looked only at the start of the text and so saw the marker on no FCA file and 314 FC files. Fixed:
+the marker is on 4,697 FCA and 5,314 FC general files. A file ends at the first marked entry, else
+at a discontinuance (`final_disposition_source` records which). The old second fallback, the first
+entry that mentions a judgment, is off for S10: it was closing pending files (114 of the 391 FCA
+files of 2025). S4 keeps it, and its end date changed for 1,865 of 217,972 files (0.9%).
+
+**Registrations.** 3,207 Federal Court `T` files are tribunal decisions or certificates filed for
+enforcement (Canada Labour Code copies of decisions, customs certificates). They are flagged
+`is_registration` and left out of duration tables; 95% never get a closing entry.
+
+**Check against the courts' published statistics** (S8, calendar years):
+
+| | Filings: ours / court's | Dispositions: ours / court's |
+|---|---|---|
+| FCA 2014-2025, excluding the court's "Preliminary Applications" | 99.3% to 102.5% each year | 93.9% to 99.5% each year |
+| FC non-immigration 2023-2025, registrations excluded | 100.8% to 101.9% | 97.4% to 100.2% |
+
+Counting registrations puts FC filings 13% to 18% above the court's, so the court leaves them out
+too. The disposition shortfall is files that ended with neither a marker nor a discontinuance.
+It accumulates: our count of FCA files pending at year-end is 9% above the court's for 2014 and
+42% above for 2025 (about 200 files). Pending stocks should come from the court's tables, not the
+census; cohort durations treat those files as still open, a small upward bias in upper quantiles.
+Two fallbacks for unmarked endings were tested and recovered under 2 points a year, so neither
+was adopted.
+
+**Cohort tables** (`s10_fc_fca_km_by_cohort`, `s10_fc_fca_file_outcomes_by_cohort`; not yet in
+`site/src/data`). Kaplan-Meier, filing to end of file, by filing year and proceeding group,
+bootstrap 95% intervals, censored-tail rule as for S12. Median days:
+
+| Filing year | FCA all | FC all | FC judicial review | FC actions |
+|---|---|---|---|---|
+| 2010 | 272 (259-289) | | | |
+| 2014 | 345 (329-362) | | | |
+| 2018 | 408 (395-441) | 381 (350-420) | 358 (333-386) | 545 (469-656) |
+| 2020 | 499 (479-539) | 389 (365-421) | 330 (302-389) | 461 (396-520) |
+| 2022 | 403 (365-441) | 273 (261-284) | 256 (239-269) | 547 (481-598) |
+| 2024 | 387 (352-421) | 271 (251-288) | 257 (223-277) | 364 (330-420) |
+
+Cautions: 2025 and 2026 cohorts are still filling and their medians are not stable. FCA s. 28
+judicial reviews of 2012 show a median of exactly 526 days because a block of related files ended
+on one day. FC citizenship files rose from 178 (2023) to 1,420 (2025). About 350 actions against
+the Crown from 2018-2021 have no entries since 2020 and count as open.
 
 ### Confidentiality markers: files kept, markers counted (owner decision 2026-11-19)
 
@@ -232,7 +282,8 @@ reviews and 25% of access to information applications, against 6% of ordinary ju
 The court lists all of these files publicly and publishes their decisions.
 
 Effect on durations, measured by parsing the dropped files in memory (filing to final disposition,
-Kaplan-Meier median, days):
+Kaplan-Meier median, days; computed under the end-of-file rule in force that morning, before the
+marker fix, so levels differ from the cohort tables above):
 
 | Cohort | Kept files only | With dropped files restored |
 |---|---|---|
@@ -299,6 +350,7 @@ stops. For the 243, comparing S10 entries dated up to S4's scrape date:
 - **Bug found and fixed:** S10 filing dates were one day early for about 60% of files filed in
   daylight-time months (the timestamp conversion assumed standard time all year). After the fix
   filing dates match S4 for 243 of 243. All S10 durations from filing shift by at most one day.
+- After the end-of-file changes above, final disposition agrees for 105 of 106.
 - 44% of these files were disposed when S4 was scraped; 98% are now. The two series are measured
   alike and can be read as one, with S4's 2022 cohort heavily censored.
 
