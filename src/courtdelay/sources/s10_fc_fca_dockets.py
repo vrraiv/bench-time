@@ -238,6 +238,7 @@ INFO_FIELDS = {
 
 # Owner decision 2026-11-19: keep files that carry a confidentiality marker; count the markers.
 DROP_MARKED_FILES = False
+REGISTRATION_RE = r"copy of decision|certificate"
 PUBLICATION_BAN_RE = r"publication\s+ban|non-?publication|interdiction\s+de\s+publication"
 
 
@@ -300,6 +301,11 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "date_filed": ms_date(info.get("FILE_DT")),
             "track": track,
             "scraped": fetched_at[:10],
+            # a tribunal decision or certificate registered for enforcement: not a proceeding
+            # the court decides, and most never get a closing entry
+            "is_registration": bool(
+                re.search(REGISTRATION_RE, info.get("ENGLISH_NATURE_DESC") or "", re.I)
+            ),
             "n_confidential_flag_entries": n_flag,
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,

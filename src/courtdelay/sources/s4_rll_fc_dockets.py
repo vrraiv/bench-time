@@ -62,7 +62,15 @@ COPY_RE = re.compile(
     r"accus[ée]\s+de\s+r[ée]ception|carte\s+d['’]accus[ée])",
     re.I,
 )
-FINAL_RE = re.compile(r"^\s*\((?:final\s+decision|d[ée]cision\s+finale)\)", re.I)
+# The Registry marks the entry that ends a file. Older entries carry "(Final decision)" at the
+# start; entries from the current system carry "Final Decision" on a line of its own after the
+# text (found 2026-11-19: a start-only match saw the marker on no FCA file at all). A mention in
+# running prose ("after a final decision in the Rule 51 appeal") is not a marker.
+FINAL_RE = re.compile(
+    r"^\s*\((?:final\s+decision|d[ée]cision\s+finale)\)"
+    r"|^[ \t]*\(?[ \t]*(?:final\s+decision|d[ée]cision\s+finale)[ \t]*\)?[ \t\r]*$",
+    re.I | re.M,
+)
 
 # ordered: first matching type wins (English and French recorded-entry wording)
 ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
@@ -267,7 +275,7 @@ def classify_docket_entries(docs: list[dict], docket: str) -> list[dict]:
             if et in {"leave_decision", "judgment", "hearing", "order"}
             else None,
             "hearing_subject": hearing_subject(text) if et == "hearing" else None,
-            "is_final": bool(FINAL_RE.match(text)),
+            "is_final": et not in {"cancelled", "removed_entry"} and bool(FINAL_RE.search(text)),
             "_fixed": None,
         }
         if et in {"leave_decision", "hearing_scheduled"}:

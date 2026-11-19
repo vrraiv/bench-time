@@ -126,7 +126,7 @@ JR_ALLOWED_FR = (
 def test_french_entries_and_terminal_variants():
     assert s4.classify_entry(LEAVE_DISMISSED_FR) == "leave_decision"
     assert s4.entry_result(LEAVE_DISMISSED_FR) == "dismissed"
-    assert s4.FINAL_RE.match(LEAVE_DISMISSED_FR)
+    assert s4.FINAL_RE.search(LEAVE_DISMISSED_FR)
     assert s4.classify_entry(JR_ALLOWED_FR) == "judgment"
     assert s4.entry_result(JR_ALLOWED_FR) == "granted"
     assert s4.classify_entry("Discontinuance on behalf of Applicant filed on 27-JUL-2011") == (
@@ -139,3 +139,17 @@ def test_french_entries_and_terminal_variants():
     d = s4.derive_docket(s4.classify_docket_entries(docs, "IMM-9-10"))
     assert d["final_disposition_type"] == "leave_decision"
     assert d["final_disposition_result"] == "dismissed"
+
+
+def test_final_marker_on_its_own_line():
+    def final(text):
+        return s4.classify_docket_entries([_doc(5, "2021-02-01", text)], "A-1-20")[0]["is_final"]
+
+    # the court's current system puts the marker on a line of its own after the entry text
+    assert final("Judgment dated 01-FEB-2021 Result: dismissed copies sent\nFinal Decision  \nCopy")
+    assert final("Jugement rendu le 01-FEV-2021\r\nDécision finale    ")
+    # a mention in running prose is not a marker; neither is a cancelled entry
+    assert not final(
+        "Letter asking that the record be addressed after a final decision in the appeal"
+    )
+    assert not final("****** CANCELLED ****** (Final decision) Order rendered by the Court")
