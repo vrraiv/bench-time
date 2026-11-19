@@ -199,21 +199,49 @@ dropped file is confidential throughout except one. The drop is not neutral:
 | FC `T` | 5.8% dropped | 14.1% | 25.3% | 59 vs 12 |
 | FCA `A` | 8.8% dropped | 11.6% | 18.1% | 64 vs 35 |
 
-These are files with at least one sealed document or confidentiality order (common in patent,
-competition and national security matters), not sealed proceedings: the court lists them publicly
-and their decisions are published. Dropping them removes the longest, most contested files, so
-durations from S10 are biased downward. No entry text or names are kept for any file either way.
-Options for the owner: (a) keep these files and drop only the flagged entries; (b) keep dropping
-and state the bias; (c) drop only when the court's own flag is set. Unchanged until decided.
+What triggers the drop (files can match more than one):
+
+| Trigger | FC `T` | FCA `A` |
+|---|---|---|
+| Entry text says `sealed` (typically "Sealed envelope pursuant to the Confidentiality Order...") | 965 | 474 |
+| Entry text says `confidential order` / `confidentiality order` | 686 | 330 |
+| Court's own confidential flag on an entry | 249 | 43 |
+| Entry text mentions a publication ban | 12 | 6 |
+
+Read locally, the matching entries are sealed envelopes and protective or confidentiality orders
+over commercial evidence. The text match also catches entries that say the opposite ("will not be
+bringing a motion for a confidentiality order", "no publication ban in place"). The drop is
+concentrated by subject: 45% of Patented Medicines (NOC) actions, 46% of final patent appeals, 32%
+of patent infringement actions, 59% of Special Import Measures appeals, 34% of trade tribunal
+reviews and 25% of access to information applications, against 6% of ordinary judicial reviews.
+The court lists all of these files publicly and publishes their decisions.
+
+Effect on durations, measured by parsing the dropped files in memory (filing to final disposition,
+Kaplan-Meier median, days):
+
+| Cohort | Kept files only | With dropped files restored |
+|---|---|---|
+| FC `T`, filed 2018-2022 | 399 (n = 9,250) | 404 (n = 9,879) |
+| FCA `A`, filed 2010-2016 | 308 (n = 3,237) | 308 (n = 3,466) |
+| FCA `A`, filed 2017-2022 | 437 (n = 1,953) | 441 (n = 2,181) |
+| FC patent files, filed 2018-2022 | 301 (n = 310) | 367 (n = 503) |
+
+So court-wide medians barely move, but any breakdown by subject is distorted (patent files lose
+their longer half) and counts of files and decisions are short by 6% to 9%. No entry text or names
+are kept for any file either way. Options for the owner: (a) keep these files and drop only the
+flagged entries, still dropping the 18 publication-ban files whole; (b) keep dropping and state
+the bias; (c) drop a file only when the court's own flag is set. Unchanged until decided.
 
 ### Immigration and Tax Court links (first version 2026-11-19)
 
 Same code, run by `courtdelay build`; per-decision rows in `data/processed/links/`.
 
 **FC immigration decisions to Refugee Law Lab dockets (S3 to S4).** 22,973 decision x file pairs;
-19,482 linked. For decisions dated 2001 to 2022, 94% to 99% link each year (521 cited files have
-no docket; S4 drops 667 for sealing markers and their numbers are not kept, so the two cannot be
-told apart). A judgment or order entry falls on the decision date for 80% to 97% by year, and a
+19,482 linked. For decisions dated 2001 to 2022, 94% to 99% link each year. 521 cited files have
+no docket: 191 are 2022 files, mostly numbered above IMM-11000-22, where the Refugee Law Lab
+scrape stops (last filing date 2022-11-07), so they are outside the frame rather than misses; the
+other 330 cannot be told apart from the 667 files S4 drops for sealing markers, whose numbers are
+not kept. A judgment or order entry falls on the decision date for 80% to 97% by year, and a
 recorded hearing falls on the decision's hearing date for 71% to 86%. Decisions after the
 November 2022 scrape link to a file but have no entry to match.
 
@@ -221,11 +249,14 @@ November 2022 scrape link to a file but have no entry to match.
   decisions (2,281): it is picking up another date in the header. The *last* hearing date, which
   reserve time uses, does so for under 1% (158). Reserve time is unaffected; `hearing_dates_n` and
   any multi-day measure from S3 are not reliable.
-- **Coverage of published decisions is uneven.** Among immigration files with a recorded hearing,
-  the share with a published decision in A2AJ is 75% to 81% for files filed 2005 to 2011, falls to
-  46% to 67% for 2012 to 2015, and is 85% to 96% for 2016 to 2021. Any series built on published
-  decisions alone (ours in E3, and others using A2AJ) has a thinner base in 2012 to 2015. Not yet
-  known whether the gap is in A2AJ, in what the court published, or in our hearing classifier.
+- **Coverage of published decisions is thinner for files filed 2012 to 2015.** Per file with leave
+  granted (a denominator that does not use the hearing classifier), the share with a published
+  decision in A2AJ is 57% to 62% for files filed 2005 to 2011, 35% to 48% for 2012 to 2015, and
+  54% to 62% for 2016 to 2021. Per file with a recorded hearing the pattern is the same (75% to
+  81%, then 46% to 67%, then 85% to 96%), though the 2012 figure is also pulled down by 491 files
+  with a hearing entry and no leave granted, which is a classifier problem. Any series built on
+  published decisions alone (ours in E3, and others using A2AJ) has a thinner base in those
+  years. Not yet known whether the gap is in A2AJ or in what the court published.
 
 **Tax Court decisions to Tax Court dockets (S3 to S12).** The S3 file-number pattern required a
 `G` or `I` suffix, so it missed EI, CPP, OAS and application files: fixed, and 1,692 Tax Court
