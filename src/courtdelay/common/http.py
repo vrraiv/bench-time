@@ -184,9 +184,17 @@ class Client:
         params: dict | None = None,
         vintage: str = "",
         refresh: bool = False,
+        accept=None,
     ) -> Response:
         return self.request(
-            "GET", url, source=source, tier=tier, params=params, vintage=vintage, refresh=refresh
+            "GET",
+            url,
+            source=source,
+            tier=tier,
+            params=params,
+            vintage=vintage,
+            refresh=refresh,
+            accept=accept,
         )
 
     def post_json(
@@ -223,7 +231,12 @@ class Client:
         headers: dict | None = None,
         vintage: str = "",
         refresh: bool = False,
+        accept=None,
     ) -> Response:
+        """``refresh=True`` re-requests a cached URL and replaces the stored copy. A good cached
+        copy is never replaced by a worse one: a non-2xx answer, or a body that ``accept(bytes)``
+        rejects (e.g. an empty result for a file known to exist), leaves the cache as it was and
+        raises FetchError."""
         if params:
             url = str(httpx.URL(url, params=params))
         self._guard(url, tier)
@@ -244,7 +257,9 @@ class Client:
                     fetched_at=meta["fetched_at"],
                     from_cache=True,
                 )
-        return self._fetch_and_store(method, url, body, headers, source, raw, key, meta_path)
+        return self._fetch_and_store(
+            method, url, body, headers, source, raw, key, meta_path, accept=accept
+        )
 
     def download(
         self,
@@ -379,8 +394,15 @@ class Client:
         raw: Path,
         key: str,
         meta_path: Path,
+        accept=None,
     ) -> Response:
         host = _host(url)
+        had_good_copy = False
+        if meta_path.exists():
+            try:
+                had_good_copy = 200 <= json.loads(meta_path.read_text())["status"] < 300
+            except (ValueError, KeyError):
+                had_good_copy = False
         last_exc: Exception | None = None
         for attempt in range(1, MAX_ATTEMPTS + 1):
             self._throttle(host)
@@ -398,6 +420,17 @@ class Client:
             ctype = resp.headers.get("content-type", "")
             fname = f"{key}.{_ext_for(ctype, url)}"
             data_path = raw / fname
+            ok = 200 <= resp.status_code < 300
+            rejected = ok and accept is not None and not accept(content)
+            if had_good_copy and (not ok or rejected):
+                # keep the earlier good copy; record the attempt and let the caller decide
+                self._log_manifest(
+                    url, method, source, fetched_at, resp.status_code, sha, None, "kept cached copy"
+                )
+                if resp.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:
+                    self._sleep(min(10.0 * attempt, 120.0))
+                    continue
+                raise FetchError(url, resp.status_code, "rejected; cached copy kept")
             data_path.write_bytes(content)
             meta = {
                 "url": url,

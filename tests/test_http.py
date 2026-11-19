@@ -160,3 +160,34 @@ def test_redirect_to_tier3_host_is_refused(env):
     c = make_client(handler, FakeClock())
     with pytest.raises(http.Tier3Error):
         c.get("https://ok.example.ca/start", source="s_test")
+
+
+def test_refresh_never_replaces_a_good_copy_with_a_bad_one(env):
+    answers = [
+        httpx.Response(200, json={"data": [1]}, headers={"content-type": "application/json"}),
+        httpx.Response(503, text="busy"),
+        httpx.Response(200, json={"data": []}, headers={"content-type": "application/json"}),
+        httpx.Response(200, json={"data": [1, 2]}, headers={"content-type": "application/json"}),
+    ]
+
+    def handler(request):
+        return answers.pop(0)
+
+    def has_rows(content):
+        return bool(json.loads(content)["data"])
+
+    c = make_client(handler, FakeClock())
+    url = "https://example.gc.ca/file"
+    assert c.get(url, source="s_test").json() == {"data": [1]}
+    http.MAX_ATTEMPTS, old = 1, http.MAX_ATTEMPTS
+    try:
+        with pytest.raises(http.FetchError):  # server error: cached copy kept
+            c.get(url, source="s_test", refresh=True)
+        with pytest.raises(http.FetchError):  # empty answer rejected: cached copy kept
+            c.get(url, source="s_test", refresh=True, accept=has_rows)
+    finally:
+        http.MAX_ATTEMPTS = old
+    assert c.get(url, source="s_test").json() == {"data": [1]}
+    # a good new answer replaces it
+    assert c.get(url, source="s_test", refresh=True, accept=has_rows).json() == {"data": [1, 2]}
+    assert c.get(url, source="s_test").json() == {"data": [1, 2]}

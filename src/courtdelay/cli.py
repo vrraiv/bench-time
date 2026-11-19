@@ -36,6 +36,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     sub.add_parser("list", help="list registered sources")
     sub.add_parser("build", help="build derived aggregate tables")
+    r = sub.add_parser("refresh", help="weekly incremental fetch of one docket host")
+    r.add_argument(
+        "court", choices=["fc", "tcc"], help="fc = Federal Court and FCA; tcc = Tax Court"
+    )
+    r.add_argument("--max-minutes", type=float, default=None, help="stop cleanly after this long")
+    r.add_argument(
+        "--new-only",
+        action="store_true",
+        help="new filings (and Tax Court status changes) only; skip the weekly slice",
+    )
     args = ap.parse_args(argv)
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -46,6 +56,11 @@ def main(argv: list[str] | None = None) -> int:
         for sid, mod in sorted(mods.items()):
             print(f"{sid:5s} {mod}")
         return 0
+    if args.cmd == "refresh":
+        from courtdelay import refresh
+
+        row = refresh.run_refresh(args.court, max_minutes=args.max_minutes, new_only=args.new_only)
+        return 0 if row["status"] == "ok" else 1
     if args.cmd == "build":
         from courtdelay.estimate.build import build_all
 
