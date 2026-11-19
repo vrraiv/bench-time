@@ -146,3 +146,13 @@ Bias statement: file numbers are a census of what the court's search lists; conf
 not listed. Entry labels are classified by pattern, and 56% of entries (clerical) are unclassified.
 Time to the end of the file mixes settlements, withdrawals and judgments, so it is not the wait
 for a hearing; that needs cumulative incidence with settlement as a competing event (not built).
+
+## Decision-to-docket linkage (planned, owner decision 2026-11-18)
+
+Join published decisions (S3) to docket files (S10) by court file number, for the Federal Court
+and Federal Court of Appeal. Purpose: attach the docket's nature of proceeding and filing date to
+each decision, separate interlocutory from final decisions, measure filing to decision, and count
+the files that end with no published decision. Coverage is limited to what the docket crawl holds:
+FCA files from 2010, FC general files from 2018, and a sample of 1,000 FC immigration files per
+year from 2023. The linked table is per-decision and stays in `data/processed/` (not published);
+only aggregates go to the site.
