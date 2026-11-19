@@ -41,3 +41,22 @@ def test_confidential_file_is_kept_and_counted(monkeypatch):
     assert row["n_sealed_text_entries"] == 0 and row["n_publication_ban_entries"] == 0
     monkeypatch.setattr(s10, "DROP_MARKED_FILES", True)
     assert s10.parse_file(FIX["info"], entries, "2026-11-16") == (None, [])
+
+
+def test_appeal_from_reads_the_lower_file_number():
+    e = [
+        {"DOC_DT": "2021-04-02", "RE_NO": 2, "RECORDED_ENTRY": "Letter received"},
+        {
+            "DOC_DT": "2021-04-01",
+            "RE_NO": 1,
+            "RECORDED_ENTRY": "Notice of Appeal filed on 01-APR-2021 against a decision of the "
+            "Federal Court dated 12-MAR-2021 in T-0123-19",
+        },
+    ]
+    assert s10.appeal_from(e) == ("T-123-19", "12-MAR-2021")
+    e[1]["RECORDED_ENTRY"] = "Notice of Appeal against a judgment dated 05-JAN-2021 2018-456(IT)G"
+    assert s10.appeal_from(e) == ("2018-456(IT)G", "05-JAN-2021")
+    assert s10.appeal_from([{"DOC_DT": "2021-04-01", "RE_NO": 1, "RECORDED_ENTRY": "x"}]) == (
+        None,
+        None,
+    )

@@ -443,6 +443,116 @@ def build_s10(derived: Path, site: Path) -> None:
     _write(mix, "s10_fc_fca_file_outcomes_by_cohort", derived, site, publish=False)
 
 
+def build_appeal_chains(derived: Path, site: Path) -> None:
+    """FCA appeal -> the file appealed from, where the appeal's opening entries name it. Lower
+    files come from S10 (Federal Court non-immigration, 2018 on), S4 (immigration to 2022) and
+    S12 (Tax Court, 2018 on). Per-chain rows stay in data/processed/links/."""
+    proc = paths.processed_dir()
+    p10 = proc / "s10" / "dockets.parquet"
+    if not p10.exists():
+        return
+    d = pl.read_parquet(p10)
+    nat = pl.col("nature").fill_null("")
+    origin = (
+        pl.when(nat.str.starts_with("Appeal (S.27"))
+        .then(pl.lit("Federal Court"))
+        .when(nat.str.contains("Tax Court"))
+        .then(pl.lit("Tax Court"))
+        .otherwise(pl.lit("other"))
+    )
+    fca = d.filter(pl.col("prefix") == "A").select(
+        pl.col("docket").alias("fca_docket"),
+        pl.col("docket_year").alias("fca_year"),
+        origin.alias("origin"),
+        nat.str.contains("Interloc").alias("interlocutory"),
+        pl.col("date_filed").alias("fca_filed"),
+        pl.col("final_disposition_date").alias("fca_end"),
+        pl.col("scraped").str.to_date(strict=False).alias("scraped_date"),
+        "appeal_from_file",
+        "appeal_from_decision_date",
+    )
+    cols = ["docket", "date_filed", "final_disposition_date"]
+    lower = [
+        d.filter(pl.col("prefix") != "A").select(cols).with_columns(pl.lit("S10").alias("src"))
+    ]
+    for sid in ("s4", "s12"):
+        p = proc / sid / "dockets.parquet"
+        if p.exists():
+            lower.append(
+                pl.read_parquet(p, columns=cols).with_columns(pl.lit(sid.upper()).alias("src"))
+            )
+    low = (
+        pl.concat(lower, how="vertical_relaxed")
+        .unique("docket", keep="first")
+        .rename(
+            {
+                "docket": "appeal_from_file",
+                "date_filed": "lower_filed",
+                "final_disposition_date": "lower_end",
+            }
+        )
+    )
+    n0 = fca.height
+    ch = fca.join(low, on="appeal_from_file", how="left")
+    assert ch.height == n0
+    days = lambda a, b: (pl.col(a) - pl.col(b)).dt.total_days()  # noqa: E731
+    ch = ch.with_columns(
+        pl.when(pl.col("appeal_from_file").is_null())
+        .then(pl.lit("lower file not named"))
+        .when(pl.col("src").is_null())
+        .then(pl.lit("named, not in our data"))
+        .otherwise(pl.lit("linked"))
+        .alias("status"),
+        # filing below to the notice of appeal. The lower file's own end date is not used: a
+        # Tax Court file stays open until the appeal comes back, and an interlocutory appeal
+        # is taken while the lower file carries on.
+        days("fca_filed", "lower_filed").alias("to_appeal_days"),
+        days("fca_filed", "appeal_from_decision_date").alias("appeal_lag_days"),
+        days("fca_end", "fca_filed").alias("fca_days"),
+        days("fca_end", "lower_filed").alias("total_days"),
+    ).with_columns(
+        pl.when(pl.col("origin") == "Federal Court")
+        .then(
+            pl.when(pl.col("interlocutory"))
+            .then(pl.lit("Federal Court (interlocutory)"))
+            .otherwise(pl.lit("Federal Court (final)"))
+        )
+        .otherwise(pl.col("origin"))
+        .alias("origin")
+    )
+    out = proc / "links"
+    out.mkdir(exist_ok=True)
+    ch.write_parquet(out / "appeal_chains.parquet")
+    linked = pl.col("status") == "linked"
+    done = linked & pl.col("fca_days").is_not_null() & (pl.col("to_appeal_days") >= 0)
+    agg = (
+        ch.filter(pl.col("origin") != "other")
+        .group_by("origin", "fca_year")
+        .agg(
+            pl.len().alias("n_appeals"),
+            pl.col("appeal_from_file").is_not_null().mean().alias("lower_file_named_share"),
+            linked.mean().alias("linked_share"),
+            done.sum().alias("n_complete_chains"),
+            pl.col("to_appeal_days").filter(done).median().alias("filing_to_appeal_days_p50"),
+            pl.col("fca_days").filter(done).median().alias("fca_days_p50"),
+            pl.col("total_days").filter(done).median().alias("total_days_p50"),
+            pl.col("total_days").filter(done).quantile(0.9).alias("total_days_p90"),
+        )
+        .filter(pl.col("n_complete_chains") >= 20)
+        .sort("origin", "fca_year")
+        .with_columns(
+            pl.lit(
+                "Completed chains only (the appeal has ended), so recent years are biased short. "
+                "Not linked: appeals whose opening entries do not name the lower file (about a "
+                "third) and lower files outside our data (Federal Court files before 2018, "
+                "immigration files after 2022, Tax Court files before 2018). Years with fewer "
+                "than 20 complete chains are omitted. The Supreme Court leg is not built."
+            ).alias("bias_statement")
+        )
+    )
+    _write(agg, "link_appeal_chains_by_year", derived, site, publish=False)
+
+
 def build_links(derived: Path, site: Path) -> None:
     """Decision-to-docket links (S3 x S10). Per-decision rows go to data/processed/links/ and are
     never published; only aggregate match rates are written as a derived table."""
@@ -552,3 +662,4 @@ def build_all() -> None:
     build_s12(derived, site)
     build_s10(derived, site)
     build_links(derived, site)
+    build_appeal_chains(derived, site)

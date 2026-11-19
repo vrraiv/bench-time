@@ -242,6 +242,34 @@ REGISTRATION_RE = r"copy of decision|certificate"
 PUBLICATION_BAN_RE = r"publication\s+ban|non-?publication|interdiction\s+de\s+publication"
 
 
+# An appeal's opening entries usually name the file appealed from ("Notice of Appeal filed on ...
+# against a decision ... dated 12-MAR-2021 in T-123-19"). A court file number, not a name.
+LOWER_FC_NO_RE = r"\b(T|IMM|DES|ITA|GST|P)-0*(\d{1,5})-(\d{2})\b"
+LOWER_TCC_NO_RE = r"\b((?:19|20)\d{2})-0*(\d{1,5})\s*\(([A-Z]{2,4})\)\s*(APP|G|I)?(?![A-Za-z])"
+LOWER_DATED_RE = r"\b(?:dated|dat[ée]e?\s+du|en\s+date\s+du)\s+(\d{1,2}-[A-Za-zÉÛéû]{3,4}-\d{4})"
+
+
+def appeal_from(entries: list[dict]) -> tuple[str | None, str | None]:
+    """(lower-court file number, date of the decision appealed from) read from an appeal's first
+    six entries; (None, None) when they name no file."""
+    import re
+
+    first = sorted(entries, key=lambda e: ((e.get("DOC_DT") or "")[:10], e.get("RE_NO") or 0))[:6]
+    for e in first:
+        t = e.get("RECORDED_ENTRY") or ""
+        m = re.search(LOWER_FC_NO_RE, t)
+        if m:
+            number = f"{m.group(1)}-{int(m.group(2))}-{m.group(3)}"
+        else:
+            m = re.search(LOWER_TCC_NO_RE, t)
+            if not m:
+                continue
+            number = f"{m.group(1)}-{int(m.group(2))}({m.group(3)}){m.group(4) or ''}"
+        dm = re.search(LOWER_DATED_RE, t, re.I)
+        return number, dm.group(1) if dm else None
+    return None, None
+
+
 def ms_date(v):
     """'/Date(1735794000000)/' (UTC milliseconds) -> local (Eastern) calendar date. The Court stores
     midnight Eastern, i.e. 04:00 UTC in daylight time and 05:00 UTC in standard time (a few carry a
@@ -292,6 +320,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
         (e.get("ENGLISH_TRACK_NAME") for e in entries if e.get("ENGLISH_TRACK_NAME")), None
     )
     prefix, num, yy = (docket.split("-") + [None, None])[:3] if docket else (None, None, None)
+    lower_no, lower_dt = appeal_from(entries) if prefix == "A" else (None, None)
     row = {k_out: info.get(k_in) for k_in, k_out in INFO_FIELDS.items()}
     row.update(
         {
@@ -306,6 +335,8 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "is_registration": bool(
                 re.search(REGISTRATION_RE, info.get("ENGLISH_NATURE_DESC") or "", re.I)
             ),
+            "appeal_from_file": lower_no,
+            "appeal_from_decision_date": s4.parse_entry_date(lower_dt) if lower_dt else None,
             "n_confidential_flag_entries": n_flag,
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,
