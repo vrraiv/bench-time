@@ -220,7 +220,7 @@ census; cohort durations treat those files as still open, a small upward bias in
 Two fallbacks for unmarked endings were tested and recovered under 2 points a year, so neither
 was adopted.
 
-**Cohort tables** (`s10_fc_fca_km_by_cohort`, `s10_fc_fca_file_outcomes_by_cohort`; not yet in
+**Cohort tables** (`s10_fc_fca_km_by_cohort`, `s10_fc_fca_file_outcomes_by_cohort`; published, no longer held out of
 `site/src/data`). Kaplan-Meier, filing to end of file, by filing year and proceeding group,
 bootstrap 95% intervals, censored-tail rule as for S12. Median days:
 
@@ -326,8 +326,16 @@ files; "sealed envelope" 804; confidentiality or protective order 983; publicati
 wording of a ban granted). About 570 files match only through the court's seal on an issued
 document ("sealed and issued copy") or an entry saying no confidentiality order is sought: these
 were never confidentiality markers. In a flagged file the median is 3 flagged entries (about 5% of
-the file); one file is flagged throughout. S4 (Refugee Law Lab) still
-drops 667 files under the old rule. The analysis that led here, as first written:
+the file); one file is flagged throughout. S4 (Refugee Law Lab) keeps its 667
+marked files too (owner decision later the same day): 562 mention "sealed", 246 a confidentiality
+order, 25 a publication ban.
+
+**Published (owner decision 2026-11-19):** the FC/FCA cohort tables (`s10_`) and the FC, FCA and
+immigration link match rates (`link_`) are written to `site/src/data`, cells of 30 or more only.
+Held back: Tax Court tables and Tax Court link rates (practitioner review), appeal-chain totals
+(lower bounds), pending-file counts, and the judges table.
+
+ The analysis that led here, as first written:
 
 
 S10 drops a whole file when any entry carries the court's confidential flag or its text matches
@@ -383,8 +391,9 @@ Same code, run by `courtdelay build`; per-decision rows in `data/processed/links
 19,482 linked. For decisions dated 2001 to 2022, 94% to 99% link each year. 521 cited files have
 no docket: 191 are 2022 files, mostly numbered above IMM-11000-22, where the Refugee Law Lab
 scrape stops (last filing date 2022-11-07), so they are outside the frame rather than misses; the
-other 330 cannot be told apart from the 667 files S4 drops for sealing markers, whose numbers are
-not kept. A judgment or order entry falls on the decision date for 80% to 97% by year, and a
+other 330 could not then be told apart from the 667 files S4 dropped for sealing markers. Since
+2026-11-19 S4 keeps those files (owner decision): 19,764 pairs now link and 241 cited files have
+no docket, 191 of them the late-2022 files. A judgment or order entry falls on the decision date for 80% to 97% by year, and a
 recorded hearing falls on the decision's hearing date for 84% to 96% (71% to 86% before the
 hearing-pattern fix). Decisions after the
 November 2022 scrape link to a file but have no entry to match.
