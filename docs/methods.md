@@ -147,7 +147,7 @@ not listed. Entry labels are classified by pattern, and 56% of entries (clerical
 Time to the end of the file mixes settlements, withdrawals and judgments, so it is not the wait
 for a hearing; that needs cumulative incidence with settlement as a competing event (not built).
 
-## Decision-to-docket linkage (planned, owner decision 2026-11-18)
+## Decision-to-docket linkage (owner decision 2026-11-18; first version 2026-11-19)
 
 Join published decisions (S3) to docket files (S10) by court file number, for the Federal Court
 and Federal Court of Appeal. Purpose: attach the docket's nature of proceeding and filing date to
@@ -156,6 +156,55 @@ the files that end with no published decision. Coverage is limited to what the d
 FCA files from 2010, FC general files from 2018, and a sample of 1,000 FC immigration files per
 year from 2023. The linked table is per-decision and stays in `data/processed/` (not published);
 only aggregates go to the site.
+
+Code: `estimate/linkage.py`, run by `courtdelay build`. Grain is decision x cited file number
+(43,994 decisions, 46,819 pairs). Each pair gets a status against the docket frame: `linked`,
+`sealed_dropped` (the file exists but we drop it), `in_frame_no_docket`, `sample_frame`
+(immigration file in a sampled year, not drawn), `out_of_frame`, `bad_key` (truncated or malformed
+number, 282 pairs). Vintage: A2AJ snapshot and docket crawl of 2026-11-19.
+
+First results (inside the census frame only):
+
+| Decisions citing | Pairs | Linked | Dropped by us | No docket found |
+|---|---|---|---|---|
+| FC `T` files, 2018 on | 3,779 | 3,096 (82%) | 680 (18%) | 3 |
+| FCA `A` files, 2010 on | 4,393 | 3,854 (88%) | 533 (12%) | 6 |
+
+- **Census completeness.** Only 12 of 8,179 cited in-frame file numbers were not found by the
+  crawl (including 3 `A` numbers cited by FC decisions, likely typos). The census is not missing
+  files that produce decisions.
+- **Decision date against docket entries.** A judgment or order entry falls on the decision date
+  for 88% of linked FC pairs and 86% of FCA pairs (92% and 94% within a week).
+- **Hearing date against docket entries.** Where the decision states a hearing date, a recorded
+  hearing entry falls on it for 72% (FC) and 70% (FCA); 77% and 72% within a week. The rest are
+  mostly matters decided in writing or hearings the docket records under another entry type.
+- **Hearing to judgment, FC decisions from 2016.** All decisions: n = 14,157, median 26 days.
+  Linked `T` files: n = 2,500, median 28 days, 50% within 28 days, 43 at a year or more. Where the
+  docket confirms both dates (n = 1,943): median 27, 22 at a year or more. So the centre of the
+  distribution does not depend on the decision header's dates; the far tail partly does (7 of 29
+  linked decisions at a year or more have a later docket hearing that shortens them).
+- **Not yet reliable: interlocutory versus final.** The docket `judgment` entry type matches any
+  entry that mentions a judgment, so "last judgment on the file" is not a usable marker of the
+  final decision (FCA: only 15% of linked decisions are "last"). Needs the FCA closing rule.
+
+### Open issue: the confidentiality drop removes the largest files (found 2026-11-19)
+
+S10 drops a whole file when any entry carries the court's confidential flag or its text matches
+`sealed`, `confidential order`, `publication ban` (rule from the handoff, section 6). 2,115 files
+are dropped. 94% of them are dropped by the text match alone, not by the court's flag, and no
+dropped file is confidential throughout except one. The drop is not neutral:
+
+| | All files | Files with a published decision | Files with 50+ entries | Median entries, dropped vs kept |
+|---|---|---|---|---|
+| FC `T` | 5.8% dropped | 14.1% | 25.3% | 59 vs 12 |
+| FCA `A` | 8.8% dropped | 11.6% | 18.1% | 64 vs 35 |
+
+These are files with at least one sealed document or confidentiality order (common in patent,
+competition and national security matters), not sealed proceedings: the court lists them publicly
+and their decisions are published. Dropping them removes the longest, most contested files, so
+durations from S10 are biased downward. No entry text or names are kept for any file either way.
+Options for the owner: (a) keep these files and drop only the flagged entries; (b) keep dropping
+and state the bias; (c) drop only when the court's own flag is set. Unchanged until decided.
 
 ### Further linkages (owner decision 2026-11-18: build all)
 
