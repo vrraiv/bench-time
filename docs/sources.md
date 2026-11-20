@@ -234,6 +234,38 @@ request); add the real hostname once the owner confirms it.
 - **IMM-2022 overlap sample** (owner approval 2026-11-18): stratum `IMM-2022`, 300 files drawn at
   random, run 2026-11-19 at the same 3 s spacing; finished 07:20, no errors (frame top IMM-13672-22).
 
+### S13 (candidate) — Supreme Court of Canada case information — **VERIFIED 2026-11-19, NOT COLLECTED**
+
+Checked at the owner's request for the leave-application stage of appeal chains. Ten requests in
+all (robots, home, the cases landing page, the search page and its script, the access policy, the
+terms, two site maps, one case page); nothing parsed or stored beyond the cache.
+
+- **Where the data is.** Each Supreme Court file has a page at
+  `https://www.scc-csc.ca/cases-dossiers/search-recherche/{5-digit case number}`: one HTML page
+  (about 160 KB for the sample) with a docket table (Date, Proceeding, Filed by), then Parties,
+  Counsel, Summary, Filed documents and Webcasts. The docket rows carry the stage events
+  ("Hearing of the appeal", "Judgment reserved", "Judgment on the appeal rendered", "Appeal
+  closed"). **One request per file.**
+- **Listing the files.** `https://www.scc-csc.ca/en/sitemap.xml` lists 42,619 case pages, so the
+  frame comes from the court's own site map. The search form on the site is not needed and would
+  not be used: it posts to a third-party search service with a site key.
+- **Robots** (re-read 2026-11-19): disallows `/*22551`, `/cso-dce/` and two named case
+  documents. Case pages are not disallowed. No crawl delay stated.
+- **Terms.** Standard Government of Canada non-commercial reproduction. Neither the terms nor the
+  Policy for access to Supreme Court of Canada court records mentions automated access. The
+  policy says access to a record may be restricted and the restriction recorded on the docket.
+- **Not yet verified:** where the page states the court appealed from and the lower-court file
+  number (the search form has both fields, so the data exists); how leave-stage events are
+  worded; how restricted files appear.
+- **Names.** Pages include party and counsel names. As with S10 and S12 they would stay in the
+  local raw cache and be dropped at parse.
+- **Second, lighter source:** "Judgments on leave applications" and "Bulletins of proceedings"
+  at `decisions.scc-csc.ca` (a different host, not checked). They give the leave decision date
+  but not the filing date.
+- **Size if approved.** Case numbers run at roughly 500 to 600 a year; files from 2010 on are
+  about 8,500 pages, around 9 to 10 hours at 4 seconds a request. Restricting to cases from the
+  federal courts needs an index of which cases those are, which the pages themselves provide.
+
 ### S12 — Tax Court dockets — **ENDPOINTS VERIFIED, PILOTED**
 
 - Landing page `https://www.tcc-cci.ca/en/pages/find-a-court-file` (script `/Content/js/base/data.js`,
