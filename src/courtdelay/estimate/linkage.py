@@ -271,3 +271,37 @@ def match_rates(links: pl.DataFrame, min_n: int = 0) -> pl.DataFrame:
         .filter(pl.col("n_decision_files") >= min_n)  # published tables: no tiny cells
         .sort("court", "prefix", "decision_year")
     )
+
+
+# -- Supreme Court leg of appeal chains ---------------------------------------------------------
+
+SCC_FROM_FCA_RE = re.compile(r"on\s+appeal\s+from\s+the\s+federal\s+court\s+of\s+appeal", re.I)
+SCC_APPEALED_JUDGMENT_RE = re.compile(
+    r"(?:APPEALS?|POURVOIS?)\s+(?:from|contre)\s+.{0,80}?(?:judgments?|arr[êe]ts?)\s+(?:of|de)\s+"
+    r"(?:the|la)\s+(?:Federal\s+Court\s+of\s+Appeal|Cour\s+d['’]appel\s+f[ée]d[ée]rale)"
+    r".{0,400}?\b(\d{4})\s+(?:FCA|CAF)\s+(\d+)\b",
+    re.I | re.S,
+)
+FCA_CITATION_RE = re.compile(r"^(\d{4}) FCA (\d+)$")
+
+
+def scc_appeal_from_fca(
+    text: str | None, cited: list[str] | None, decision_year: int
+) -> tuple[str | None, str | None]:
+    """For a Supreme Court decision on appeal from the Federal Court of Appeal, the neutral
+    citation of the judgment appealed and how it was found: ``stated`` (the decision's own
+    "APPEAL from a judgment of the Federal Court of Appeal ... 2019 FCA 123") or ``latest_cited``
+    (the most recent FCA decision it cites; agrees with ``stated`` in 34 of 35 checked cases).
+    (None, None) when the decision is not from the FCA or names no FCA judgment."""
+    if not text or not SCC_FROM_FCA_RE.search(text):
+        return None, None
+    m = SCC_APPEALED_JUDGMENT_RE.search(text)
+    if m:
+        return f"{m.group(1)} FCA {int(m.group(2))}", "stated"
+    best = None
+    for c in cited or []:
+        fm = FCA_CITATION_RE.match(c or "")
+        if fm and int(fm.group(1)) <= decision_year:
+            key = (int(fm.group(1)), int(fm.group(2)))
+            best = max(best, key) if best else key
+    return (f"{best[0]} FCA {best[1]}", "latest_cited") if best else (None, None)

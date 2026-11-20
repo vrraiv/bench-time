@@ -107,3 +107,19 @@ def test_tcc_keys():
     assert lk.normalise_tcc_key("97-1896(IT)G") == "1997-1896(IT)G"
     assert lk.normalise_tcc_key("2019-45") is None
     assert lk.tcc_key_parts("2019-123(IT)G") == ("TCC", 2019)
+
+
+def test_scc_appeal_from_fca():
+    head = "ON APPEAL FROM THE FEDERAL COURT OF APPEAL\nSynthetic headnote. "
+    stated = head + "APPEAL from a judgment of the Federal Court of Appeal (X J.A.), 2019 FCA 123"
+    assert lk.scc_appeal_from_fca(stated, ["2015 FCA 9"], 2021) == ("2019 FCA 123", "stated")
+    # no stated judgment: the most recent FCA decision cited, not one dated after this decision
+    cited = ["2012 FCA 5", "2019 FCA 77", "2019 FCA 8", "2023 FCA 1", "2008 SCC 9"]
+    assert lk.scc_appeal_from_fca(head, cited, 2021) == ("2019 FCA 77", "latest_cited")
+    assert lk.scc_appeal_from_fca(
+        "ON APPEAL FROM THE COURT OF APPEAL FOR ONTARIO", cited, 2021
+    ) == (
+        None,
+        None,
+    )
+    assert lk.scc_appeal_from_fca(head, [], 2021) == (None, None)

@@ -50,7 +50,7 @@ These results exist but are not in the public repository. On this preview they a
 | Tax Court: time from filing to the end of the file, and how files end | Waiting on practitioner answers about files held in abeyance and what several entry labels mean. The figures could move materially. |
 | Tax Court: share of files that reach a hearing | The entry used to mark a hearing is sometimes a motion or status hearing, not the trial. Our count of hearings runs above the court's own. |
 | Tax Court decisions matched to files | Held with the other Tax Court results so that everything about that court is reviewed together. |
-| Appeal chains: filing in the court below to the end of the appeal | The totals are lower bounds, not a trend, because files in the courts below only go back to 2018. The Supreme Court leg is not built. |
+| Appeal chains: filing in the court below to the end of the appeal, and the Supreme Court leg | The totals are lower bounds, not a trend, because files in the courts below only go back to 2018. The Supreme Court leg covers only appeals that were heard; leave applications are not in any source we hold. |
 | Judges deciding against the judicial complement | No judge is named and small groups are withheld, but whether to publish this at all is still to be decided. |
 | Counts of pending files from our census | A few percent of file endings are missed, so our pending counts run above the courts' own (by about 200 Federal Court of Appeal files for 2025). Pending totals shown on this site are the courts' figures. |
 

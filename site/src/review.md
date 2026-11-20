@@ -63,6 +63,22 @@ display(Inputs.table(chains, {
 
 <p class="muted">Pending review: these totals are lower bounds, not a trend. Files in the court below start in 2018, so early appeal years can only link to quick files. About a third of appeals do not name the file appealed from and are not linked. The Supreme Court leg is not built.</p>
 
+## Supreme Court leg: appeals from the Federal Court of Appeal that were heard
+
+```js
+const sccLeg = FileAttachment("review-data/link_scc_leg_from_fca.csv").csv({typed: true});
+```
+
+```js
+display(Inputs.table(sccLeg, {
+  columns: ["scc_judgment_period", "leg", "n", "p25_days", "p50_days", "p75_days", "p90_days"],
+  header: {scc_judgment_period: "Supreme Court judgment", leg: "Stage", n: "Cases", p25_days: "25th pct (days)", p50_days: "Median (days)", p75_days: "75th pct", p90_days: "90th pct"},
+  layout: "auto", width: {leg: 300}
+}));
+```
+
+<p class="muted">Pending review: this covers only appeals the Supreme Court heard and decided, 95 since 2010. Cases refused leave, which are most of them, are not in any source we hold, and the leave stage is not measured separately. Federal Court of Appeal files start in 2010, so the FCA stage for the earlier period rests on its quicker files. Published decisions (A2AJ) joined to FCA court files by the judgment each Supreme Court decision says it is appealed from.</p>
+
 ## Judges deciding against the judicial complement
 
 ```js

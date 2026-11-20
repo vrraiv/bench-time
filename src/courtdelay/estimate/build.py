@@ -584,6 +584,133 @@ def build_appeal_chains(derived: Path, site: Path) -> None:
     _write(agg, "link_appeal_chains_by_year", derived, site, publish=False)
 
 
+def build_scc_leg(derived: Path, site: Path) -> None:
+    """Supreme Court leg of the appeal chains, for appeals the Court heard: SCC decision -> the
+    FCA judgment appealed -> the FCA court file -> (where linked) the file in the court below.
+    Leave applications are not covered: no source we hold records them. Run after build_links
+    and build_appeal_chains."""
+    from courtdelay.sources import s3_a2aj_decisions as s3
+
+    proc = paths.processed_dir()
+    need = [
+        proc / "s3" / "decisions_meta.parquet",
+        proc / "links" / "fc_decision_docket.parquet",
+        proc / "s10" / "dockets.parquet",
+    ]
+    raw, _ = s3._parquet_for("SCC")
+    if raw is None or not all(p.exists() for p in need):
+        return
+    meta = pl.read_parquet(need[0])
+    scc = meta.filter((pl.col("court") == "SCC") & (pl.col("decision_date").dt.year() >= 2010))
+    text = (
+        pl.scan_parquet(raw)
+        .filter(pl.col("citation_en").is_in(scc["citation_en"].to_list()))
+        .select("citation_en", "unofficial_text_en", "cases_cited_en")
+        .collect()
+    )
+    year = dict(zip(scc["citation_en"], scc["decision_date"].dt.year(), strict=True))
+    found = [
+        (c, *linkage.scc_appeal_from_fca(t, cited, year[c]))
+        for c, t, cited in zip(
+            text["citation_en"].to_list(),
+            text["unofficial_text_en"].to_list(),
+            text["cases_cited_en"].to_list(),
+            strict=True,
+        )
+    ]
+    src = pl.DataFrame(found, schema=["citation_en", "fca_citation", "basis"], orient="row").filter(
+        pl.col("fca_citation").is_not_null()
+    )
+    fca_dec = meta.filter(pl.col("court") == "FCA").select(
+        pl.col("citation_en").alias("fca_citation"), pl.col("decision_date").alias("fca_judgment")
+    )
+    links = (
+        pl.read_parquet(need[1])
+        .filter((pl.col("court") == "FCA") & (pl.col("status") == "linked"))
+        .select(pl.col("decision_id").alias("fca_citation"), pl.col("key").alias("fca_docket"))
+        .unique("fca_citation", keep="first")
+    )
+    fca_file = pl.read_parquet(need[2]).select(
+        pl.col("docket").alias("fca_docket"), pl.col("date_filed").alias("fca_filed")
+    )
+    ch = (
+        scc.select(
+            "citation_en",
+            pl.col("hearing_last_date").alias("scc_hearing"),
+            pl.col("decision_date").alias("scc_judgment"),
+        )
+        .join(src, on="citation_en")
+        .join(fca_dec, on="fca_citation", how="left")
+        .join(links, on="fca_citation", how="left")
+        .join(fca_file, on="fca_docket", how="left")
+    )
+    chains_p = proc / "links" / "appeal_chains.parquet"
+    if chains_p.exists():
+        low = (
+            pl.read_parquet(chains_p)
+            .filter(pl.col("status") == "linked")
+            .select("fca_docket", "origin", "lower_filed")
+        )
+        ch = ch.join(low, on="fca_docket", how="left")
+    else:
+        ch = ch.with_columns(
+            pl.lit(None, dtype=pl.String).alias("origin"),
+            pl.lit(None, dtype=pl.Date).alias("lower_filed"),
+        )
+
+    def days(a: str, b: str) -> pl.Expr:
+        return (pl.col(a) - pl.col(b)).dt.total_days()
+
+    ch = ch.with_columns(
+        days("fca_judgment", "fca_filed").alias("fca_days"),
+        days("scc_hearing", "fca_judgment").alias("fca_judgment_to_scc_hearing_days"),
+        days("scc_judgment", "scc_hearing").alias("scc_hearing_to_judgment_days"),
+        days("scc_judgment", "fca_filed").alias("fca_filing_to_scc_judgment_days"),
+        days("scc_judgment", "lower_filed").alias("lower_filing_to_scc_judgment_days"),
+        pl.when(pl.col("scc_judgment").dt.year() < 2018)
+        .then(pl.lit("2010-2017"))
+        .otherwise(pl.lit("2018-2026"))
+        .alias("period"),
+    )
+    (proc / "links").mkdir(exist_ok=True)
+    ch.write_parquet(proc / "links" / "scc_chains.parquet")
+    rows = []
+    for period in ["2010-2017", "2018-2026", "2010-2026"]:
+        sub = ch if period == "2010-2026" else ch.filter(pl.col("period") == period)
+        for col, label in [
+            ("fca_days", "FCA: filing to judgment"),
+            ("fca_judgment_to_scc_hearing_days", "FCA judgment to Supreme Court hearing"),
+            ("scc_hearing_to_judgment_days", "Supreme Court: hearing to judgment"),
+            ("fca_filing_to_scc_judgment_days", "FCA filing to Supreme Court judgment"),
+            ("lower_filing_to_scc_judgment_days", "Filing in the court below to SCC judgment"),
+        ]:
+            v = sub[col].drop_nulls()
+            v = v.filter(v >= 0)
+            if v.len() < 20:  # no small cells
+                continue
+            rows.append(
+                {
+                    "scc_judgment_period": period,
+                    "leg": label,
+                    "n": v.len(),
+                    "p50_days": v.median(),
+                    "p25_days": v.quantile(0.25),
+                    "p75_days": v.quantile(0.75),
+                    "p90_days": v.quantile(0.9),
+                }
+            )
+    agg = pl.DataFrame(rows).with_columns(
+        pl.lit(
+            "Appeals from the Federal Court of Appeal that the Supreme Court heard and decided "
+            "(published decisions, 2010 on); cases refused leave are not included and the leave "
+            "stage is not measured separately; the FCA judgment appealed is taken from the "
+            "decision's own statement or, failing that, the most recent FCA decision it cites; "
+            "legs with fewer than 20 cases are omitted."
+        ).alias("bias_statement")
+    )
+    _write(agg, "link_scc_leg_from_fca", derived, site, publish=False)
+
+
 def build_links(derived: Path, site: Path) -> None:
     """Decision-to-docket links (S3 x S10). Per-decision rows go to data/processed/links/ and are
     never published; only aggregate match rates are written as a derived table."""
@@ -695,3 +822,4 @@ def build_all() -> None:
     build_links(derived, site)
     build_appeal_chains(derived, site)
     build_judges(derived, site, v)
+    build_scc_leg(derived, site)

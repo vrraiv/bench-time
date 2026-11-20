@@ -273,14 +273,22 @@ at all); for Tax Court appeals, a judgment entry in that window in 73%.
 
 Bias: these totals are lower bounds, not a trend. Lower files start in 2018, so an appeal filed in
 2019 can only link to a lower file that took under two years; the rise from 778 to 1,056 days is
-mostly that truncation. Completed chains only. The Supreme Court leg is not built (no SCC docket
-source).
+mostly that truncation. Completed chains only. The Supreme Court leg covers heard appeals only (below).
 
 Still unchecked on the end-of-file rule: 396 S10 files carry a final marker on more than one date
 (median 78 days apart) and the first is used; and the last entries of about 136 FCA files from
 2021 or earlier that still count as open have not been read. The cohort tables blank any
 quantile that fewer than half the cohort has been followed long enough to reach, so 2025 and
 2026 show no medians. S4 still uses the first-judgment fallback, for about 1% of its files.
+
+**Supreme Court leg, heard appeals only (2026-11-19).** `build_scc_leg`. Since 2010, 95 Supreme
+Court decisions are appeals from the Federal Court of Appeal; each states the FCA judgment it is
+appealed from, all 95 are found among the FCA decisions, and 61 link on to an FCA court file (the
+rest are files from before 2010). Median days, 2010-2026: FCA judgment to Supreme Court hearing
+472 (n = 88); Supreme Court hearing to judgment 213 (n = 88); FCA filing to Supreme Court judgment
+1,103 (n = 61). Not covered: leave applications (no source held records them), so cases refused
+leave are absent and the leave stage is not measured separately. Only 4 chains reach a file in
+the court below, too few to report. Held back with the other chain results.
 
 **Judges against complement (first version 2026-11-19).** `estimate/judges.py`. Federal Court
 and Tax Court only (one judge decides). The judge's surname from the decision header is a
