@@ -234,7 +234,7 @@ request); add the real hostname once the owner confirms it.
 - **IMM-2022 overlap sample** (owner approval 2026-11-18): stratum `IMM-2022`, 300 files drawn at
   random, run 2026-11-19 at the same 3 s spacing; finished 07:20, no errors (frame top IMM-13672-22).
 
-### S13 (candidate) — Supreme Court of Canada case information — **VERIFIED 2026-11-19, NOT COLLECTED**
+### S13 — Supreme Court of Canada case information — **PILOTED 2026-11-19, FULL PASS RUNNING**
 
 Checked at the owner's request for the leave-application stage of appeal chains. Ten requests in
 all (robots, home, the cases landing page, the search page and its script, the access policy, the
@@ -259,6 +259,18 @@ terms, two site maps, one case page); nothing parsed or stored beyond the cache.
   worded; how restricted files appear.
 - **Names.** Pages include party and counsel names. As with S10 and S12 they would stay in the
   local raw cache and be dropped at parse.
+- **Pilot (owner approval 2026-11-19): 20 random case pages**, no errors. Confirmed: the leave
+  stages are standard labels ("Application for leave to appeal", "All materials on application
+  for leave submitted to the Judges", "Judgment of the Court on the application for leave to
+  appeal", "Close file on Leave"); the leave-judgment entry names the court appealed from, its
+  file number, citation and date, and the result; a "Lower court rulings" block gives the same
+  for files not yet decided. Leave filing date read for 20 of 20, court appealed from for 20 of
+  20, result for all 16 decided. "Certificate (on limitations to public access)" is a routine
+  form on every file (60 entries in 20 files) and is counted, not treated as a sealing marker.
+  Pages link to other sites, including one we do not use; links are never followed.
+- **Full pass** started 2026-11-19 evening: 9,131 case pages (case numbers from 33500, about
+  2010 on) at the default 4 s spacing, about 10 hours. Implementation:
+  `sources/s13_scc_cases.py`.
 - **Second, lighter source:** "Judgments on leave applications" and "Bulletins of proceedings"
   at `decisions.scc-csc.ca` (a different host, not checked). They give the leave decision date
   but not the filing date.
