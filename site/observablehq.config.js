@@ -2,7 +2,7 @@
 // Worker behind Cloudflare Access (see wrangler.jsonc): a restricted preview, not a public site.
 // Telemetry: run with OBSERVABLE_TELEMETRY_DISABLE=true (see site/README.md).
 export default {
-  title: "Docket Watch",
+  title: "Docket Watch (preview)",
   root: "src",
   pages: [
     {name: "Overview", path: "/"},
