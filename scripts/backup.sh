@@ -7,7 +7,7 @@
 #                              responses and compare their SHA-256 with the fetch-time sidecars
 #   scripts/backup.sh list     list snapshots
 #
-# Repository: $RESTIC_REPOSITORY (required; set it as a user environment variable on the machine
+# Repository: $COURTDELAY_RESTIC_REPOSITORY (required; a user environment variable on the machine
 # that runs backups, pointing at a folder that syncs off the device). Password: from
 # $RESTIC_PASSWORD_FILE (preferred; a file OUTSIDE the repo, e.g. %USERPROFILE%\.restic-courtdelay)
 # or $RESTIC_PASSWORD. Never commit or print the password. If it is lost, the backup is unreadable.
@@ -16,10 +16,13 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-if [ -z "${RESTIC_REPOSITORY:-}" ]; then
-  echo "RESTIC_REPOSITORY is not set: point it at the backup folder (see the header)."; exit 2
+# The location comes from a variable named for THIS project. The generic RESTIC_REPOSITORY is
+# deliberately not read: set user-wide, it would send any other project's restic commands here.
+if [ -z "${COURTDELAY_RESTIC_REPOSITORY:-}" ]; then
+  echo "COURTDELAY_RESTIC_REPOSITORY is not set: point it at the backup folder (see the header)."
+  exit 2
 fi
-export RESTIC_REPOSITORY
+export RESTIC_REPOSITORY="$COURTDELAY_RESTIC_REPOSITORY"
 
 RESTIC="$(command -v restic || true)"
 if [ -z "$RESTIC" ]; then

@@ -7,7 +7,8 @@
 #
 # The two court sites are different hosts, so their refreshes run side by side, one process per
 # host, each at its own approved request spacing. Needs the user environment variables
-# COURTDELAY_CONTACT (court sites are refused without it) and RESTIC_REPOSITORY (backup).
+# COURTDELAY_CONTACT (court sites are refused without it) and COURTDELAY_RESTIC_REPOSITORY
+# (backup).
 # Parsing and rebuilding tables is a separate monthly step: `courtdelay fetch s10 --no-fetch`,
 # `courtdelay fetch s12 --no-fetch`, `courtdelay build`.
 param(
@@ -29,7 +30,7 @@ function Write-Summary([string]$line) {
     "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')  $line" | Tee-Object -FilePath $summary -Append
 }
 
-foreach ($name in 'COURTDELAY_CONTACT', 'RESTIC_REPOSITORY') {
+foreach ($name in 'COURTDELAY_CONTACT', 'COURTDELAY_RESTIC_REPOSITORY') {
     if (-not [Environment]::GetEnvironmentVariable($name)) {
         Write-Summary "STOPPED: environment variable $name is not set"
         exit 2

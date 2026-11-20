@@ -23,7 +23,8 @@ uv run courtdelay fetch s9 --no-fetch   # re-parse cached raw files only
 ## Backups
 
 `scripts/backup.sh` makes encrypted restic backups of `data/raw` and the request log. It reads the
-backup location from the `RESTIC_REPOSITORY` environment variable and the password from a file
+backup location from the `COURTDELAY_RESTIC_REPOSITORY` environment variable (a project-specific
+name, so other projects on the same machine cannot write here by accident) and the password from a file
 outside the repository; neither is stored here. With the code in this repository and a restored
 `data/raw`, `uv run courtdelay fetch <source> --no-fetch` and `uv run courtdelay build` rebuild
 every table.
