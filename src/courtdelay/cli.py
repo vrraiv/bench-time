@@ -32,6 +32,12 @@ def main(argv: list[str] | None = None) -> int:
     f.add_argument("source", help="source id, e.g. s1, or 'all'")
     f.add_argument("--no-fetch", action="store_true", help="parse cached raw files only")
     f.add_argument(
+        "--refresh",
+        action="store_true",
+        help="open-data sources only: request pages again even when cached (pages that "
+        "change in place); a failed answer never replaces a good cached copy",
+    )
+    f.add_argument(
         "--strata", nargs="*", help="docket sources only: run these strata (e.g. FCA-2024)"
     )
     sub.add_parser("list", help="list registered sources")
@@ -77,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         ]
     else:
         ids = [args.source.lower()]
-    with Client() as client:
+    with Client(refresh_tier1=args.refresh) as client:
         for sid in ids:
             if sid not in mods:
                 print(f"unknown source {sid!r}; known: {', '.join(sorted(mods))}", file=sys.stderr)

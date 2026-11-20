@@ -159,7 +159,11 @@ class Client:
         default_delay: float = DEFAULT_DELAY,
         timeout: float = 60.0,
         manifest: Path | None = None,
+        refresh_tier1: bool = False,
     ):
+        #: re-request open-data (Tier 1) pages even when cached, replacing the cached copy;
+        #: for pages that change in place. Docket sources have their own refresh.
+        self.refresh_tier1 = refresh_tier1
         self._http = httpx.Client(
             transport=transport,
             headers={"User-Agent": user_agent()},
@@ -237,6 +241,7 @@ class Client:
         copy is never replaced by a worse one: a non-2xx answer, or a body that ``accept(bytes)``
         rejects (e.g. an empty result for a file known to exist), leaves the cache as it was and
         raises FetchError."""
+        refresh = refresh or (self.refresh_tier1 and tier == 1)
         if params:
             url = str(httpx.URL(url, params=params))
         self._guard(url, tier)

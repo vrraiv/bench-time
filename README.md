@@ -28,3 +28,19 @@ name, so other projects on the same machine cannot write here by accident) and t
 outside the repository; neither is stored here. With the code in this repository and a restored
 `data/raw`, `uv run courtdelay fetch <source> --no-fetch` and `uv run courtdelay build` rebuild
 every table.
+
+## Scheduled refreshes
+
+Three refreshes run on their own; none of them commits to `main`.
+
+- **Weekly, on the owner's machine** (`scripts/weekly_refresh.ps1`, Sunday night): the court-file
+  sources (Federal Court and Federal Court of Appeal, Tax Court, Supreme Court), then a backup.
+- **Monthly, on GitHub Actions** (`.github/workflows/statcan-refresh.yml`): Statistics Canada tables.
+- **Quarterly, on GitHub Actions** (`.github/workflows/court-pages-refresh.yml`): the statistics
+  pages the courts publish (Supreme Court, Ontario Court of Justice, Federal Court, Federal Court
+  of Appeal) and federal judicial vacancies.
+
+The GitHub runs open a pull request only when a published table's data has changed. After merging
+one, bring the local copy in line before the next local build:
+`uv run courtdelay fetch <source> --refresh` (for example `s8`). `--refresh` requests open-data
+pages again even when they are cached; a failed answer never replaces a good cached copy.

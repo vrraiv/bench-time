@@ -191,3 +191,24 @@ def test_refresh_never_replaces_a_good_copy_with_a_bad_one(env):
     # a good new answer replaces it
     assert c.get(url, source="s_test", refresh=True, accept=has_rows).json() == {"data": [1, 2]}
     assert c.get(url, source="s_test").json() == {"data": [1, 2]}
+
+
+def test_refresh_tier1_rerequests_open_data_but_keeps_a_good_copy_on_failure(env):
+    answers = [httpx.Response(200, text="first"), httpx.Response(200, text="second")]
+
+    def handler(request):  # after the two good answers the site is down (retries included)
+        return answers.pop(0) if answers else httpx.Response(503, text="busy")
+
+    c = make_client(handler, FakeClock())
+    url = "https://example.gc.ca/page"
+    assert c.get(url, source="s_test").text == "first"
+    assert c.get(url, source="s_test").text == "first"  # served from cache, no request
+    c.refresh_tier1 = True
+    assert c.get(url, source="s_test").text == "second"
+    try:
+        c.get(url, source="s_test")
+        raise AssertionError("a failed refresh must raise")
+    except http.FetchError:
+        pass
+    c.refresh_tier1 = False
+    assert c.get(url, source="s_test").text == "second" and not answers
