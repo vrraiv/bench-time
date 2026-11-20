@@ -41,6 +41,21 @@ const fcGen = latest("FC: all");
 - **Decisions linked to files.** Published decisions are matched to their court files by file number (99.8% link inside the census), which separates final from interlocutory decisions and checks hearing dates against the court record.
 - **[Results under review](./review).** Tax Court durations, the wait for a Tax Court hearing, appeal chains and judges against the judicial complement are shown there with their open questions. They are provisional.
 
+## What is held back, and why
+
+These results exist but are not in the public repository. On this preview they appear only on [Results under review](./review).
+
+| Held back | Why |
+|---|---|
+| Tax Court: time from filing to the end of the file, and how files end | Waiting on practitioner answers about files held in abeyance and what several entry labels mean. The figures could move materially. |
+| Tax Court: share of files that reach a hearing | The entry used to mark a hearing is sometimes a motion or status hearing, not the trial. Our count of hearings runs above the court's own. |
+| Tax Court decisions matched to files | Held with the other Tax Court results so that everything about that court is reviewed together. |
+| Appeal chains: filing in the court below to the end of the appeal | The totals are lower bounds, not a trend, because files in the courts below only go back to 2018. The Supreme Court leg is not built. |
+| Judges deciding against the judicial complement | No judge is named and small groups are withheld, but whether to publish this at all is still to be decided. |
+| Counts of pending files from our census | A few percent of file endings are missed, so our pending counts run above the courts' own (by about 200 Federal Court of Appeal files for 2025). Pending totals shown on this site are the courts' figures. |
+
+One further question is open and affects what may be published: 18 Federal Court files and 25 immigration files mention a publication ban. They are included in the aggregate figures for now, pending advice on whether they should be.
+
 ## What the data can and cannot say
 
 - **Most published series measure total elapsed time.** They cannot separate waiting for the court from Crown, defence or party delay. Measures closer to institutional delay on this site: reserve time (hearing → decision), leave-granted → hearing in the Federal Court, and the ONCA "ready → hearing" phase.
