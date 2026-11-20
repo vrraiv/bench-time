@@ -38,7 +38,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("build", help="build derived aggregate tables")
     r = sub.add_parser("refresh", help="weekly incremental fetch of one docket host")
     r.add_argument(
-        "court", choices=["fc", "tcc"], help="fc = Federal Court and FCA; tcc = Tax Court"
+        "court",
+        choices=["fc", "tcc", "scc"],
+        help="fc = Federal Court and FCA; tcc = Tax Court; scc = Supreme Court",
     )
     r.add_argument("--max-minutes", type=float, default=None, help="stop cleanly after this long")
     r.add_argument(

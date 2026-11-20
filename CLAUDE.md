@@ -58,6 +58,8 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
   Exception (owner, 2026-11-19): Federal Court and FCA docket files (S10) and Refugee Law Lab
   dockets (S4) are kept even when an entry carries a confidentiality marker; the markers are
   counted per file. Pending practitioner review of what the markers mean.
+  Supreme Court files (S13) with a sealing or publication-ban note are likewise kept and
+  counted, on the gated preview only (owner, 2026-11-20); the practitioner's guidance decides.
 - Aggregates from the docket sites (owner, 2026-11-19): the FC/FCA cohort tables and the link
   match rates are published. Held back until the owner says otherwise: Tax Court tables
   (practitioner review), appeal-chain totals, the Supreme Court tables (S13), pending-file

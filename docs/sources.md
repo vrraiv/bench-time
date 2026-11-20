@@ -295,7 +295,8 @@ terms, two site maps, one case page); nothing parsed or stored beyond the cache.
   for 96% of files (the rest are appeals as of right and references), leave result for
   100% of decided files, court appealed from for all but 9 files. Counts of appeals heard
   and judgments match the court's published statistics within one or two a year (see
-  `docs/methods.md`). Not yet in the weekly refresh.
+  `docs/methods.md`). In the weekly refresh from 2026-11-20 (`courtdelay refresh scc`: the
+  site map, new case pages, and a quarter of the files still open; about 120 requests).
 - **Second, lighter source:** "Judgments on leave applications" and "Bulletins of proceedings"
   at `decisions.scc-csc.ca` (a different host, not checked). They give the leave decision date
   but not the filing date.

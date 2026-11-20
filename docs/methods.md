@@ -333,7 +333,7 @@ read 19-20 November 2026. Held back with the other chain results; not reviewed.
 - *Restriction notes.* 616 files (7%) have an entry mentioning a sealing order, a publication
   ban or confidential material. They are kept and counted, as for the Federal Court files; 28%
   of them were granted leave against 8% of the rest, so dropping them would bias the grant rate.
-  Whether the project's drop rule should apply is an open question for the owner.
+  Kept on the gated preview (owner, 2026-11-20); the practitioner's guidance will decide.
 - *Open questions* are in the review list written to the owner's working folder on 2026-11-20:
   what "completed" means and why it now takes longer; how to treat remands and files with two
   leave decisions; what the FCA motion numbers are.

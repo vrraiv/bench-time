@@ -938,7 +938,8 @@ def build_scc_cases(derived: Path, site: Path) -> None:
             .otherwise(pl.col("first_ruling_to_appeal_judgment_days_p50"))
             .alias("first_ruling_to_appeal_judgment_days_p50"),
         )
-        .drop("cohort")
+        # counts that can fall under the 30-file minimum are not carried in the table
+        .drop("cohort", "n_competing", "n_granted", "n_first_ruling")
         .sort("origin", "filing_period")
     )
     by_origin = by_origin.select(
@@ -1153,10 +1154,19 @@ def build_scc_cases(derived: Path, site: Path) -> None:
         dict(ch["link_status"].value_counts(sort=True).iter_rows()),
         100 * (linked["dates_agree"].mean() or 0),
     )
+    n_by = ch.group_by("link_status").agg(pl.len().alias("n"))
     status = (
-        ch.group_by("link_status")
+        ch.join(n_by, on="link_status")
+        .with_columns(
+            # statuses with fewer than 30 files are reported together
+            pl.when(pl.col("n") < 30)
+            .then(pl.lit("not linked, other reasons"))
+            .otherwise(pl.col("link_status"))
+            .alias("link_status")
+        )
+        .group_by("link_status")
         .agg(pl.len().alias("n"))
-        .filter(pl.col("n") >= 5)
+        .filter(pl.col("n") >= 30)
         .with_columns(
             pl.lit("link status").alias("table"),
             (pl.col("n") / ch.height).alias("share"),

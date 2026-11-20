@@ -5,12 +5,13 @@
 #   pwsh -File scripts\weekly_refresh.ps1 -NewOnly   new filings only (short)
 #   pwsh -File scripts\weekly_refresh.ps1 -DryRun    print what would run, start nothing
 #
-# The two court sites are different hosts, so their refreshes run side by side, one process per
+# The three court sites (Federal Court, Tax Court, Supreme Court) are different hosts, so their
+# refreshes run side by side, one process per
 # host, each at its own approved request spacing. Needs the user environment variables
 # COURTDELAY_CONTACT (court sites are refused without it) and COURTDELAY_RESTIC_REPOSITORY
 # (backup).
 # Parsing and rebuilding tables is a separate monthly step: `courtdelay fetch s10 --no-fetch`,
-# `courtdelay fetch s12 --no-fetch`, `courtdelay build`.
+# `courtdelay fetch s12 --no-fetch`, `courtdelay fetch s13 --no-fetch`, `courtdelay build`.
 param(
     [switch]$NewOnly,
     [switch]$DryRun,
@@ -40,7 +41,7 @@ foreach ($name in 'COURTDELAY_CONTACT', 'COURTDELAY_RESTIC_REPOSITORY') {
 $extra = @('--max-minutes', "$MaxMinutes")
 if ($NewOnly) { $extra += '--new-only' }
 $procs = @()
-foreach ($court in 'fc', 'tcc') {
+foreach ($court in 'fc', 'tcc', 'scc') {
     $uvArgs = @('run', '--no-sync', 'courtdelay', 'refresh', $court) + $extra
     $out = Join-Path $logDir "weekly_${stamp}_$court.log"
     if ($DryRun) {
@@ -67,7 +68,7 @@ foreach ($p in $procs) {
     Write-Summary "$($p.Court) refresh finished, exit code $code"
 }
 # the last line each refresh wrote to the shared status log (counts; no file numbers or names)
-Get-Content (Join-Path $root 'data\raw\refresh_log.jsonl') -Tail 2 | ForEach-Object { Write-Summary $_ }
+Get-Content (Join-Path $root 'data\raw\refresh_log.jsonl') -Tail 3 | ForEach-Object { Write-Summary $_ }
 
 Write-Summary 'starting backup'
 # Git's bash, not the WSL launcher that plain `bash` resolves to on Windows

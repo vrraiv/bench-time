@@ -312,6 +312,17 @@ def _cached_pages():
             yield int(m.group(1)), html, meta["fetched_at"]
 
 
+def cached_case_numbers() -> set[int]:
+    """Case numbers with a good cached page (reads the cache index only, not the pages)."""
+    out = set()
+    for mf in paths.raw_dir(SOURCE).glob("*.meta.json"):
+        meta = json.loads(mf.read_text())
+        m = re.search(r"/search-recherche/(\d{5})/?$", meta["url"])
+        if m and 200 <= meta["status"] < 300:
+            out.add(int(m.group(1)))
+    return out
+
+
 def parse(client: Client | None = None):
     import polars as pl
 

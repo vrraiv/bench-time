@@ -96,3 +96,50 @@ def test_run_stops_after_repeated_failures_and_logs(tmp_path, monkeypatch):
     assert row["status"] == "aborted" and row["failed_requests"] == refresh.MAX_CONSECUTIVE_ERRORS
     logged = json.loads((tmp_path / "raw" / "refresh_log.jsonl").read_text().splitlines()[-1])
     assert logged["court"] == "fc" and logged["status"] == "aborted"
+
+
+class FakeSCC:
+    def __init__(self, listed):
+        self.listed, self.calls = listed, []
+
+    def get(self, url, *, source, tier, params=None, refresh=False, accept=None):
+        assert tier == 2
+        self.calls.append((url, refresh))
+
+        class R:
+            text = "".join(f"<loc>/cases-dossiers/search-recherche/{n}/</loc>" for n in self.listed)
+
+        return R()
+
+
+def test_scc_refresh_fetches_new_pages_and_rechecks_open_slice(tmp_path, monkeypatch):
+    from courtdelay.sources import s13_scc_cases as s13
+
+    (tmp_path / "s13").mkdir()
+    open_cases = list(range(40000, 40040))
+    pl.DataFrame(
+        {
+            "case_no": [*open_cases, 40100],
+            "closed_date": [None] * 40 + [date(2024, 1, 1)],
+        },
+        schema={"case_no": pl.Int64, "closed_date": pl.Date},
+    ).write_parquet(tmp_path / "s13" / "cases.parquet")
+    monkeypatch.setattr(refresh.paths, "processed_dir", lambda: tmp_path)
+    monkeypatch.setattr(s13, "cached_case_numbers", lambda: {*open_cases, 40100})
+    # 30000 is before the frame and is ignored; 40101 and 40102 are new
+    client = FakeSCC([30000, *open_cases, 40100, 40101, 40102])
+    run = refresh._Run("scc", None)
+    today = date(2026, 11, 22)
+    refresh.refresh_scc(client, today, run)
+    assert client.calls[0] == (s13.SITEMAP, True)
+    new = [u for u, r in client.calls[1:] if not r]
+    assert new == [s13.CASE_URL.format(n=n) for n in (40101, 40102)]
+    k = refresh.week_slice(today)
+    want = [s13.CASE_URL.format(n=n) for n in open_cases if refresh.in_slice(str(n), k)]
+    assert [u for u, r in client.calls[1:] if r] == want and 0 < len(want) < 40
+    assert run.stats == {"new_files": 2, "rechecked_files": len(want)}
+    # new-only: the site map and nothing else once the new pages are held
+    monkeypatch.setattr(s13, "cached_case_numbers", lambda: {*open_cases, 40100, 40101, 40102})
+    c2 = FakeSCC([*open_cases, 40100, 40101, 40102])
+    refresh.refresh_scc(c2, today, refresh._Run("scc", None), new_only=True)
+    assert len(c2.calls) == 1

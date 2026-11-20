@@ -1,4 +1,4 @@
-"""``courtdelay refresh``: the weekly incremental fetch for the docket sources (S10, S12).
+"""``courtdelay refresh``: the weekly incremental fetch for the docket sources (S10, S12, S13).
 
 Owner decisions 2026-11-19: weekly, overnight on Sunday; each run fetches new filings and
 re-checks one rotating slice of the files that were still open, so every open file is re-checked
@@ -9,7 +9,7 @@ A re-check replaces the cached copy of a file in place (``refresh=True``), so th
 holds one copy per file, the latest. A failed or empty answer never replaces a good copy
 (see ``Client.request``). Earlier states of a file live in the restic backup snapshots.
 
-One process per host: run ``--court fc`` and ``--court tcc`` as two processes. Rates are the
+One process per host: run ``fc``, ``tcc`` and ``scc`` as three processes. Rates are the
 per-host limits in ``common/http.py``; this module adds no requests beyond the two endpoints the
 census already uses. Five failed requests in a row stop the run (site down or blocking).
 """
@@ -29,6 +29,7 @@ from courtdelay.common import paths
 from courtdelay.common.http import Client, FetchError
 from courtdelay.sources import s10_fc_fca_dockets as s10
 from courtdelay.sources import s12_tcc_dockets as s12
+from courtdelay.sources import s13_scc_cases as s13
 
 log = logging.getLogger(__name__)
 
@@ -238,6 +239,64 @@ def refresh_tcc(
             run.failed(nbr, exc)
 
 
+# -- Supreme Court ------------------------------------------------------------------------------
+
+
+def _is_case_list(content: bytes) -> bool:
+    return b"/cases-dossiers/search-recherche/" in content
+
+
+def _has_docket(content: bytes) -> bool:
+    return b"Proceeding" in content
+
+
+def refresh_scc(client: Client, today: date, run: _Run, new_only: bool = False) -> None:
+    """Re-read the court's site map (one request) and fetch case pages not yet held; then
+    re-request this week's slice of the files that were still open at the last parse (no
+    "closed" entry). Added to the weekly run by owner decision 2026-11-20."""
+    try:
+        xml = client.get(
+            s13.SITEMAP, source=s13.SOURCE, tier=s13.TIER, refresh=True, accept=_is_case_list
+        ).text
+        run.ok()
+    except FetchError as exc:
+        run.failed("site map", exc)
+        return
+    listed = {int(n) for n in s13.CASE_RE.findall(xml) if int(n) >= s13.FIRST_CASE}
+    for n in sorted(listed - s13.cached_case_numbers()):
+        if run.out_of_time():
+            run.add("skipped_out_of_time")
+            continue
+        try:
+            client.get(s13.CASE_URL.format(n=n), source=s13.SOURCE, tier=s13.TIER)
+            run.ok()
+            run.add("new_files")
+        except FetchError as exc:
+            run.failed(str(n), exc)
+    if new_only:
+        return
+    cases = pl.read_parquet(paths.processed_dir() / "s13" / "cases.parquet")
+    k = week_slice(today)
+    for n in cases.filter(pl.col("closed_date").is_null())["case_no"].sort().to_list():
+        if not in_slice(str(n), k):
+            continue
+        if run.out_of_time():
+            run.add("skipped_out_of_time")
+            continue
+        try:
+            client.get(
+                s13.CASE_URL.format(n=n),
+                source=s13.SOURCE,
+                tier=s13.TIER,
+                refresh=True,
+                accept=_has_docket,
+            )
+            run.ok()
+            run.add("rechecked_files")
+        except FetchError as exc:
+            run.failed(str(n), exc)
+
+
 # -- entry point -------------------------------------------------------------------------------
 
 
@@ -256,7 +315,9 @@ def run_refresh(
     own = client is None
     client = client or Client()
     try:
-        {"fc": refresh_fc, "tcc": refresh_tcc}[court](client, today, run, new_only)
+        {"fc": refresh_fc, "tcc": refresh_tcc, "scc": refresh_scc}[court](
+            client, today, run, new_only
+        )
     except RefreshAborted as exc:
         status, detail = "aborted", str(exc)
     finally:
