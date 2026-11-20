@@ -23,4 +23,4 @@ display(Plot.plot({
 
 <p class="muted">Definition: vacancies on the Commissioner for Federal Judicial Affairs page "Number of federally appointed judges as of …". Dots mark months with a captured snapshot; the step line carries the last snapshot forward. Snapshots come from the Internet Archive (2009–2026) and are irregular before 2015. Bias: counts of judges, not FTE; supernumerary judges carry reduced loads; the page's own "as of" date is used. Latest snapshot: 1 November 2026, fetched 2026-11-15.</p>
 
-Whether delay rises when vacancies rise is the headline question; the court-by-month linkage to delay measures is the next milestone and will be shown with lags and an explicit reverse-causality caveat.
+Whether delay rises when vacancies rise is the headline question. A first comparison of the judges issuing decisions with the judicial complement is on [Results under review](./review); the court-by-month link to delay measures comes next and will be shown with lags and an explicit reverse-causality caveat.

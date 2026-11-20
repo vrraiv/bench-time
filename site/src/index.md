@@ -3,15 +3,16 @@ title: Overview
 toc: false
 ---
 
-# bench-time
+# Docket Watch
 
-<p class="muted">Working draft (local build). How long cases take in Ontario's courts and the federal courts, read as a court-resourcing question: how much of the wait is the institution's?</p>
+<p class="muted">Working draft on a restricted preview. How long cases take in Ontario's courts and the federal courts, read as a court-resourcing question: how much of the wait is the institution's?</p>
 
 ```js
 const s1 = FileAttachment("data/s1_median_days_by_offence.csv").csv({typed: true});
 const s5 = FileAttachment("data/s5_scc_time_lapses.csv").csv({typed: true});
 const s6 = FileAttachment("data/s6_onca_annual_report_tables.csv").csv({typed: true});
 const fc = FileAttachment("data/s8_fc_annual_littles_law.csv").csv({typed: true});
+const cohorts = FileAttachment("data/s10_fc_fca_km_by_cohort.csv").csv({typed: true});
 ```
 
 ```js
@@ -19,19 +20,32 @@ const onMedian = s1.filter(d => d.geo === "Ontario" && d.offences === "Total Cri
 const scc = s5.filter(d => d.stage === "hearing_to_judgment").sort((a, b) => a.year - b.year).at(-1);
 const onca = s6.find(d => d.table === "timeline_filing_to_decision" && d.year === 2024 && d.column === "civil");
 const fcLast = fc.filter(d => d.n_periods === 4).sort((a, b) => d3.ascending(a.year, b.year)).at(-1);
+const latest = group => cohorts.filter(d => d.proceeding_group === group && d.p50_days != null).sort((a, b) => a.docket_year - b.docket_year).at(-1);
+const fca = latest("FCA: all");
+const fcGen = latest("FC: all");
 ```
 
-<div class="grid grid-cols-4">
+<div class="grid grid-cols-3">
+  <div class="card"><h2>Federal Court of Appeal files</h2><span class="big">${fca?.p50_days} days</span><p>Median, filing to end of file, files filed in ${fca?.docket_year} (95% interval ${fca?.p50_lo?.toFixed(0)}–${fca?.p50_hi?.toFixed(0)}; ${fca?.n?.toLocaleString()} files). Our census of court files.</p></div>
+  <div class="card"><h2>Federal Court, non-immigration files</h2><span class="big">${fcGen?.p50_days} days</span><p>Median, filing to end of file, files filed in ${fcGen?.docket_year} (95% interval ${fcGen?.p50_lo?.toFixed(0)}–${fcGen?.p50_hi?.toFixed(0)}; ${fcGen?.n?.toLocaleString()} files). Our census of court files.</p></div>
+  <div class="card"><h2>Federal Court pending</h2><span class="big">${fcLast?.pending_end?.toLocaleString()}</span><p>Proceedings pending at end of ${fcLast?.year}; commenced ÷ disposed = ${fcLast?.backlog_ratio?.toFixed(2)}. Court-published.</p></div>
   <div class="card"><h2>Ontario adult criminal cases</h2><span class="big">${onMedian?.median_days} days</span><p>Median, first appearance to decision, ${onMedian?.ref_date}. StatCan ICCS, completed cases only.</p></div>
   <div class="card"><h2>SCC hearing → judgment</h2><span class="big">${scc?.months} months</span><p>Average, ${scc?.year}. Court-published.</p></div>
   <div class="card"><h2>ONCA civil appeals</h2><span class="big">${onca?.value?.toFixed(0)} days</span><p>Average filing → decision, 2024 filings heard on the merits. ONCA annual report.</p></div>
-  <div class="card"><h2>Federal Court pending</h2><span class="big">${fcLast?.pending_end?.toLocaleString()}</span><p>Proceedings pending at end of ${fcLast?.year}; commenced ÷ disposed = ${fcLast?.backlog_ratio?.toFixed(2)}.</p></div>
 </div>
+
+## What is new on this draft
+
+- **A census of court files.** Every Federal Court of Appeal file from 2010, every Federal Court non-immigration file from 2018 and every Tax Court file from 2018, read from the courts' public file searches in November 2026 and refreshed weekly. Results are on [Federal courts](./federal).
+- **Checked against the courts' own statistics.** Our yearly filing counts for the Federal Court of Appeal and the Federal Court are within 2.5% of the courts' published counts, and our counts of files ended are 94–100% of theirs.
+- **Decisions linked to files.** Published decisions are matched to their court files by file number (99.8% link inside the census), which separates final from interlocutory decisions and checks hearing dates against the court record.
+- **[Results under review](./review).** Tax Court durations, the wait for a Tax Court hearing, appeal chains and judges against the judicial complement are shown there with their open questions. They are provisional.
 
 ## What the data can and cannot say
 
 - **Most published series measure total elapsed time.** They cannot separate waiting for the court from Crown, defence or party delay. Measures closer to institutional delay on this site: reserve time (hearing → decision), leave-granted → hearing in the Federal Court, and the ONCA "ready → hearing" phase.
-- **Distributions where we have files, averages where courts publish them.** Federal Court immigration dockets (1997–2022) and published decisions give medians and tails; StatCan, OCJ and court tables give medians or averages only.
-- **Known gaps:** no Superior Court of Justice timing series (Tier 3 sources not used); OCJ courthouse panel starts in 2012; Tax Court pending-status table not found; Federal Court of Appeal and Tax Court dockets not yet collected.
+- **Distributions where we have files, averages where courts publish them.** Court files and published decisions give medians and tails; StatCan, OCJ and court tables give medians or averages only.
+- **Recent years are incomplete by design.** A median is shown only once at least half of a filing year's files have been followed long enough; until then the cell is blank.
+- **Known gaps:** no Superior Court of Justice timing series (those sources are not used); OCJ courthouse panel starts in 2012; the Supreme Court leg of appeal chains is not built; a few percent of file endings are missed, so the longest durations are slightly overstated.
 
 See [Sources & limitations](./sources) and [Methods](./methods).
