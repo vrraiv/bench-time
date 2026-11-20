@@ -295,7 +295,7 @@ the court below, too few to report. Held back with the other chain results.
 read 19-20 November 2026. Held back with the other chain results; not reviewed.
 
 - *Unit and rules.* The unit is the file. The leave result is the Registry's short label at the
-  end of the leave-judgment entry ("Granted", "Dismissed, with costs"), read for all 8,095
+  end of the leave-judgment entry ("Granted", "Dismissed, with costs"), read for all 8,094
   decided files. 43 files carry leave judgments on more than one date (several applications, a
   remand, an oral hearing ordered first): the file's decision is the latest, and the most
   favourable result on that date. Judgments on applications to cross-appeal are not counted.
@@ -311,7 +311,8 @@ read 19-20 November 2026. Held back with the other chain results; not reviewed.
   a year (the court counts applications; we count files at their latest decision).
 - *Leave stage.* Kaplan-Meier from first filing to leave decision, pending files censored,
   discontinued applications censored at discontinuance. Median 125 days for 2010-2014 filings,
-  147 for 2015-2019, 177 for 2020-2026; nearly the same for every court appealed from. The time
+  147 for 2015-2019, 177 for 2020-2026. Courts appealed from are within a few weeks of each other; Quebec is
+  consistently longer (median 160 days overall against 142-156 elsewhere; cause unknown). The time
   from filing to a complete application has grown (median 0 to 20 days, 90th percentile 51 to
   140), which the court's own average does not show. Granted: 12% of decided files in
   2010-2014, 8% since; Federal Court of Appeal 17% then 7-9%; Ontario 11% then 6-7%.
