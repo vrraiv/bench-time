@@ -45,7 +45,8 @@ def main() -> int:
             git("checkout", "--", path)
         else:
             changed.append(path)
-    print("\n".join(changed))
+    if changed:  # print nothing at all when there is no change, so the output file stays empty
+        print("\n".join(changed))
     return 0
 
 
