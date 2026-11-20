@@ -1,7 +1,9 @@
-"""S2: Statistics Canada Civil Court Survey tables via WDS (denominators only; no timing).
+"""S2: Statistics Canada Civil Court Survey tables via WDS (counts, and elapsed-time bands).
 
   35-10-0112-01  Civil court cases, by level of court and type of case (counts)
   35-10-0114-01  Civil court active cases, by level of court and type of action
+  35-10-0116-01  Active civil court cases, by elapsed time from initiation to first disposition
+  35-10-0117-01  Inactive civil court cases, by fiscal years since initiation
 
 Same mechanics as S1; see courtdelay.common.statcan. Ontario + Canada rows kept.
 """
@@ -22,6 +24,10 @@ SOURCE = "s2_statcan_civil"
 TABLES: dict[int, str] = {
     35100112: "civil_cases_by_type",
     35100114: "civil_active_cases_by_type",
+    # timing, by level of court (added 2026-11-19): the only series that separates the
+    # Superior Court of Justice in civil and family matters
+    35100116: "civil_active_cases_by_elapsed_time",
+    35100117: "civil_inactive_cases_by_years_since_initiation",
 }
 
 

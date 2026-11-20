@@ -234,6 +234,25 @@ request); add the real hostname once the owner confirms it.
 - **IMM-2022 overlap sample** (owner approval 2026-11-18): stratum `IMM-2022`, 300 files drawn at
   random, run 2026-11-19 at the same 3 s spacing; finished 07:20, no errors (frame top IMM-13672-22).
 
+### Superior Court of Justice timing: what open data exists (checked 2026-11-19)
+
+- **Civil and family: yes.** Statistics Canada table 35-10-0116 (Civil Court Survey) gives active
+  cases by elapsed time from initiation to first disposition, by level of court, for Ontario,
+  2005/06 to 2024/25, in five bands (3 months or less, to over 24 months). Table 35-10-0117 gives
+  inactive cases by years since initiation. Both now fetched by S2. First look, Ontario superior
+  court, general civil: the share over 12 months rose from 15% (2008/09) to 33% (2019/20); family
+  stayed near 6%. **Before use:** read the survey's definition of "active" and "first
+  disposition"; 2005-2007 look incomplete; active general civil cases double in 2024/25 (133,339
+  to 268,178) with 44% over 24 months, which looks like a change in reporting, not in the court.
+- **Criminal: no court-level split.** None of the ICCS tables separates superior from provincial
+  court (checked the full table list). Table 35-10-0124 has caseload by age of case but ends in
+  2018; 35-10-0173 has the share of cases over the Jordan limit, which we already hold.
+- **Booking calendars (Tier 3): not available to us.** Calendly's Acceptable Use Policy (effective
+  2024-03-08; applies to visitors) prohibits "accessing or searching any part of the Services by
+  any means other than our publicly supported interfaces (for example, 'scraping')". Two requests
+  made, both to legal pages; no calendar opened. Owner decision 2026-11-19: the only route is
+  Courtready agreeing to share its series.
+
 ### S13 — Supreme Court of Canada case information — **PILOTED 2026-11-19, FULL PASS RUNNING**
 
 Checked at the owner's request for the leave-application stage of appeal chains. Ten requests in
