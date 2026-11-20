@@ -14,8 +14,10 @@
 # marked failed at the end so the failure is seen. Nothing is committed to main: when a
 # published table's data has changed, the workflow opens a pull request for review.
 #
-# After merging one of these pull requests, bring the owner's machine in line before the next
-# local build:  uv run courtdelay fetch s5 --refresh   (likewise s7, s8, s9).
+# The pull request also carries site/src/data/source_vintage.json, the fetch date of the data
+# behind the tables. A local build whose copy of a source is older than that date leaves the
+# source's tables alone and says so; the weekly refresh on the owner's machine re-requests these
+# pages, or run  uv run courtdelay fetch s8 --refresh  (likewise s5, s7, s9) to catch up at once.
 name: Court statistics pages refresh
 
 on:
@@ -75,6 +77,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
           xargs -d '\n' git add -- < changed.txt
+          git add -- site/src/data/source_vintage.json
           git commit -m "Court statistics pages: refresh $(date -u +%Y-%m)"
           git push --force origin "$branch"
           {
@@ -84,7 +87,7 @@ jobs:
             echo
             echo "Fetch results: $OUTCOMES. Tables of a source that failed are unchanged."
             echo
-            echo "After merging, run \`uv run courtdelay fetch <source> --refresh\` on the owner's machine for each source above, so the next local build agrees."
+            echo "After merging, local builds leave these tables alone until the local copy of the source has caught up: the weekly refresh does that, or run \`uv run courtdelay fetch <source> --refresh\`."
           } > body.md
           gh pr create --base main --head "$branch" \
             --title "Court statistics pages: $(date -u +%Y-%m)" --body-file body.md \

@@ -56,6 +56,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$branch"
           xargs -d '\n' git add -- < changed.txt
+          git add -- site/src/data/source_vintage.json
           git commit -m "Statistics Canada tables: monthly refresh $(date -u +%Y-%m)"
           git push --force origin "$branch"
           {
@@ -64,6 +65,8 @@ jobs:
             sed 's/^/- /' changed.txt
             echo
             echo "Only data changes are included; a new fetch time alone does not open a pull request."
+            echo
+            echo "After merging, local builds leave these tables alone until the local copy has caught up: the weekly refresh does that, or run \`uv run courtdelay fetch s1 --refresh\`."
           } > body.md
           gh pr create --base main --head "$branch" \
             --title "Statistics Canada tables: $(date -u +%Y-%m)" --body-file body.md \

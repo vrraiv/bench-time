@@ -34,13 +34,18 @@ every table.
 Three refreshes run on their own; none of them commits to `main`.
 
 - **Weekly, on the owner's machine** (`scripts/weekly_refresh.ps1`, Sunday night): the court-file
-  sources (Federal Court and Federal Court of Appeal, Tax Court, Supreme Court), then a backup.
+  sources (Federal Court and Federal Court of Appeal, Tax Court, Supreme Court), then the
+  open-data pages below once more, then a backup.
 - **Monthly, on GitHub Actions** (`.github/workflows/statcan-refresh.yml`): Statistics Canada tables.
 - **Quarterly, on GitHub Actions** (`.github/workflows/court-pages-refresh.yml`): the statistics
   pages the courts publish (Supreme Court, Ontario Court of Justice, Federal Court, Federal Court
   of Appeal) and federal judicial vacancies.
 
-The GitHub runs open a pull request only when a published table's data has changed. After merging
-one, bring the local copy in line before the next local build:
+The GitHub runs open a pull request only when a published table's data has changed. The pull
+request also updates `site/src/data/source_vintage.json`, the fetch date of the data behind the
+tables of each open-data source. `courtdelay build` compares that date with the local copy of the
+source: when the local copy is older, it leaves that source's tables as committed and says which
+source to refresh, so a local build cannot replace newer figures with older ones. The weekly
+refresh brings the local copy up to date; to do it at once, run
 `uv run courtdelay fetch <source> --refresh` (for example `s8`). `--refresh` requests open-data
 pages again even when they are cached; a failed answer never replaces a good cached copy.

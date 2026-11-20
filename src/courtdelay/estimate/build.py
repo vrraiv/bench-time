@@ -8,6 +8,9 @@ decided what is published).
 
 from __future__ import annotations
 
+import csv
+import io
+import json
 import logging
 import re
 from pathlib import Path
@@ -28,13 +31,102 @@ def _out_dirs() -> tuple[Path, Path]:
     return derived, site
 
 
+#: Open-data sources that are also refreshed on GitHub Actions. Their pages change in place and
+#: are cached on the owner's machine until re-requested, so a local build can be older than the
+#: committed tables. ``site/src/data/source_vintage.json`` records, per source, the fetch date of
+#: the data behind the committed tables; a build whose local copy is older leaves them alone.
+GUARDED = ("s1", "s2", "s5", "s7", "s8", "s9")
+VINTAGE_FILE = "source_vintage.json"
+_guard: dict | None = None  # set by build_all; None means no guard (direct calls, tests)
+
+
+def local_vintage() -> dict[str, str]:
+    """Newest fetch date (YYYY-MM-DD) among each guarded source's cached 2xx responses."""
+    out = {}
+    raw = paths.data_dir() / "raw"
+    for sid in GUARDED:
+        best = ""
+        for meta_file in raw.glob(f"{sid}_*/*.meta.json"):
+            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+            if 200 <= (meta.get("status") or 0) < 300:
+                best = max(best, meta["fetched_at"][:10])
+        if best:
+            out[sid] = best
+    return out
+
+
+def start_guard(site: Path) -> dict:
+    f = site / VINTAGE_FILE
+    committed = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    local = local_vintage()
+    stale = {s for s in GUARDED if s in local and s in committed and local[s] < committed[s]}
+    return {"committed": committed, "local": local, "stale": stale, "changed": set(), "kept": []}
+
+
+def finish_guard(site: Path) -> None:
+    """Record the fetch date for sources whose tables changed (or that have no entry yet), and
+    say which tables were left alone. A source with no local data keeps its committed entry."""
+    g = _guard
+    if g is None:
+        return
+    new = dict(g["committed"])
+    for sid, day in g["local"].items():
+        if sid in g["changed"] or sid not in new:
+            new[sid] = day
+    if new != g["committed"]:
+        (site / VINTAGE_FILE).write_text(
+            json.dumps(dict(sorted(new.items())), indent=1) + "\n", encoding="utf-8", newline="\n"
+        )
+    for sid in sorted(g["stale"]):
+        log.warning(
+            "build: local %s data (fetched %s) is older than the committed tables (%s); "
+            "%d table(s) left as committed. Run: uv run courtdelay fetch %s --refresh",
+            sid,
+            g["local"][sid],
+            g["committed"][sid],
+            sum(sid in srcs for _, srcs in g["kept"]),
+            sid,
+        )
+
+
+def _table_sources(name: str) -> set[str]:
+    """Guarded sources a table is built from, read from its name (``s9_s8_fc_...`` -> s9, s8)."""
+    out = set()
+    for token in name.split("_"):
+        if token not in GUARDED:
+            break
+        out.add(token)
+    return out
+
+
+def _csv_rows(text: str) -> list[dict]:
+    return [
+        {k: v for k, v in r.items() if k != "fetched_at"} for r in csv.DictReader(io.StringIO(text))
+    ]
+
+
 def _write(df: pl.DataFrame, name: str, derived: Path, site: Path, *, publish: bool = True) -> None:
     """Published tables go to site/src/data (committed). ``publish=False`` tables are held back
     from the repository until the owner decides; their CSV goes to site/src/review-data
-    (gitignored) so the access-gated preview site can show them as results under review."""
+    (gitignored) so the access-gated preview site can show them as results under review.
+
+    A published table is left untouched when its source data is older than the committed copy
+    (see ``GUARDED``), and when nothing but the ``fetched_at`` column would change."""
     df.write_parquet(derived / f"{name}.parquet")
     if publish:
-        df.write_csv(site / f"{name}.csv")
+        srcs = _table_sources(name)
+        target = site / f"{name}.csv"
+        if _guard is not None and srcs & _guard["stale"]:
+            _guard["kept"].append((name, srcs))
+            log.warning("build: %s left as committed (local source data is older)", name)
+            return
+        text = df.write_csv()
+        if target.exists() and _csv_rows(target.read_text(encoding="utf-8")) == _csv_rows(text):
+            log.info("build: %s unchanged", name)
+            return
+        target.write_text(text, encoding="utf-8", newline="")
+        if _guard is not None:
+            _guard["changed"] |= srcs
     else:
         review = site.parent / "review-data"
         review.mkdir(exist_ok=True)
@@ -1223,7 +1315,17 @@ def build_scc_cases(derived: Path, site: Path) -> None:
 
 
 def build_all() -> None:
+    global _guard
     derived, site = _out_dirs()
+    _guard = start_guard(site)
+    try:
+        _build_all(derived, site)
+        finish_guard(site)
+    finally:
+        _guard = None
+
+
+def _build_all(derived: Path, site: Path) -> None:
     build_s1(derived, site)
     build_s5(derived, site)
     build_s6(derived, site)

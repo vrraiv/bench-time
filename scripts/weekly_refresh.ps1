@@ -7,7 +7,16 @@
 #
 # The three court sites (Federal Court, Tax Court, Supreme Court) are different hosts, so their
 # refreshes run side by side, one process per
-# host, each at its own approved request spacing. Needs the user environment variables
+# host, each at its own approved request spacing.
+#
+# When they have all finished, the open-data pages that change in place (Statistics Canada
+# tables, the courts' statistics pages, judicial vacancies) are requested again, one source
+# after another in a single process (owner decision 2026-11-20). This waits for the court-file
+# refreshes because some of those pages are on the same hosts (www.fct-cf.ca, www.scc-csc.ca),
+# and only one process may talk to a host at a time. Skipped with -NewOnly. It keeps this
+# machine in line with the GitHub refreshes; see site/src/data/source_vintage.json.
+#
+# Needs the user environment variables
 # COURTDELAY_CONTACT (court sites are refused without it) and COURTDELAY_RESTIC_REPOSITORY
 # (backup).
 # Parsing and rebuilding tables is a separate monthly step: `courtdelay fetch s10 --no-fetch`,
@@ -55,7 +64,11 @@ foreach ($court in 'fc', 'tcc', 'scc') {
             -RedirectStandardOutput "$out.stdout" -RedirectStandardError $out
     }
 }
+$openData = if ($NewOnly) { @() } else { 's1', 's2', 's5', 's7', 's8', 's9' }
 if ($DryRun) {
+    foreach ($src in $openData) {
+        Write-Summary "would run after the court refreshes: uv run --no-sync courtdelay fetch $src --refresh"
+    }
     Write-Summary 'would run: bash scripts/backup.sh'
     exit 0
 }
@@ -69,6 +82,15 @@ foreach ($p in $procs) {
 }
 # the last line each refresh wrote to the shared status log (counts; no file numbers or names)
 Get-Content (Join-Path $root 'data\raw\refresh_log.jsonl') -Tail 3 | ForEach-Object { Write-Summary $_ }
+
+# open-data pages that change in place: only now, when no other process is on those hosts
+foreach ($src in $openData) {
+    $out = Join-Path $logDir "weekly_${stamp}_opendata_$src.log"
+    & uv run --no-sync courtdelay fetch $src --refresh *> $out
+    $code = $LASTEXITCODE
+    if ($code -ne 0) { $failed = $true }
+    Write-Summary "open-data refresh $src finished, exit code $code"
+}
 
 Write-Summary 'starting backup'
 # Git's bash, not the WSL launcher that plain `bash` resolves to on Windows

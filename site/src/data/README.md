@@ -18,3 +18,5 @@ party names, no decision texts and no per-file docket records. Each table carrie
 | link_ | Our linkage of A2AJ decisions to court files (S10) and to Refugee Law Lab dockets (S4): match rates only | As for s3_, s4_ and s10_ | As for s3_, s4_ and s10_ |
 
 Use is non-commercial (inherited from the CC BY-NC and court terms above).
+
+`source_vintage.json` records, for each open-data source refreshed on GitHub Actions, the fetch date of the data behind the committed tables. `courtdelay build` leaves a source's tables alone when the local copy of that source is older.
