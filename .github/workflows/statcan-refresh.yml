@@ -1,0 +1,70 @@
+# Monthly refresh of the Statistics Canada tables (owner decision 2026-11-20).
+#
+# Scope: Statistics Canada open data only (sources S1 and S2). The court-file censuses, the
+# decision collections and the court statistics pages are refreshed on the owner's machine and
+# are not touched here: their tables are left exactly as committed.
+#
+# No contact address is configured, so the client identifies itself without one; it refuses
+# docket sites in that state. Nothing is committed to main: when a published table's data has
+# changed, the workflow opens a pull request for review. A run with no change ends quietly.
+#
+# Repository setting needed once: Settings > Actions > General > Workflow permissions >
+# "Allow GitHub Actions to create and approve pull requests".
+name: StatCan refresh
+
+on:
+  schedule:
+    - cron: "17 9 3 * *" # 3rd of each month, 09:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: statcan-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install
+        run: uv sync --frozen
+      - name: Fetch Statistics Canada tables
+        run: |
+          uv run courtdelay fetch s1
+          uv run courtdelay fetch s2
+      - name: Build tables
+        run: uv run courtdelay build
+      - name: Find tables whose data changed
+        id: changed
+        run: |
+          uv run python scripts/tables_changed.py > changed.txt
+          cat changed.txt
+          if [ -s changed.txt ]; then echo "any=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Open a pull request
+        if: steps.changed.outputs.any == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="statcan-refresh-$(date -u +%Y-%m)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          xargs -d '\n' git add -- < changed.txt
+          git commit -m "Statistics Canada tables: monthly refresh $(date -u +%Y-%m)"
+          git push --force origin "$branch"
+          {
+            echo "Monthly refresh of the Statistics Canada tables. Tables whose data changed:"
+            echo
+            sed 's/^/- /' changed.txt
+            echo
+            echo "Only data changes are included; a new fetch time alone does not open a pull request."
+          } > body.md
+          gh pr create --base main --head "$branch" \
+            --title "Statistics Canada tables: $(date -u +%Y-%m)" --body-file body.md \
+            || gh pr edit "$branch" --body-file body.md

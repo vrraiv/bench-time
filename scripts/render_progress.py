@@ -108,14 +108,12 @@ def card(step: dict) -> str:
             f'<div class="barlabel">{f * 100:.0f}% · {html.escape(p["label"])}</div>'
         )
     label, colour = STATUS[status]
-    link = (
-        f'<a href="{html.escape(step["link"])}">open</a>' if step.get("link") else ""
-    )
+    link = f'<a href="{html.escape(step["link"])}">open</a>' if step.get("link") else ""
     return (
         f'<article class="card" style="--c:{colour}">'
         f'<div class="pill">{label}</div>'
-        f'<h3>{html.escape(step["title"])}</h3>'
-        f'<p>{html.escape(step.get("detail", ""))} {link}</p>{bar}</article>'
+        f"<h3>{html.escape(step['title'])}</h3>"
+        f"<p>{html.escape(step.get('detail', ''))} {link}</p>{bar}</article>"
     ), status
 
 
@@ -128,7 +126,7 @@ def render(plan: dict) -> tuple[str, dict]:
             c, st = card(step)
             counts[st] += 1
             cards.append(c)
-        sections.append(f'<h2>{html.escape(phase["name"])}</h2>' + "".join(cards))
+        sections.append(f"<h2>{html.escape(phase['name'])}</h2>" + "".join(cards))
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     legend = "".join(
         f'<span class="leg" style="--c:{c}"><i></i>{lab} · {counts[k]}</span>'
