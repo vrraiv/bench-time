@@ -39,7 +39,7 @@ const fcGen = latest("FC: all");
 - **A census of court files.** Every Federal Court of Appeal file from 2010, every Federal Court non-immigration file from 2018 and every Tax Court file from 2018, read from the courts' public file searches in November 2026 and refreshed weekly. Results are on [Federal courts](./federal).
 - **Checked against the courts' own statistics.** Our yearly filing counts for the Federal Court of Appeal and the Federal Court are within 2.5% of the courts' published counts, and our counts of files ended are 94–100% of theirs.
 - **Decisions linked to files.** Published decisions are matched to their court files by file number (99.8% link inside the census), which separates final from interlocutory decisions and checks hearing dates against the court record.
-- **[Results under review](./review).** Tax Court durations, the wait for a Tax Court hearing, appeal chains and judges against the judicial complement are shown there with their open questions. They are provisional.
+- **[Results under review](./review).** Tax Court durations, the wait for a Tax Court hearing, appeal chains, Supreme Court leave applications (every file opened from 2010) and judges against the judicial complement are shown there with their open questions. They are provisional.
 
 ## What is held back, and why
 
@@ -50,7 +50,7 @@ These results exist but are not in the public repository. On this preview they a
 | Tax Court: time from filing to the end of the file, and how files end | Waiting on practitioner answers about files held in abeyance and what several entry labels mean. The figures could move materially. |
 | Tax Court: share of files that reach a hearing | The entry used to mark a hearing is sometimes a motion or status hearing, not the trial. Our count of hearings runs above the court's own. |
 | Tax Court decisions matched to files | Held with the other Tax Court results so that everything about that court is reviewed together. |
-| Appeal chains: filing in the court below to the end of the appeal, and the Supreme Court leg | The totals are lower bounds, not a trend, because files in the courts below only go back to 2018. The Supreme Court leg covers only appeals that were heard; leave applications are not in any source we hold. |
+| Appeal chains: filing in the court below to the end of the appeal, and the Supreme Court leg | The totals are lower bounds, not a trend, because files in the courts below only go back to 2018. The Supreme Court tables (leave applications by court appealed from, stages of heard appeals, the Federal Court of Appeal chain through leave) were built on 20 November 2026 and have not been reviewed. |
 | Judges deciding against the judicial complement | No judge is named and small groups are withheld, but whether to publish this at all is still to be decided. |
 | Counts of pending files from our census | A few percent of file endings are missed, so our pending counts run above the courts' own (by about 200 Federal Court of Appeal files for 2025). Pending totals shown on this site are the courts' figures. |
 
@@ -61,6 +61,6 @@ One further question is open and affects what may be published: 18 Federal Court
 - **Most published series measure total elapsed time.** They cannot separate waiting for the court from Crown, defence or party delay. Measures closer to institutional delay on this site: reserve time (hearing → decision), leave-granted → hearing in the Federal Court, and the ONCA "ready → hearing" phase.
 - **Distributions where we have files, averages where courts publish them.** Court files and published decisions give medians and tails; StatCan, OCJ and court tables give medians or averages only.
 - **Recent years are incomplete by design.** A median is shown only once at least half of a filing year's files have been followed long enough; until then the cell is blank.
-- **Known gaps:** no Superior Court of Justice timing series (those sources are not used); OCJ courthouse panel starts in 2012; the Supreme Court leg of appeal chains is not built; a few percent of file endings are missed, so the longest durations are slightly overstated.
+- **Known gaps:** no Superior Court of Justice timing series (those sources are not used); OCJ courthouse panel starts in 2012; Supreme Court leave and appeal stages are built but under review; a few percent of file endings are missed, so the longest durations are slightly overstated.
 
 See [Sources & limitations](./sources) and [Methods](./methods).

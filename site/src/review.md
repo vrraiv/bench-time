@@ -61,7 +61,7 @@ display(Inputs.table(chains, {
 }));
 ```
 
-<p class="muted">Pending review: these totals are lower bounds, not a trend. Files in the court below start in 2018, so early appeal years can only link to quick files. About a third of appeals do not name the file appealed from and are not linked. The Supreme Court leg is not built.</p>
+<p class="muted">Pending review: these totals are lower bounds, not a trend. Files in the court below start in 2018, so early appeal years can only link to quick files. About a third of appeals do not name the file appealed from and are not linked. The Supreme Court stage is shown separately below.</p>
 
 ## Supreme Court leg: appeals from the Federal Court of Appeal that were heard
 
@@ -77,7 +77,78 @@ display(Inputs.table(sccLeg, {
 }));
 ```
 
-<p class="muted">Pending review: this covers only appeals the Supreme Court heard and decided, 95 since 2010. Cases refused leave, which are most of them, are not in any source we hold, and the leave stage is not measured separately. Federal Court of Appeal files start in 2010, so the FCA stage for the earlier period rests on its quicker files. Published decisions (A2AJ) joined to FCA court files by the judgment each Supreme Court decision says it is appealed from.</p>
+<p class="muted">Pending review: this covers only appeals the Supreme Court heard and decided, 95 since 2010. Cases refused leave, which are most of them, are covered by the tables below, built from the Supreme Court's own case pages. Federal Court of Appeal files start in 2010, so the FCA stage for the earlier period rests on its quicker files. Published decisions (A2AJ) joined to FCA court files by the judgment each Supreme Court decision says it is appealed from.</p>
+
+## Supreme Court: applications for leave to appeal, by court appealed from
+
+```js
+const sccLeave = FileAttachment("review-data/s13_scc_leave_by_origin.csv").csv({typed: true});
+const sccCheck = FileAttachment("review-data/s13_scc_vs_court_statistics.csv").csv({typed: true});
+const sccStages = FileAttachment("review-data/s13_scc_appeal_stages_by_origin.csv").csv({typed: true});
+const sccFca = FileAttachment("review-data/link_scc_leave_fca_chain.csv").csv({typed: true});
+```
+
+```js
+const sccPeriod = view(Inputs.select(["2010-2026", "2010-2014", "2015-2019", "2020-2026"], {label: "Leave application filed", value: "2010-2026"}));
+```
+
+```js
+display(Inputs.table(sccLeave.filter(d => d.filing_period === sccPeriod), {
+  columns: ["origin", "n", "granted_share", "p50_days", "p50_lo", "p50_hi", "p90_days", "filing_to_complete_days_p50", "filing_to_complete_days_p90", "first_ruling_to_appeal_judgment_days_p50"],
+  header: {origin: "Court appealed from", n: "Files", granted_share: "Leave granted", p50_days: "Filing to leave decision (median days)", p50_lo: "95% low", p50_hi: "95% high", p90_days: "90th pct", filing_to_complete_days_p50: "Filing to application complete (median days)", filing_to_complete_days_p90: "90th pct", first_ruling_to_appeal_judgment_days_p50: "First ruling to appeal judgment below (median days)"},
+  format: {granted_share: d3.format(".0%")},
+  layout: "auto", width: {origin: 250}
+}));
+```
+
+<p class="muted">Pending review. Every Supreme Court file opened from 2010 (9,131 files), read from the court's case information pages in November 2026. Unit is the file. Leave takes about the same time whatever court the case comes from. Measured from first filing, the median has grown from 125 days (2010–2014) to 177 days (2020–2026); the court's own average, which starts when the application is complete, has stayed near four months, so the growth is in the time applications take to become complete. The last column is the time between the first ruling listed for the case and the appeal judgment below. It describes only cases that went on to seek leave, a selected group, and says nothing about those courts in general. Files carrying a sealing or publication-ban note (7% of files) are included.</p>
+
+## Supreme Court: our figures against the court's published statistics
+
+```js
+const sccMeasure = view(Inputs.select([...new Set(sccCheck.map(d => d.measure))], {label: "Measure"}));
+```
+
+```js
+display(Inputs.table(sccCheck.filter(d => d.measure === sccMeasure), {
+  columns: ["year", "ours", "court_published", "our_median", "our_p90"],
+  header: {year: "Year", ours: "Ours", court_published: "Court's figure", our_median: "Our median (months)", our_p90: "Our 90th pct (months)"},
+  format: {year: d3.format("d")},
+  layout: "auto"
+}));
+```
+
+<p class="muted">Pending review. A check on the data: counts of appeals heard and of judgments match the court's within one or two a year, and average hearing-to-judgment times match to within 0.3 months. The court's leave average runs from the date the application was complete; the same interval from first filing is shown as a separate measure and has no court figure. Medians and 90th percentiles are ours; the court publishes averages only. The average from hearing to judgment sits below the median because judgments given from the bench count as zero days.</p>
+
+## Supreme Court: stages of appeals that were heard
+
+```js
+display(Inputs.table(sccStages, {
+  columns: ["origin", "leg", "n", "p25_days", "p50_days", "p75_days", "p90_days"],
+  header: {origin: "Court appealed from", leg: "Stage", n: "Files", p25_days: "25th pct (days)", p50_days: "Median (days)", p75_days: "75th pct", p90_days: "90th pct"},
+  layout: "auto", width: {origin: 250, leg: 330}
+}));
+```
+
+<p class="muted">Pending review. Completed intervals, files opened 2010 to 2026 pooled. "Ready for hearing" is the Registry's entry that the appeal is perfected. Appeals as of right have no leave stage and appear only in the hearing rows.</p>
+
+## Federal Court of Appeal files through the leave stage
+
+```js
+display(Inputs.table(sccFca.filter(d => d.table === "link status"), {
+  columns: ["group", "n", "share"],
+  header: {group: "Match to our Federal Court of Appeal files", n: "Supreme Court files", share: "Share"},
+  format: {share: d3.format(".0%")},
+  layout: "auto"
+}));
+display(Inputs.table(sccFca.filter(d => d.table === "intervals"), {
+  columns: ["group", "leg", "n", "p25_days", "p50_days", "p75_days", "p90_days"],
+  header: {group: "Leave result", leg: "Stage", n: "Files", p25_days: "25th pct (days)", p50_days: "Median (days)", p75_days: "75th pct", p90_days: "90th pct"},
+  layout: "auto", width: {group: 260, leg: 300}
+}));
+```
+
+<p class="muted">Pending review. Supreme Court files that name the Federal Court of Appeal, matched to our census of its files by file number, then by citation. For most litigants the leave decision is the end of the road: a median of 629 days after the appeal was filed in the Federal Court of Appeal, of which about 210 days are the leave stage (60 days to apply, about 150 for the decision). Where leave was granted, the Supreme Court judgment came a median of 1,094 days after the Federal Court of Appeal filing, in line with the 1,103 days found from published decisions above. Applications for leave are a selected group of appeals.</p>
 
 ## Judges deciding against the judicial complement
 

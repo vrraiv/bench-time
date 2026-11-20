@@ -9,6 +9,7 @@ decided what is published).
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 import polars as pl
@@ -577,7 +578,7 @@ def build_appeal_chains(derived: Path, site: Path) -> None:
                 "Not linked: appeals whose opening entries do not name the lower file (about a "
                 "third) and lower files outside our data (Federal Court files before 2018, "
                 "immigration files after 2022, Tax Court files before 2018). Years with fewer "
-                "than 20 complete chains are omitted. The Supreme Court leg is not built."
+                "than 20 complete chains are omitted. The Supreme Court stage is a separate table."
             ).alias("bias_statement")
         )
     )
@@ -587,7 +588,7 @@ def build_appeal_chains(derived: Path, site: Path) -> None:
 def build_scc_leg(derived: Path, site: Path) -> None:
     """Supreme Court leg of the appeal chains, for appeals the Court heard: SCC decision -> the
     FCA judgment appealed -> the FCA court file -> (where linked) the file in the court below.
-    Leave applications are not covered: no source we hold records them. Run after build_links
+    Leave applications are covered by build_scc_cases (S13). Run after build_links
     and build_appeal_chains."""
     from courtdelay.sources import s3_a2aj_decisions as s3
 
@@ -803,6 +804,414 @@ def build_links(derived: Path, site: Path) -> None:
         _write(rt, "link_tcc_decision_docket_match_rates", derived, site, publish=False)
 
 
+SCC_ORIGINS = [
+    ("Court of Appeal for Ontario", r"^Court of Appeal (for|of) Ontario"),
+    ("Federal Court of Appeal", r"^Federal Court of Appeal"),
+    ("Court of Appeal of Quebec", r"^Court of Appeal of Quebec"),
+    ("Court of Appeal for British Columbia", r"^Court of Appeal (for|of) British Columbia"),
+    ("Court of Appeal of Alberta", r"^Court of Appeal of Alberta"),
+]
+S13_BIAS = (
+    "Supreme Court of Canada case information pages, every file opened from 2010, read "
+    "November 2026. Unit is the Supreme Court file, not the application: a file with several "
+    "leave judgments counts once, at its latest. Files under leave still pending are censored "
+    "at the read date; applications discontinued before a decision are censored at the "
+    "discontinuance. Cases that reach the Supreme Court are a selected group and do not "
+    "describe the courts below in general."
+)
+
+
+def _scc_origin() -> pl.Expr:
+    name = pl.col("court_appealed_from").fill_null("")
+    e = pl.lit("Other courts")
+    for label, rx in reversed(SCC_ORIGINS):
+        e = pl.when(name.str.contains(rx)).then(pl.lit(label)).otherwise(e)
+    return e.alias("origin")
+
+
+def _quantile_rows(df: pl.DataFrame, by: list[str], legs: list[tuple[str, str]], min_n: int = 30):
+    """Median and tails of completed intervals, long format, cells under ``min_n`` omitted."""
+    out = []
+    for col, label in legs:
+        v = pl.col(col).filter(pl.col(col) >= 0)
+        out.append(
+            df.group_by(by)
+            .agg(
+                v.count().alias("n"),
+                v.median().alias("p50_days"),
+                v.quantile(0.25).alias("p25_days"),
+                v.quantile(0.75).alias("p75_days"),
+                v.quantile(0.9).alias("p90_days"),
+            )
+            .filter(pl.col("n") >= min_n)
+            .with_columns(pl.lit(label).alias("leg"))
+        )
+    return pl.concat(out, how="vertical_relaxed").select([*by, "leg", pl.exclude([*by, "leg"])])
+
+
+def build_scc_cases(derived: Path, site: Path) -> None:
+    """Supreme Court leave and appeal stages from the court's case pages (S13): by court
+    appealed from, a check against the court's own yearly statistics, and the Federal Court of
+    Appeal chain through the leave stage. All held back (appeal-chain results)."""
+    proc = paths.processed_dir()
+    p13 = proc / "s13" / "cases.parquet"
+    if not p13.exists():
+        return
+
+    def days(a: str, b: str) -> pl.Expr:
+        return (pl.col(a) - pl.col(b)).dt.total_days()
+
+    def period(col: str) -> pl.Expr:
+        y = pl.col(col).dt.year()
+        return (
+            pl.when(y < 2015)
+            .then(pl.lit("2010-2014"))
+            .when(y < 2020)
+            .then(pl.lit("2015-2019"))
+            .otherwise(pl.lit("2020-2026"))
+        )
+
+    c = pl.read_parquet(p13).with_columns(
+        _scc_origin(),
+        pl.col("scraped").str.to_date(strict=False).alias("scraped_date"),
+        pl.col("leave_completed_date").cast(pl.Date),
+    )
+    # appeals as of right and references carry no leave application: kept out of leave tables
+    leave = c.filter(
+        pl.col("leave_filed_date").is_not_null() & (pl.col("leave_filed_date").dt.year() >= 2010)
+    ).with_columns(
+        period("leave_filed_date").alias("filing_period"),
+        days("leave_filed_date", "lower_court_judgment_date").alias("judgment_to_leave_filing"),
+        days("leave_completed_date", "leave_filed_date").alias("filing_to_complete"),
+        days("lower_court_judgment_date", "first_ruling_date").alias("first_ruling_to_appeal"),
+    )
+
+    # -- leave stage by court appealed from ----------------------------------------------------
+    both = pl.concat(
+        [leave, leave.with_columns(pl.lit("All courts").alias("origin"))],
+        how="vertical_relaxed",
+    )
+    both = pl.concat(
+        [both, both.with_columns(pl.lit("2010-2026").alias("filing_period"))],
+        how="vertical_relaxed",
+    ).with_columns((pl.col("origin") + "|" + pl.col("filing_period")).alias("cohort"))
+    km = survival.cohort_table(
+        both,
+        cohort_col="cohort",
+        start_col="leave_filed_date",
+        event_col="leave_decision_date",
+        censor_col="scraped_date",
+        competing_col="leave_discontinued_date",
+        n_boot=200,
+        label="leave application filed -> leave decision",
+        min_at_risk=20,
+        min_followed_share=0.5,
+        bias_statement=S13_BIAS,
+    )
+    decided = pl.col("leave_result").is_not_null()
+    extra = both.group_by("cohort").agg(
+        decided.sum().alias("n_decided"),
+        (pl.col("leave_result") == "granted").sum().alias("n_granted"),
+        pl.col("judgment_to_leave_filing").median().alias("judgment_below_to_filing_days_p50"),
+        pl.col("filing_to_complete").median().alias("filing_to_complete_days_p50"),
+        pl.col("filing_to_complete").quantile(0.9).alias("filing_to_complete_days_p90"),
+        pl.col("first_ruling_to_appeal")
+        .filter(pl.col("first_ruling_to_appeal") >= 0)
+        .count()
+        .alias("n_first_ruling"),
+        pl.col("first_ruling_to_appeal")
+        .filter(pl.col("first_ruling_to_appeal") >= 0)
+        .median()
+        .alias("first_ruling_to_appeal_judgment_days_p50"),
+    )
+    by_origin = (
+        km.join(extra, on="cohort")
+        .with_columns(
+            pl.col("cohort").str.split("|").list.get(0).alias("origin"),
+            pl.col("cohort").str.split("|").list.get(1).alias("filing_period"),
+            # no rate on fewer than 30 decided files or fewer than 5 grants
+            pl.when((pl.col("n_decided") >= 30) & (pl.col("n_granted") >= 5))
+            .then(pl.col("n_granted") / pl.col("n_decided"))
+            .alias("granted_share"),
+            pl.when(pl.col("n_first_ruling") < 30)
+            .then(None)
+            .otherwise(pl.col("first_ruling_to_appeal_judgment_days_p50"))
+            .alias("first_ruling_to_appeal_judgment_days_p50"),
+        )
+        .drop("cohort")
+        .sort("origin", "filing_period")
+    )
+    by_origin = by_origin.select(
+        ["origin", "filing_period", pl.exclude(["origin", "filing_period", "bias_statement"])]
+        + ["bias_statement"]
+    )
+    _write(by_origin, "s13_scc_leave_by_origin", derived, site, publish=False)
+
+    # -- check against the court's own yearly statistics (S5) ----------------------------------
+    p5 = proc / "s5" / "scc_stats.parquet"
+    if p5.exists():
+        s5 = pl.read_parquet(p5).filter(pl.col("year").is_between(2011, 2025))
+        m = 30.44
+        ours = []
+
+        def add(measure, year_col, value, sub=c, months_col=None):
+            g = sub.filter(pl.col(year_col).is_not_null()).group_by(
+                pl.col(year_col).dt.year().alias("year")
+            )
+            if months_col is None:
+                t = g.agg(pl.len().cast(pl.Float64).alias("ours"))
+            else:
+                v = pl.col(months_col) / m
+                t = g.agg(
+                    v.mean().round(1).alias("ours"),
+                    v.median().round(1).alias("our_median"),
+                    v.quantile(0.9).round(1).alias("our_p90"),
+                )
+            ours.append(t.with_columns(pl.lit(measure).alias("measure"), pl.lit(value).alias("k")))
+
+        t = c.with_columns(
+            days("leave_decision_date", "leave_completed_date").alias("complete_to_decision"),
+            days("leave_decision_date", "leave_filed_date").alias("filed_to_decision"),
+            days("hearing_date", "leave_decision_date").alias("leave_to_hearing"),
+            days("judgment_date", "hearing_date").alias("hearing_to_judgment"),
+        )
+        granted = t.filter(pl.col("leave_granted_any").fill_null(False))
+        add(
+            "Leave applications filed (count)",
+            "leave_filed_date",
+            "Cases filed|Complete applications for leave to appeal",
+        )
+        add(
+            "Leave applications granted (count)",
+            "leave_decision_date",
+            "Applications for leave|Granted (pending)",
+            sub=t.filter(pl.col("leave_result") == "granted"),
+        )
+        add("Appeals heard (count)", "hearing_date", "Appeals heard|Total number")
+        add("Appeal judgments (count)", "judgment_date", "Appeal judgments|Total number")
+        add(
+            "Complete leave application to leave decision (average months)",
+            "leave_decision_date",
+            "Average time lapses (in months)|Between filing of application for leave and "
+            "decision on application for leave",
+            sub=t,
+            months_col="complete_to_decision",
+        )
+        add(
+            "Leave application first filed to leave decision (average months)",
+            "leave_decision_date",
+            None,
+            sub=t,
+            months_col="filed_to_decision",
+        )
+        add(
+            "Leave granted to hearing (average months)",
+            "hearing_date",
+            "Average time lapses (in months)|Between date leave granted (or date notice of "
+            "appeal as of right filed) and hearing",
+            sub=granted,
+            months_col="leave_to_hearing",
+        )
+        add(
+            "Hearing to judgment (average months)",
+            "judgment_date",
+            "Average time lapses (in months)|Between hearing and judgment",
+            sub=t,
+            months_col="hearing_to_judgment",
+        )
+        court = s5.select(
+            (pl.col("section") + "|" + pl.col("item")).alias("k"),
+            "year",
+            pl.col("value").alias("court_published"),
+        ).unique(["k", "year"], keep="first")
+        chk = (
+            pl.concat(ours, how="diagonal_relaxed")
+            .filter(pl.col("year").is_between(2011, 2025))
+            # judgments of 2011 mostly belong to files opened before 2010, outside the frame
+            .filter(~((pl.col("year") == 2011) & pl.col("measure").str.contains("udgment")))
+            .join(court, on=["k", "year"], how="left")
+            .drop("k")
+            .sort("measure", "year")
+            .select("measure", "year", "ours", "court_published", "our_median", "our_p90")
+            .with_columns(
+                pl.lit(
+                    "Ours: computed from the Supreme Court's case pages (files opened from "
+                    "2010, so 2011 is the first full year), counted by file. Court: the "
+                    "court's published yearly statistics, which count applications and may "
+                    "assign years differently. The court's leave average runs from the date "
+                    "the application was complete; ours from first filing is shown beside it. "
+                    "Our leave-to-hearing figure leaves out appeals as of right."
+                ).alias("bias_statement")
+            )
+        )
+        _write(chk, "s13_scc_vs_court_statistics", derived, site, publish=False)
+
+    # -- appeal stages for files that went on to a hearing --------------------------------------
+    ap = pl.concat(
+        [c, c.with_columns(pl.lit("All courts").alias("origin"))], how="vertical_relaxed"
+    ).with_columns(
+        days("hearing_date", "leave_decision_date").alias("a"),
+        days("hearing_date", "appeal_perfected_date").alias("b"),
+        days("judgment_date", "hearing_date").alias("c"),
+        days("judgment_date", "leave_filed_date").alias("d"),
+    )
+    stages = _quantile_rows(
+        ap,
+        ["origin"],
+        [
+            ("a", "Leave granted to hearing"),
+            ("b", "Appeal ready for hearing to hearing"),
+            ("c", "Hearing to judgment"),
+            ("d", "Leave application filed to judgment on the appeal"),
+        ],
+    ).with_columns(
+        pl.lit(
+            "Completed intervals only, files opened 2010 to 2026 pooled, so the most recent "
+            "files are under-represented in the longer intervals. Hearing to judgment includes "
+            "judgments given from the bench (zero days). Cells under 30 files omitted. " + S13_BIAS
+        ).alias("bias_statement")
+    )
+    _write(
+        stages.sort("origin", "leg"),
+        "s13_scc_appeal_stages_by_origin",
+        derived,
+        site,
+        publish=False,
+    )
+
+    # -- Federal Court of Appeal chain through the leave stage ----------------------------------
+    p10 = proc / "s10" / "dockets.parquet"
+    if not p10.exists():
+        return
+    fca_files = pl.read_parquet(p10).filter(pl.col("prefix") == "A")
+    known = set(fca_files["docket"].to_list())
+    plinks = proc / "links" / "fc_decision_docket.parquet"
+    by_cite = {}
+    if plinks.exists():
+        lk = pl.read_parquet(plinks).filter(
+            (pl.col("court") == "FCA") & (pl.col("status") == "linked")
+        )
+        by_cite = dict(zip(lk["decision_id"].to_list(), lk["key"].to_list(), strict=True))
+    f = c.filter(pl.col("origin") == "Federal Court of Appeal")
+    rows = []
+    for case_no, files, cite in zip(
+        f["case_no"].to_list(),
+        f["lower_court_files"].to_list(),
+        f["lower_court_citation"].to_list(),
+        strict=True,
+    ):
+        toks = [t.strip().upper() for t in (files or "").split(";") if t.strip()]
+        keys = [linkage.normalise_fc_key(re.sub(r"\s+", "-", t)) for t in toks]
+        hit = next((k for k in keys if k in known), None)
+        if hit:
+            status = "linked by file number"
+        elif cite and by_cite.get(cite) in known:
+            hit, status = by_cite[cite], "linked by citation"
+        elif any(re.fullmatch(r"\d{2}-A-\d+", t) for t in toks):
+            status = "motion number (no appeal file)"
+        elif any(k and linkage.key_year(k) < 2010 for k in keys):
+            status = "FCA file from before 2010"
+        elif not toks:
+            status = "no file number given"
+        else:
+            status = "not found"
+        rows.append((case_no, hit, status))
+    link = pl.DataFrame(rows, schema=["case_no", "fca_docket", "link_status"], orient="row")
+    ch = (
+        f.join(link, on="case_no")
+        .join(
+            fca_files.select(
+                pl.col("docket").alias("fca_docket"),
+                pl.col("date_filed").alias("fca_filed"),
+                pl.col("judgment_date").alias("fca_judgment_in_file"),
+                pl.col("final_disposition_date").alias("fca_end"),
+            ),
+            on="fca_docket",
+            how="left",
+        )
+        .with_columns(
+            days("lower_court_judgment_date", "fca_filed").alias("fca_days"),
+            days("leave_filed_date", "lower_court_judgment_date").alias("to_leave_filing"),
+            days("leave_decision_date", "leave_filed_date").alias("leave_days"),
+            days("leave_decision_date", "fca_filed").alias("fca_filing_to_leave_decision"),
+            days("judgment_date", "fca_filed").alias("fca_filing_to_scc_judgment"),
+            (days("lower_court_judgment_date", "fca_end").abs() <= 7).alias("dates_agree"),
+            pl.when(pl.col("leave_result") == "granted")
+            .then(pl.lit("Leave granted"))
+            .when(pl.col("leave_result").is_not_null())
+            .then(pl.lit("Leave refused or otherwise ended"))
+            .alias("leave_outcome"),
+        )
+    )
+    (proc / "links").mkdir(exist_ok=True)
+    ch.write_parquet(proc / "links" / "scc_leave_fca.parquet")
+    linked = ch.filter(pl.col("fca_docket").is_not_null())
+    log.info(
+        "S13-S10 link: %d FCA-origin files; %s; the Supreme Court's stated FCA judgment date is "
+        "within 7 days of the end of the FCA file for %.0f%% of linked files",
+        ch.height,
+        dict(ch["link_status"].value_counts(sort=True).iter_rows()),
+        100 * (linked["dates_agree"].mean() or 0),
+    )
+    status = (
+        ch.group_by("link_status")
+        .agg(pl.len().alias("n"))
+        .filter(pl.col("n") >= 5)
+        .with_columns(
+            pl.lit("link status").alias("table"),
+            (pl.col("n") / ch.height).alias("share"),
+        )
+        .rename({"link_status": "group"})
+    )
+    legs = [
+        ("fca_days", "FCA: filing to judgment"),
+        ("to_leave_filing", "FCA judgment to leave application"),
+        ("leave_days", "Leave application to leave decision"),
+        ("fca_filing_to_leave_decision", "FCA filing to leave decision"),
+        ("fca_filing_to_scc_judgment", "FCA filing to Supreme Court judgment"),
+    ]
+    dec = linked.filter(pl.col("leave_outcome").is_not_null())
+    q = pl.concat(
+        [
+            _quantile_rows(dec, ["leave_outcome"], legs),
+            _quantile_rows(
+                dec.with_columns(pl.lit("All decided").alias("leave_outcome")),
+                ["leave_outcome"],
+                legs[:4],
+            ),
+        ],
+        how="vertical_relaxed",
+    ).rename({"leave_outcome": "group"})
+    out = pl.concat(
+        [status.with_columns(pl.lit(None, dtype=pl.String).alias("leg")), q],
+        how="diagonal_relaxed",
+    ).with_columns(
+        pl.col("table").fill_null("intervals"),
+        pl.lit(
+            "Supreme Court files that name the Federal Court of Appeal as the court appealed "
+            "from, matched to our census of FCA files (2010 on) by file number, then by neutral "
+            "citation. Leave decided 2010 to 2026, pooled; completed intervals only. FCA files "
+            "opened before 2010 are outside the census. Cells under 30 files omitted. "
+            "Applications for leave are a selected group of FCA files."
+        ).alias("bias_statement"),
+    )
+    _write(
+        out.select(
+            "table",
+            "group",
+            "leg",
+            "n",
+            "share",
+            pl.exclude(["table", "group", "leg", "n", "share", "bias_statement"]),
+            "bias_statement",
+        ),
+        "link_scc_leave_fca_chain",
+        derived,
+        site,
+        publish=False,
+    )
+
+
 def build_all() -> None:
     derived, site = _out_dirs()
     build_s1(derived, site)
@@ -823,3 +1232,4 @@ def build_all() -> None:
     build_appeal_chains(derived, site)
     build_judges(derived, site, v)
     build_scc_leg(derived, site)
+    build_scc_cases(derived, site)

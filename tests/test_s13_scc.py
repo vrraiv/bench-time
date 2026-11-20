@@ -52,6 +52,7 @@ def test_parse_page_stages_origin_and_no_names():
     assert row["lower_court_file"] == "A-123-21" and row["lower_court_citation"] == "2022 FCA 45"
     assert row["lower_court_judgment_date"] == date(2022, 3, 10)
     assert row["n_access_certificates"] == 1 and row["n_entries"] == 6
+    assert row["n_restriction_marker_entries"] == 0
     blob = repr(row) + repr(ents)
     assert "PERSON" not in blob
 
@@ -63,3 +64,45 @@ def test_origin_falls_back_to_lower_court_rulings_before_leave_is_decided():
     assert row["court_appealed_from"] == "Federal Court of Appeal"
     assert row["lower_court_file"] == "A-123-21"
     assert row["lower_court_judgment_date"] == date(2022, 3, 10)
+
+
+def test_result_comes_from_registry_label_and_latest_leave_judgment():
+    two = PAGE.replace(
+        "<tr><td>2023-06-01</td><td>Close file on Leave</td><td></td></tr>",
+        "<tr><td>2023-09-14</td><td>Judgment of the Court on the application for leave to "
+        "appeal, The application is granted.<br/>Granted, with costs in the cause</td><td></td>"
+        "</tr><tr><td>2023-05-25</td><td>Judgment of the Court on the application for leave to "
+        "cross-appeal, The application is dismissed.<br/>Dismissed</td><td></td></tr>",
+    )
+    row, ents = s13.parse_page(two, 49999, "2026-11-20")
+    assert row["leave_result"] == "granted" and row["leave_granted_any"] is True
+    assert row["leave_decision_date"] == date(2023, 9, 14)
+    assert row["leave_first_decision_date"] == date(2023, 5, 25)
+    assert row["n_leave_decision_dates"] == 2
+    assert row["leave_completed_date"] == date(2022, 5, 12)
+    assert sum(e["entry_type"] == "cross_leave_decision" for e in ents) == 1
+    # the court appealed from still comes from the first leave judgment's wording
+    assert row["lower_court_file"] == "A-123-21"
+    assert row["first_ruling_court"] == "Federal Court"
+    assert row["first_ruling_date"] == date(2021, 1, 5)
+
+
+def test_several_lower_files_and_no_judge_name_as_court():
+    d = s13.leave_details(
+        "The applications for leave to appeal from the judgments of the Court of Appeal for "
+        "Ontario, Numbers C50052 and C50050, 2010 ONCA 642 and 2010 ONCA 782, dated October 5, "
+        "2010 and November 17, 2010, are dismissed with costs."
+    )
+    assert (
+        d["lower_court_files"] == "C50052; C50050" and d["lower_court_citation"] == "2010 ONCA 642"
+    )
+    assert d["leave_result"] == "dismissed"
+    assert (
+        s13.leave_details(
+            "The application for leave to appeal from the direction of Person J.A. of the Federal "
+            "Court of Appeal, Number A-201-16, dated January 3, 2017, is dismissed."
+        )
+        == {}
+    )
+    assert s13.result_label("Dismissed, without costs") == "dismissed"
+    assert s13.result_label("Remand") == "remanded"

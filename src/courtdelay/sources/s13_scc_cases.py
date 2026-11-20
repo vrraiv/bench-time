@@ -87,10 +87,17 @@ def _progress(row: dict) -> None:
 ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("leave_filed", re.compile(r"^application for leave to appeal$", re.I)),
     ("leave_submitted", re.compile(r"^all materials on application for leave submitted", re.I)),
+    ("leave_notice", re.compile(r"^notice of application for leave to appeal$", re.I)),
     (
         "leave_decision",
-        re.compile(r"^judgment of the court on the application for leave", re.I),
+        re.compile(r"^judgment of the court on the applications? for leave to appeal$", re.I),
     ),
+    (
+        "cross_leave_decision",
+        re.compile(r"^judgment of the court on the applications? for leave to cross", re.I),
+    ),
+    ("leave_discontinued", re.compile(r"^discontinuance of the application for leave", re.I)),
+    ("appeal_perfected", re.compile(r"^appeal perfected for hearing", re.I)),
     ("leave_closed", re.compile(r"^close file on leave", re.I)),
     ("notice_of_appeal", re.compile(r"^notice of appeal$", re.I)),
     ("hearing", re.compile(r"^hearing of the appeal", re.I)),
@@ -102,13 +109,27 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("access_certificate", re.compile(r"^certificate \(on limitations to public access\)", re.I)),
 ]
 # "... from the judgment of the <court>, Number <file>, <citation>, dated <date>, is <result>"
+# The court is read only when it directly follows "judgment(s) of the" / "order of the", so a
+# judge's name ("the direction of ... J.A. of the ...") is never captured.
 LEAVE_TEXT_RE = re.compile(
-    r"from the judgment of the (?P<court>.+?), Numbers? (?P<file>[^,]+)"
-    r"(?:,.*?)??(?:, (?P<cite>\d{4} [A-Z]{2,6} \d+))?"
-    r"(?:,.*?)?, dated (?P<date>[A-Z][a-z]+ \d{1,2}, \d{4})"
-    r".*?\b(?:is|are) (?P<result>granted|dismissed|allowed|quashed|remanded|adjourned)",
+    r"from the (?:judgments?|orders?|decisions?) of the (?P<court>[^,]+?), Numbers?,? "
+    r"(?P<body>.+?),? dated? (?P<date>[A-Z][a-z]+ \d{1,2}, \d{4})"
+    r"(?:.*?\b(?:is|are) (?P<result>granted|dismissed|quashed|remanded))?",
     re.S,
 )
+CITE_RE = re.compile(r"\b\d{4} [A-Z]{2,6} \d+\b")
+# counted per file, as for the Federal Court files; files are kept (aggregates only)
+MARKER_RE = re.compile(r"pub-?ban|publication ban|sealed|sealing|confidential", re.I)
+COMPLETED_RE = re.compile(r"completed on:? (\d{4}-\d{2}-\d{2})", re.I)
+# the Registry's short result label, on its own line at the end of a leave-judgment entry
+RESULT_LABELS = [
+    ("granted", re.compile(r"^granted", re.I)),
+    ("dismissed", re.compile(r"^dismissed", re.I)),
+    ("quashed", re.compile(r"^quashed", re.I)),
+    ("remanded", re.compile(r"^remand", re.I)),
+    ("oral_hearing", re.compile(r"^oral hearing ordered", re.I)),
+]
+RESULT_RANK = {"granted": 0, "remanded": 1, "quashed": 2, "dismissed": 3, "oral_hearing": 4}
 
 
 def classify(label: str | None) -> str:
@@ -131,18 +152,36 @@ def _long_date(s: str | None) -> date | None:
         return None
 
 
+def result_label(label: str | None) -> str | None:
+    """Leave result from the Registry's short label ("Dismissed, with costs" -> dismissed)."""
+    t = (label or "").strip()
+    return next((name for name, rx in RESULT_LABELS if rx.search(t)), None)
+
+
+def _file_tokens(body: str) -> list[str]:
+    """Lower-court file numbers in a "Numbers X and Y, <citation>" passage: pieces with a digit
+    that are not neutral citations."""
+    pieces = re.split(r",|;|\band\b|\bet\b", CITE_RE.sub(" ", re.sub(r"\(.*?\)", " ", body)))
+    out = [" ".join(x.split()) for x in pieces]
+    return [x for x in out if re.search(r"\d", x) and len(x) <= 30]
+
+
 def leave_details(text: str) -> dict:
-    """Court appealed from, its file number, citation and judgment date, and the leave result,
-    from the Registry's leave-judgment entry. All None when the wording does not match."""
+    """Court appealed from, its file number(s), citation and judgment date, and the leave
+    result, from the wording of the Registry's leave-judgment entry. Empty when the wording
+    does not match."""
     m = LEAVE_TEXT_RE.search(text or "")
     if not m:
         return {}
+    files = _file_tokens(m.group("body"))
+    cite = CITE_RE.search(m.group("body"))
     return {
         "court_appealed_from": m.group("court").strip(),
-        "lower_court_file": m.group("file").strip(),
-        "lower_court_citation": m.group("cite"),
+        "lower_court_file": files[0] if files else None,
+        "lower_court_files": "; ".join(files) or None,
+        "lower_court_citation": cite.group(0) if cite else None,
         "lower_court_judgment_date": _long_date(m.group("date")),
-        "leave_result": m.group("result").lower(),
+        "leave_result": (m.group("result") or "").lower() or None,
     }
 
 
@@ -155,38 +194,56 @@ def lower_rulings(main) -> dict:
     )
     block = head.find_next("div") if head else None
     rows = block.find_all("div", class_="row") if block else []
-    for row in reversed(rows):
+    parsed = []
+    for row in rows:
         cell = row.find("div")
         parts = [p.strip() for p in cell.get_text("\n").split("\n") if p.strip()] if cell else []
         if len(parts) >= 2 and _long_date(parts[0]):
-            rest = " ".join(parts[2:])
-            cite = re.search(r"\b\d{4} [A-Z]{2,6} \d+\b", rest)
-            files = [f.strip() for f in re.sub(r"\(.*?\)", "", rest).split(",") if f.strip()]
-            files = [f for f in files if not re.fullmatch(r"\d{4} [A-Z]{2,6} \d+", f)]
-            return {
-                "court_appealed_from": parts[1],
-                "lower_court_file": files[0] if files else None,
-                "lower_court_citation": cite.group(0) if cite else None,
-                "lower_court_judgment_date": _long_date(parts[0]),
-            }
-    return {}
+            parsed.append(parts)
+    if not parsed:
+        return {}
+    parts = parsed[-1]
+    rest = " ".join(parts[2:])
+    cite = CITE_RE.search(rest)
+    files = _file_tokens(rest)
+    out = {
+        "court_appealed_from": parts[1],
+        "lower_court_file": files[0] if files else None,
+        "lower_court_files": "; ".join(files) or None,
+        "lower_court_citation": cite.group(0) if cite else None,
+        "lower_court_judgment_date": _long_date(parts[0]),
+        "n_lower_rulings": len(parsed),
+    }
+    if len(parsed) >= 2 and parsed[0][1] != parts[1]:
+        # the earliest ruling listed, when it is from a different court (the court of first
+        # instance for most files)
+        out["first_ruling_court"] = parsed[0][1]
+        out["first_ruling_date"] = _long_date(parsed[0][0])
+    return out
 
 
 def parse_page(html: str, case_no: int, fetched_at: str) -> tuple[dict, list[dict]]:
     """One case page -> (case row, entry rows). No names, no entry text."""
     soup = BeautifulSoup(html, "html.parser")
     main = soup.find("main") or soup
-    entries, leave = [], {}
+    entries, leave, completed, markers = [], [], None, 0
     for tb in main.find_all("table"):
         hdr = [" ".join(th.get_text().split()).lower() for th in tb.find_all("th")]
         if not (hdr and hdr[0] == "date" and any("proceeding" in h for h in hdr)):
             continue
         for tr in tb.find_all("tr"):
-            cells = [" ".join(td.get_text().split()) for td in tr.find_all("td")]
+            tds = tr.find_all("td")
+            cells = [" ".join(td.get_text().split()) for td in tds]
             if len(cells) >= 2 and _d(cells[0]):
                 et = classify(cells[1])
-                if et == "leave_decision" and not leave:
-                    leave = leave_details(cells[1])
+                markers += bool(MARKER_RE.search(cells[1]))
+                if et == "leave_decision":
+                    lines = [x.strip() for x in tds[1].get_text("\n").split("\n") if x.strip()]
+                    det = leave_details(cells[1])
+                    res = result_label(lines[-1] if len(lines) > 1 else None)
+                    leave.append((_d(cells[0]), res or det.get("leave_result"), det))
+                elif et == "leave_filed" and (m := COMPLETED_RE.search(cells[1])):
+                    completed = min(filter(None, [completed, _d(m.group(1))]))
                 entries.append({"case_no": case_no, "entry_date": _d(cells[0]), "entry_type": et})
         break
 
@@ -197,12 +254,26 @@ def parse_page(html: str, case_no: int, fetched_at: str) -> tuple[dict, list[dic
     origin = {
         "court_appealed_from": None,
         "lower_court_file": None,
+        "lower_court_files": None,
         "lower_court_citation": None,
         "lower_court_judgment_date": None,
-        "leave_result": None,
+        "n_lower_rulings": 0,
+        "first_ruling_court": None,
+        "first_ruling_date": None,
     }
     origin.update(lower_rulings(main))
-    origin.update({k: v for k, v in leave.items() if v is not None})
+    # Unit is the file. A file can carry more than one leave judgment (several applications,
+    # a remand, an oral hearing ordered first). The file's leave decision is the latest one;
+    # where several fall on that date, the most favourable result is taken. The court appealed
+    # from is read from the earliest leave judgment whose wording gives it.
+    last = max((d for d, _, _ in leave), default=None)
+    results = [r for d, r, _ in leave if d == last and r]
+    for _, _, det in sorted(leave, key=lambda x: x[0]):
+        if det:
+            origin.update({k: v for k, v in det.items() if v is not None and k != "leave_result"})
+            break
+    origin["leave_result"] = min(results, key=lambda r: RESULT_RANK.get(r, 9), default=None)
+    origin["leave_granted_any"] = any(r == "granted" for _, r, _ in leave) if leave else None
     row = {
         "case_no": case_no,
         "scraped": fetched_at[:10],
@@ -210,7 +281,13 @@ def parse_page(html: str, case_no: int, fetched_at: str) -> tuple[dict, list[dic
         "first_entry_date": min((e["entry_date"] for e in entries), default=None),
         "leave_filed_date": first("leave_filed"),
         "leave_submitted_date": first("leave_submitted"),
-        "leave_decision_date": first("leave_decision"),
+        "leave_completed_date": completed,
+        "leave_notice_date": first("leave_notice"),
+        "leave_first_decision_date": first("leave_decision"),
+        "leave_decision_date": last,
+        "n_leave_decision_dates": len({d for d, _, _ in leave}),
+        "leave_discontinued_date": first("leave_discontinued"),
+        "appeal_perfected_date": first("appeal_perfected"),
         "notice_of_appeal_date": first("notice_of_appeal"),
         "hearing_date": first("hearing"),
         "judgment_date": first("judgment"),
@@ -218,6 +295,7 @@ def parse_page(html: str, case_no: int, fetched_at: str) -> tuple[dict, list[dic
             (e["entry_date"] for e in entries if e["entry_type"] in {"closed", "leave_closed"}),
             default=None,
         ),
+        "n_restriction_marker_entries": markers,
         "n_access_certificates": sum(e["entry_type"] == "access_certificate" for e in entries),
         **origin,
     }

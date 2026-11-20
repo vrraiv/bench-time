@@ -286,9 +286,56 @@ Court decisions are appeals from the Federal Court of Appeal; each states the FC
 appealed from, all 95 are found among the FCA decisions, and 61 link on to an FCA court file (the
 rest are files from before 2010). Median days, 2010-2026: FCA judgment to Supreme Court hearing
 472 (n = 88); Supreme Court hearing to judgment 213 (n = 88); FCA filing to Supreme Court judgment
-1,103 (n = 61). Not covered: leave applications (no source held records them), so cases refused
-leave are absent and the leave stage is not measured separately. Only 4 chains reach a file in
+1,103 (n = 61). This route covers heard appeals only; leave applications come from the
+Supreme Court's case pages (next paragraph). Only 4 chains reach a file in
 the court below, too few to report. Held back with the other chain results.
+
+**Supreme Court leave and appeal stages (2026-11-20).** `sources/s13_scc_cases.py`,
+`build_scc_cases`. Every Supreme Court file opened from 2010 (9,131 case pages, none failed),
+read 19-20 November 2026. Held back with the other chain results; not reviewed.
+
+- *Unit and rules.* The unit is the file. The leave result is the Registry's short label at the
+  end of the leave-judgment entry ("Granted", "Dismissed, with costs"), read for all 8,095
+  decided files. 43 files carry leave judgments on more than one date (several applications, a
+  remand, an oral hearing ordered first): the file's decision is the latest, and the most
+  favourable result on that date. Judgments on applications to cross-appeal are not counted.
+  330 files have no leave application (appeals as of right, references) and are kept out of the
+  leave tables. The court appealed from is read from the leave judgment's wording, else from the
+  page's "Lower court rulings" block; the two agree on the court for 99% of files and on the
+  judgment date for 98%.
+- *Check against the court's statistics (S5), 2011-2025.* Leave applications filed: ours are
+  within 9 of the court's count every year. Appeals heard: within 1. Appeal judgments (2012 on):
+  within 2. Average hearing to judgment: within 0.3 months. The court's "filing of application
+  for leave to decision" average matches ours only when measured from the date the application
+  was **complete** (within 0.4 months), not from first filing. Leaves granted differ by up to 7
+  a year (the court counts applications; we count files at their latest decision).
+- *Leave stage.* Kaplan-Meier from first filing to leave decision, pending files censored,
+  discontinued applications censored at discontinuance. Median 125 days for 2010-2014 filings,
+  147 for 2015-2019, 177 for 2020-2026; nearly the same for every court appealed from. The time
+  from filing to a complete application has grown (median 0 to 20 days, 90th percentile 51 to
+  140), which the court's own average does not show. Granted: 12% of decided files in
+  2010-2014, 8% since; Federal Court of Appeal 17% then 7-9%; Ontario 11% then 6-7%.
+- *Heard appeals.* Completed intervals, pooled: leave granted to hearing median 252 days;
+  appeal ready ("perfected") to hearing 56; hearing to judgment 178 (25th percentile 0: bench
+  judgments); leave application to judgment 603.
+- *Federal Court of Appeal chain.* 1,047 Supreme Court files name the FCA. 877 match our census
+  by file number and 32 by citation (87%); 78 are FCA files from before 2010, 46 carry a motion
+  number (`yy-A-n`, no appeal file), 10 give no number, 4 are not found. The Supreme Court's
+  stated FCA judgment date is within 7 days of the end of our FCA file for 93% of linked files.
+  For decided leave applications: FCA filing to FCA judgment median 395 days, judgment to leave
+  application 60 (the deadline), application to leave decision 153, FCA filing to leave decision
+  629 (n = 839). Where leave was granted, FCA filing to Supreme Court judgment 1,094 (n = 65),
+  against 1,103 from published decisions above.
+- *First ruling to appeal judgment below.* From the "Lower court rulings" block, for files that
+  list an earlier ruling from a different court. Median 465 days for Ontario. A selected group
+  (cases that went on to seek leave); not a measure of those courts in general.
+- *Restriction notes.* 616 files (7%) have an entry mentioning a sealing order, a publication
+  ban or confidential material. They are kept and counted, as for the Federal Court files; 28%
+  of them were granted leave against 8% of the rest, so dropping them would bias the grant rate.
+  Whether the project's drop rule should apply is an open question for the owner.
+- *Open questions* are in the review list written to the owner's working folder on 2026-11-20:
+  what "completed" means and why it now takes longer; how to treat remands and files with two
+  leave decisions; what the FCA motion numbers are.
 
 **Judges against complement (first version 2026-11-19).** `estimate/judges.py`. Federal Court
 and Tax Court only (one judge decides). The judge's surname from the decision header is a

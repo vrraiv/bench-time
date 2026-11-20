@@ -253,7 +253,7 @@ request); add the real hostname once the owner confirms it.
   made, both to legal pages; no calendar opened. Owner decision 2026-11-19: the only route is
   Courtready agreeing to share its series.
 
-### S13 — Supreme Court of Canada case information — **PILOTED 2026-11-19, FULL PASS RUNNING**
+### S13 — Supreme Court of Canada case information — **COLLECTED 2026-11-20 (9,131 files)**
 
 Checked at the owner's request for the leave-application stage of appeal chains. Ten requests in
 all (robots, home, the cases landing page, the search page and its script, the access policy, the
@@ -290,6 +290,12 @@ terms, two site maps, one case page); nothing parsed or stored beyond the cache.
 - **Full pass** started 2026-11-19 evening: 9,131 case pages (case numbers from 33500, about
   2010 on) at the default 4 s spacing, about 10 hours. Implementation:
   `sources/s13_scc_cases.py`.
+- **Full pass finished 2026-11-20 06:06:** 9,131 of 9,131 pages, no failed requests, no
+  block or challenge. Backed up. Parse: no page without a docket; leave filing date read
+  for 96% of files (the rest are appeals as of right and references), leave result for
+  100% of decided files, court appealed from for all but 9 files. Counts of appeals heard
+  and judgments match the court's published statistics within one or two a year (see
+  `docs/methods.md`). Not yet in the weekly refresh.
 - **Second, lighter source:** "Judgments on leave applications" and "Bulletins of proceedings"
   at `decisions.scc-csc.ca` (a different host, not checked). They give the leave decision date
   but not the filing date.
