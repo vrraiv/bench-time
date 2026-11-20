@@ -11,4 +11,4 @@ FCA,TOTAL,2022,293,383,416,505,365,4,true,460.5,438.85770234986944,573.660409556
 FCA,TOTAL,2023,357,349,424,416,365,4,true,420.0,439.2550143266476,429.4117647058824,1.0229226361031518,"steady-state approximation (Little's law); mean, not median",true
 FCA,TOTAL,2024,420,378,471,424,366,4,false,447.5,433.2936507936508,389.9642857142857,1.1111111111111112,"steady-state approximation (Little's law); mean, not median",false
 FCA,TOTAL,2025,422,407,482,471,365,4,true,476.5,427.32800982800984,412.1386255924171,1.0368550368550369,"steady-state approximation (Little's law); mean, not median",true
-FCA,TOTAL,2026,218,232,473,482,181,2,true,477.5,372.53232758620686,396.45642201834863,0.9396551724137931,"steady-state approximation (Little's law); mean, not median",false
+FCA,TOTAL,2026,344,305,528,482,273,3,true,505.0,452.0163934426229,400.7703488372093,1.1278688524590164,"steady-state approximation (Little's law); mean, not median",false
