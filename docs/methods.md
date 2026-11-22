@@ -301,7 +301,7 @@ new requests.
   that would hide real differences and would not say which files ended when, which the
   duration tables need.
   - *Lead-file order*: a file carrying a copy of a decision that ended the file it was made in,
-    on that date, ends on that date (`final_disposition_source = lead_file`; 381 Federal Court
+    on that date, ends on that date (`final_disposition_source = lead_file`; 377 Federal Court
     files, 72 Federal Court of Appeal).
   - *Unqualified 2026 judgment*: a judgment in the 2026 entry format with no "(Final)" or
     "(Interlocutory)" qualifier, not a copy, followed by no order, motion, hearing or direction,
@@ -344,10 +344,43 @@ new requests.
   unexplained; candidates are orders that end a file without a marker (dismissal for delay,
   consent orders) and settlements never followed by a discontinuance. Crown and other is now
   747 open against 749.
-- **Federal Court of Appeal: gap found, not resolved.** Our yearly dispositions are 85–92% of
-  that court's total (369 against 407 in 2025) and our open files are 25% above its pending
-  (602 against 482 at end-2025), after the lead-file rule (674 before). The published appeal
-  cohort tables therefore overstate upper quantiles. Not yet investigated.
+- **Federal Court of Appeal (investigated 2026-11-22).** The first comparison (our endings
+  85–92% of the court's) was against the wrong total. The court's TOTAL row includes
+  "Preliminary Applications" (31 to 65 commenced and disposed a year, 6 to 10 pending): motions
+  brought before an appeal exists, numbered apart from appeal files and not in our census of
+  `A` files. With that row taken out of the court's figure: filings ours ÷ court 0.993–1.025
+  (2019–2026, within 8 files a year); dispositions 0.94–1.00 (short by 1 to 16 a year); by
+  category (appeals from Federal Court final and interlocutory judgments, Tax Court appeals,
+  judicial reviews, statutory appeals) filings agree within 9 in every year checked. Open files
+  remain above the court's pending: 598 against 539 at end-2019, 636 against 520 at September
+  2026, a gap growing about 8 a year, which is the yearly shortfall in endings accumulating.
+  Of 132 appeal files with no entry for 18 months, 23 ended with a copy of a notice of
+  discontinuance (now counted, next item), about 50 carry a copy of a decision from another
+  file, 10 a judgment of their own without a final marker, 10 a status review, 44 nothing
+  recognisable. Rows for this court are in the benchmark table (`fca_benchmark`).
+- **Copied discontinuance (adopted 2026-11-22).** A copy of a notice of discontinuance filed in
+  another file and placed on this one ends the file when no order, motion, hearing or direction
+  follows (`final_disposition_source = copied_discontinuance`; 78 Federal Court files, 23
+  appeal files, 14 sampled immigration files). With it, Federal Court non-immigration open
+  files are 0.999 of the Court's pending at end-2025 and 1.017 at September 2026 (0.975 and
+  0.995 counting group endings), and the immigration pending estimate at September 2026 is
+  39,452 (4% above the Court's; 39,220 leaving out files not yet numbered).
+- **Population of the published tables (owner rule 2026-11-22: match the court's definition and
+  say what it includes).** Federal Court cohort tables: `T` files, less registrations of
+  tribunal decisions and certificates, less the Crown's tax-collection matters (inferred, see
+  above). Appeal tables: `A` files; the court's preliminary applications have no `A` file.
+- **What the courts publish about their definitions (searched 2026-11-22).** Nothing on the
+  Federal Court's 93 quarterly Activity Summary pages, its statistics and reports pages, or the
+  appeal court's statistics page beyond the tables themselves (one note records a re-posted
+  quarter). The Courts Administration Service annual reports carry a glossary: "Dispositions:
+  proceedings concluded by way of judgment, discontinuance or other documents"; "Proceedings
+  instituted or filed" there includes certificates and tribunal decisions filed for
+  enforcement, which the Federal Court's own Activity Summary evidently does not; and their
+  pending tables break the stock into not perfected, perfected, consolidated, reserved,
+  scheduled and stayed, so consolidated and stayed files count as pending. No document says
+  which file types the Activity Summary leaves out. Not searched: strategic plans, departmental
+  results reports, anything outside the three courts' sites. A question for the Registry or the
+  practitioner is drafted in the closing notes of this session.
 - **Reading.** For 2024–2026 the Court's extra dispositions are almost entirely of files in
   our records (older files: about 25 to 30 a year). The level of the excess is files ended in
   substance without an ending entry of their own. The published Federal Court cohort medians

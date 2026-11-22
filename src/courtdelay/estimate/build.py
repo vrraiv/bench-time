@@ -238,6 +238,7 @@ def build_s8_benchmark(derived: Path, site: Path) -> None:
         return
     s10, s4 = proc / "s10" / "dockets.parquet", proc / "s4" / "dockets.parquet"
     older = proc / "s10" / "imm_pre2022.parquet"
+    fca = proc / "s8" / "fca_activity.parquet"
     if not (s10.exists() or s4.exists()):
         return
     t = benchmark.fc_benchmark(
@@ -245,6 +246,7 @@ def build_s8_benchmark(derived: Path, site: Path) -> None:
         pl.read_parquet(s10) if s10.exists() else None,
         pl.read_parquet(s4) if s4.exists() else None,
         pl.read_parquet(older) if older.exists() else None,
+        pl.read_parquet(fca) if fca.exists() else None,
     )
     _write(t, "s8_fc_benchmark_vs_court_files", derived, site, publish=False)
 
@@ -515,6 +517,14 @@ def build_s10(derived: Path, site: Path) -> None:
     d = (
         pl.read_parquet(p)
         .filter(pl.col("prefix").is_in(["A", "T"]) & ~pl.col("is_registration"))
+        # same population as the Court's own counts (owner rule 2026-11-22): its Federal Court
+        # figures appear to leave out the Crown's tax-collection matters, so the tables do too
+        .filter(
+            ~(
+                (pl.col("prefix") == "T")
+                & pl.col("nature").fill_null("").str.contains(benchmark.TAX_COLLECTION_RX)
+            )
+        )
         .with_columns(
             pl.col("scraped").str.to_date(strict=False).alias("scraped_date"),
             s10_proceeding_group(),

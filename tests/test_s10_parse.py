@@ -75,7 +75,12 @@ def test_copy_of_a_lead_file_order_is_recorded_apart_from_the_ending():
         row("T-14-18", None, None, [("T-99-18", "27-APR-2020")]),  # lead not in our records
         row("T-15-18", None, None, [], uj="2026-03-05"),
     ]
-    assert s10.add_linked_endings(rows) == {"unmarked_judgment": 1, "lead_file": 1, "group": 1}
+    assert s10.add_linked_endings(rows) == {
+        "unmarked_judgment": 1,
+        "copied_discontinuance": 0,
+        "lead_file": 1,
+        "group": 1,
+    }
     by = {r["docket"]: r for r in rows}
     assert by["T-11-18"]["final_disposition_date"] == date(2020, 4, 27)
     assert by["T-11-18"]["final_disposition_source"] == "lead_file"
@@ -85,7 +90,7 @@ def test_copy_of_a_lead_file_order_is_recorded_apart_from_the_ending():
     assert by["T-13-18"]["group_end_date"] is None and by["T-14-18"]["group_end_date"] is None
     assert by["T-15-18"]["final_disposition_date"] == date(2026, 3, 5)
     assert by["T-15-18"]["final_disposition_source"] == "unmarked_judgment"
-    assert all("_copies" not in r and "_unqualified_judgment" not in r for r in rows)
+    assert all(not any(k.startswith("_") for k in r) for r in rows)
 
 
 def test_unqualified_2026_judgment_ends_a_file_only_when_nothing_follows():
@@ -104,6 +109,42 @@ def test_unqualified_2026_judgment_ends_a_file_only_when_nothing_follows():
     assert (
         s10.unqualified_judgment_date([e(1, "2026-01-02", "Notice of Motion for judgment")]) is None
     )
+
+
+def test_copy_of_a_discontinuance_ends_the_file_when_nothing_follows():
+    def e(no, day, text, **kw):
+        return {"RE_NO": no, "DOC_DT": day, "RECORDED_ENTRY": text, **kw}
+
+    c = e(
+        8,
+        "2021-05-04",
+        "Copy of Notice of Discontinuance on behalf of the appellant placed on file",
+    )
+    assert s10.copied_discontinuance_date([e(1, "2021-01-05", "Notice of Appeal filed"), c]) == (
+        "2021-05-04"
+    )
+    flagged = e(8, "2021-05-04", "Notice of Discontinuance on behalf of the appellant", IS_COPY="Y")
+    assert s10.copied_discontinuance_date([flagged]) == "2021-05-04"
+    later = e(9, "2021-06-01", "Order dated 01-JUN-2021 rendered by a judge")
+    assert s10.copied_discontinuance_date([c, later]) is None, "the file went on"
+    own = e(8, "2021-05-04", "Notice of Discontinuance on behalf of the appellant filed")
+    assert s10.copied_discontinuance_date([own]) is None, "its own notice is the marker rule's"
+    rows = [
+        {
+            "division": "A",
+            "docket": "A-1-21",
+            "final_disposition_date": None,
+            "final_disposition_type": None,
+            "final_disposition_source": None,
+            "last_entry_date": date(2021, 5, 4),
+            "_copies": [],
+            "_unqualified_judgment": None,
+            "_copied_discontinuance": "2021-05-04",
+        }
+    ]
+    assert s10.add_linked_endings(rows)["copied_discontinuance"] == 1
+    assert rows[0]["final_disposition_date"] == date(2021, 5, 4)
+    assert rows[0]["final_disposition_type"] == "discontinuance"
 
 
 def test_appeal_from_reads_the_lower_file_number():

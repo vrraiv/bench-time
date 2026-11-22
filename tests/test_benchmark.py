@@ -164,3 +164,41 @@ def test_benchmark_adds_older_files_from_the_list_sample():
         .filter(pl.col("component") == "immigration")
         .is_empty()
     )
+
+
+def test_appeal_court_rows_take_out_preliminary_applications():
+    act = pl.DataFrame(
+        [
+            {
+                "period_end": "2024-12-31",
+                "subject_matter": label,
+                "commenced": c,
+                "dispositions": d,
+                "pending": p,
+            }
+            for label, c, d, p in (
+                ("TOTAL", 12, 11, 9),
+                ("Preliminary Applications", 10, 10, 8),
+                ("Judicial Reviews", 2, 1, 1),
+            )
+        ]
+    )
+    files = pl.DataFrame(
+        [
+            _file("A", 2020, 1, date(2020, 3, 1), date(2024, 5, 1)),
+            _file("A", 2024, 1, date(2024, 2, 1), None),
+            _file("A", 2024, 2, date(2024, 6, 1), None),
+        ],
+        schema_overrides={"final_disposition_date": pl.Date},
+    )
+    rows = {(r["measure"]): r for r in benchmark.fca_benchmark(act, files)}
+    assert (
+        rows["filings, year to date"]["court_published"],
+        rows["filings, year to date"]["ours"],
+    ) == (2, 2)
+    assert rows["dispositions, year to date"]["court_published"] == 1
+    assert rows["dispositions, year to date"]["ours"] == 1
+    assert (
+        rows["pending at period end"]["court_published"],
+        rows["pending at period end"]["ours"],
+    ) == (1, 2)

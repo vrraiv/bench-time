@@ -78,6 +78,13 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
   "lower bound", "steady-state approximation").
 - Prefer distributions (median, p75, p90) over means. Descriptive unless a design is stated.
 - Validate parsers loudly: report parse rates per court-year; never drop misses silently.
+- Matching the courts' tables (owner rule, 2026-11-22): where a table of ours mirrors one a
+  court publishes (filings, dispositions, pending, or a cohort built on the same population),
+  match the court's definition as closely as the files allow, and state next to the table the
+  definition used and what it includes and leaves out as a result (e.g. registrations,
+  tax-collection matters, preliminary applications, files older than the census). Where the
+  court's definition is not published, say it is inferred and from what. Do not scale counts to
+  a court's totals; change the rule that decides which files count.
 
 ## Working style
 

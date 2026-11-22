@@ -102,6 +102,88 @@ def _scaled(groups, cond) -> tuple[float, float]:
     return est, var
 
 
+FCA_TOTAL_RX = r"(?i)^total$"
+FCA_PRELIM_RX = r"(?i)^preliminary applications?$"
+
+
+def fca_benchmark(fca_activity: pl.DataFrame, s10: pl.DataFrame) -> list[dict]:
+    """The Federal Court of Appeal's published totals against our census of ``A`` files, year
+    ends and the latest period. The court's total includes "Preliminary Applications" (motions
+    brought before an appeal exists, numbered apart from appeal files); our census does not hold
+    them, so they are taken out of the court's figure (found 2026-11-22: with them left in, our
+    endings looked 10% short)."""
+    tot = fca_activity.filter(pl.col("subject_matter").str.contains(FCA_TOTAL_RX))
+    pre = fca_activity.filter(pl.col("subject_matter").str.contains(FCA_PRELIM_RX))
+    n = fca_activity["period_end"].n_unique()
+    for name, part in (("total", tot), ("preliminary applications", pre)):
+        if part.height != n:
+            raise ValueError(f"S8 FCA: expected one {name} row per period, got {part.height}/{n}")
+    cols = ["commenced", "dispositions", "pending"]
+    court = (
+        tot.select(["period_end", *cols])
+        .join(pre.select(["period_end", *cols]), on="period_end", suffix="_pre")
+        .with_columns(*[(pl.col(c) - pl.col(f"{c}_pre")).alias(c) for c in cols])
+        .sort("period_end")
+    )
+    files = s10.filter(pl.col("prefix") == "A")
+    first = files["docket_year"].min()
+    basis = "our census of appeal files; the court's preliminary applications taken out"
+    comp, rows = "Federal Court of Appeal", []
+    ends = [("", pl.col("final_disposition_date"))]
+    if "group_end_date" in files.columns:
+        ends.append(
+            (", counting group endings", pl.coalesce("final_disposition_date", "group_end_date"))
+        )
+    for r in court.iter_rows(named=True):
+        if not (r["period_end"].endswith("12-31") or r["period_end"] == court["period_end"][-1]):
+            continue
+        cut = date.fromisoformat(r["period_end"])
+        jan1 = date(cut.year, 1, 1)
+        if cut.year < first + 4:
+            continue
+        filed = files.filter(pl.col("date_filed").is_between(jan1, cut)).height
+        rows.append(
+            _row(
+                comp,
+                "filings, year to date",
+                r["period_end"],
+                r["commenced"],
+                filed,
+                None,
+                None,
+                basis,
+            )
+        )
+        for label, end in ends:
+            done = files.filter(end.is_between(jan1, cut)).height
+            still = files.filter((pl.col("date_filed") <= cut) & (end.is_null() | (end > cut)))
+            rows.append(
+                _row(
+                    comp,
+                    f"dispositions, year to date{label}",
+                    r["period_end"],
+                    r["dispositions"],
+                    done,
+                    None,
+                    None,
+                    basis,
+                )
+            )
+            rows.append(
+                _row(
+                    comp,
+                    f"pending at period end{label}",
+                    r["period_end"],
+                    r["pending"],
+                    still.height,
+                    None,
+                    None,
+                    basis + f"; files opened from {first} (the court's figure also holds older)",
+                )
+            )
+    return rows
+
+
 def _row(component, measure, period_end, court, ours, lo, hi, basis) -> dict:
     return {
         "component": component,
@@ -120,6 +202,7 @@ def fc_benchmark(
     s10: pl.DataFrame | None,
     s4: pl.DataFrame | None,
     older: pl.DataFrame | None = None,
+    fca_activity: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     """Long table of the Court's published figure against ours, with a 95% sampling interval
     where ours is scaled from the immigration sample. Flows are year to date at ``period_end``."""
@@ -325,6 +408,8 @@ def fc_benchmark(
                     )
                 )
 
+    if fca_activity is not None and s10 is not None:
+        rows += fca_benchmark(fca_activity, s10)
     out = pl.DataFrame(rows, schema=SCHEMA)
     return out.with_columns(
         (pl.col("ours") / pl.col("court_published")).round(3).alias("ratio"),

@@ -395,6 +395,30 @@ CONTINUES_RE = re.compile(
     re.I,
 )
 GROUP_GRACE_DAYS = 90
+# A notice of discontinuance filed in one file and copied onto the others it covers ("Copy of
+# Notice of Discontinuance ... placed on file"). Found 2026-11-22 as the last entry of 19 dormant
+# appeal files.
+COPY_OF_DISCONTINUANCE_RE = re.compile(
+    r"^\s*(?:copy of|copie d[eu']\s*(?:la |l')?)\s*(?:the\s+)?(?:notice of\s+|avis de\s+)?"
+    r"(?:discontinuance|d[ée]sistement)",
+    re.I,
+)
+
+
+def copied_discontinuance_date(entries: list[dict]):
+    """Date of a copy of a notice of discontinuance placed on the file, when no order, motion,
+    hearing or direction follows it. None otherwise."""
+    es = sorted(entries, key=lambda e: ((e.get("DOC_DT") or "")[:10], e.get("RE_NO") or 0))
+    for i in range(len(es) - 1, -1, -1):
+        text = es[i].get("RECORDED_ENTRY") or ""
+        if str(es[i].get("IS_COPY", "N")).upper() == "Y" and not text.lower().startswith("cop"):
+            text = "Copy of " + text
+        if COPY_OF_DISCONTINUANCE_RE.search(text):
+            later = [x.get("RECORDED_ENTRY") or "" for x in es[i + 1 :]]
+            if any(CONTINUES_RE.search(t) for t in later):
+                return None
+            return (es[i].get("DOC_DT") or "")[:10] or None
+    return None
 
 
 def unqualified_judgment_date(entries: list[dict]):
@@ -418,6 +442,8 @@ def add_linked_endings(rows: list[dict]) -> dict[str, int]:
 
     ``unmarked_judgment``  a 2026-format judgment with no qualifier and nothing after it but
                            correspondence: the file ends on the judgment date.
+    ``copied_discontinuance``  a copy of a notice of discontinuance from another file was
+                           placed on this one and nothing but correspondence follows.
     ``lead_file``          the file carries a copy of a decision that ended the file it was made
                            in, on that date (one order dismissing a list of files): the file ends
                            on that date. Owner decision 2026-11-22: counted in the tables.
@@ -433,10 +459,16 @@ def add_linked_endings(rows: list[dict]) -> dict[str, int]:
 
     from courtdelay.sources import s4_rll_fc_dockets as s4
 
-    n = {"unmarked_judgment": 0, "lead_file": 0, "group": 0}
+    n = {"unmarked_judgment": 0, "copied_discontinuance": 0, "lead_file": 0, "group": 0}
     for r in rows:
         r["lead_order_file"], r["group_end_date"], r["group_end_file"] = None, None, None
         uj = r.pop("_unqualified_judgment", None)
+        cd = r.pop("_copied_discontinuance", None)
+        if r.get("final_disposition_date") is None and cd and not uj:
+            r["final_disposition_date"] = s4.parse_entry_date(cd)
+            r["final_disposition_type"] = "discontinuance"
+            r["final_disposition_source"] = "copied_discontinuance"
+            n["copied_discontinuance"] += 1
         if r.get("final_disposition_date") is None and uj:
             r["final_disposition_date"] = s4.parse_entry_date(uj)
             r["final_disposition_type"] = "judgment"
@@ -543,6 +575,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "n_publication_ban_entries": n_ban,
             "_copies": copies_of_decisions(texts, docket),
             "_unqualified_judgment": unqualified_judgment_date(entries),
+            "_copied_discontinuance": copied_discontinuance_date(entries),
             **s4.derive_docket(ents, judgment_fallback=False),
         }
     )
@@ -602,6 +635,7 @@ def parse(client: Client | None = None):
     for r in older:
         r.pop("_copies", None)
         r.pop("_unqualified_judgment", None)
+        r.pop("_copied_discontinuance", None)
     d = pl.DataFrame(
         dockets,
         infer_schema_length=None,
