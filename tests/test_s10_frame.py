@@ -103,3 +103,17 @@ def test_outage_aborts_instead_of_ending_the_census(raw):
         s10.crawl_census(c, s10.Stratum("FCA-2024", "A", "a", 2024, "census"))
     progress = (raw / "raw" / s10.SOURCE / "progress_FCA-2024.jsonl").read_text()
     assert '"done"' not in progress, "an outage must never be recorded as a finished census"
+
+
+def test_pre2022_groups_cover_every_filing_year():
+    assert [s10.pre2022_group(y) for y in (1993, 2010, 2011, 2017, 2018, 2020, 2021)] == [
+        "to-2010",
+        "to-2010",
+        "2011-2017",
+        "2011-2017",
+        "2018-2020",
+        "2018-2020",
+        "2021",
+    ]
+    assert set(s10.PRE2022_GROUPS) == {s10.pre2022_group(y) for y in range(1993, 2022)}
+    assert s10.PRE2022 not in [s.name for s in s10.default_plan()], "runs only when named"

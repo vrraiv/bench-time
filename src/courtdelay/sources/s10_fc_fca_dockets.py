@@ -355,7 +355,7 @@ def appeal_from(entries: list[dict]) -> tuple[str | None, str | None]:
 
 # One order made in a lead file can end many files: the Registry places a copy on each ("Copy of
 # Order dated 27-APR-2020 rendered by ... placed on file. Original filed on Court File No.
-# T-2126-18") and the copy carries no final-decision marker. Found 2026-11-22: 381 Federal Court
+# T-nnnn-yy") and the copy carries no final-decision marker. Found 2026-11-22: 381 Federal Court
 # files we counted as open carry a copy of an order that ended its own file on that date (213
 # from one order dismissing a list of actions against the Crown in 2020, 74 from one striking
 # another list in 2023), and the Court's disposition counts include them.

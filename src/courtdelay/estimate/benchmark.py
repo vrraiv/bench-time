@@ -202,9 +202,10 @@ def fc_benchmark(
                 if old_groups:
                     ended_ytd = pl.col("final_disposition_date").is_between(jan1, cut)
                     # The older files are used for endings only. Those still without an ending
-                    # are not added to the stock: none sampled has had an entry since 2023 that
-                    # is not a copy from a lead file, and the Court's own pending count for
-                    # 2019 (3,541) is below the number of them (about 6,800).
+                    # are not added to the stock: the ones from before 2018 (about 6,000) have
+                    # had no entry since 2017 and exceed the Court's whole immigration stock of
+                    # 2019 (3,541); whether the roughly 700 from 2018-2021 are pending is not
+                    # known, and counting them would widen the gap with the Court, not close it.
                     d_est, d_var = _scaled(old_groups, ended_ytd)
                     for k, n, top in strata:
                         p = k.filter(ended_ytd).height / n

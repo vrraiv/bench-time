@@ -224,10 +224,12 @@ by 10–12% in the three quarters before):
   - None of the 210 sampled files from before 2018 has an ending or any entry after 2017. They
     are not pending in the Court's sense (its whole immigration stock at end-2019 was 3,541) and
     are not added to our stock.
-  - Of the 234 sampled files from 2018–2021 still without an ending, the last entry is a copy
-    of a judgment or order made in another file for 111 of the 119 from 2021 (105 of them a
-    judgment of April 2022) and for at least 40 of the 115 from 2018–2020. Same mechanism as the non-immigration lead-file orders below. These
-    endings are missing from the S4 tables (about 430 of 9,736 files for 2021).
+  - Of the 234 sampled files from 2018–2021 still without an ending (about 700 scaled), the
+    last entry is a copy of a judgment or order made in another file for 111 of the 119 from
+    2021 and for at least 40 of the 115 from 2018–2020; 97 of the 2021 files belong to one
+    managed group. The group's lead file shows no ending in S4, so whether these files are
+    ended is not established. If they are pending in the Court's count, our estimate plus
+    these would sit further above the Court's, not closer.
   - In our own 2022–2026 sample, 33 of the 1,382 files without an ending carry a copy of a
     decision from another file (about 770 files scaled; 12 are copies of a discontinuance, about
     300 scaled). The lead files are mostly outside the sample, so the rule cannot confirm them.
@@ -235,8 +237,10 @@ by 10–12% in the three quarters before):
   - Also unadjusted: 0.3% to 2.3% of the numbers drawn for the yearly samples returned no file
     (24 of 1,024 for 2025). The estimate scales by the top number as if every number were a
     file; if those numbers were never used, the September 2026 stock is overstated by about 550.
-  - So the two measurable pieces could account for roughly 850 to 1,300 of the gap; the excess
-    of Court dispositions in the fourth quarter of 2025 itself remains unexplained.
+  - Both pieces would lower our estimate in every quarter, not only from late 2025: they bear
+    on the level (up to roughly 850 to 1,300 files), not on the step. The excess of Court
+    dispositions in the fourth quarter of 2025 remains unexplained. For 2023 our dispositions
+    run 6% above the Court's, with its figure just below our interval.
 - Also noted: the Court's own immigration stock fell by about 380 more than its flows imply in
   the first quarter of 2024 (the identity break flagged for that quarter).
 - **Non-immigration.** Our open files (opened from 2018) are 11–13% above the Court's
@@ -279,10 +283,22 @@ new requests.
   or discontinuance from a companion file (another 206 files belong to a group whose lead file
   has ended, 50 of them consolidated under one 2018 application discontinued in 2025); 70 a
   notice of settlement or abandonment; 66 a stay; 234 none of these.
-- **Reading.** The files the Court does not count as pending and we do are overwhelmingly in our
-  records, ended in substance, and lack an ending entry of their own. The published cohort
-  medians are little affected (381 of 23,900 files) but upper quantiles for 2018–2021 actions
-  are overstated.
+- **Level against growth.** Lead-file orders explain the level of the gap, not its growth.
+  The excess goes from 246 (end-2023) to 710 (September 2026) without them and from −107 to 329
+  with them: about 440 more either way, and only 28 lead-order endings are dated 2024–2026.
+  The growth is in two places. Crown and other: about 134 from the extra filings of 2024–2026
+  (57, 49, 28), where we count more dispositions than the Court, not fewer. Judicial review:
+  open excess up from 111 to 335 with filings matching, dispositions short by about 17, 92 and
+  56 in 2024, 2025 and 2026. Of the judicial review files we count as open, 63 have a judgment
+  entry dated 2025 and 46 one dated 2026 with no final-decision marker (201 in all years); the
+  S10 rule does not end a file on an unmarked judgment. The counts are close to the shortfall
+  but the entries have not been read, so this is the leading candidate, not a finding.
+- **Reading.** For 2024–2026 the Court's extra dispositions are almost entirely of files in
+  our records (older files: about 25 to 30 a year). The level of the excess is files ended in
+  substance without an ending entry of their own. The published Federal Court cohort medians
+  are little affected (381 of 23,900 files) but upper quantiles for 2018–2021 actions are
+  overstated. The same rule finds 72 Federal Court of Appeal files (2010–2025, 18 in 2019),
+  also not yet counted in the published tables.
 - Highest immigration file number cited in published decisions (S3) is within 1–2% of the
   Court's yearly immigration filings for 2012–2025 (6% in 2020). It is not usable within a year:
   numbers are not issued in filing-date order.
