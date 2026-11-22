@@ -8,7 +8,7 @@ title: Questions for review
 These questions quote provisional figures. They are shown only on this access-restricted preview and are not in the public repository. Please do not forward them.
 </div>
 
-These are the questions we need a practitioner's reading on, collected from the review lists. Answer any of them in the box under the question and press **Send**. A short answer is fine, and "don't know" is a useful answer. Replies are saved at once, can be seen by everyone who can open this preview, and show the email address you signed in with. You can reply more than once; nothing is overwritten.
+These are the questions we need a practitioner's reading on, collected from the review lists. Answer any of them in the box under the question, choose the kind of reply (a reply marks the question answered only when you choose **Answer** or **Don't know**), and press **Send**. A short answer is fine, and "don't know" is a useful answer. Replies are saved at once, can be seen by everyone who can open this preview, and show the email address you signed in with. You can reply more than once; nothing is overwritten.
 
 ```js
 const data = FileAttachment("review-data/questions.json").json();
@@ -100,6 +100,7 @@ function issueCard(q) {
     form.className = "reply-form";
     const sel = document.createElement("select");
     for (const [k, v] of Object.entries(STATUS)) sel.append(new Option(v, k));
+    sel.value = "comment"; // a reply counts as an answer only when chosen
     const ta = document.createElement("textarea");
     ta.rows = 3;
     ta.maxLength = 20000;
