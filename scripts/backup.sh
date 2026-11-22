@@ -2,7 +2,8 @@
 # Encrypted, incremental backup of data/raw and the request log with restic (owner decision 2026-11-17).
 #
 #   scripts/backup.sh init     create the repository (once)
-#   scripts/backup.sh          back up data/raw + data/manifest.jsonl, then a quick integrity check
+#   scripts/backup.sh          back up data/raw + data/manifest.jsonl + data/review, then a quick
+#                              integrity check
 #   scripts/backup.sh verify   deeper check: read 5% of packs + restore 25 random cached
 #                              responses and compare their SHA-256 with the fetch-time sidecars
 #   scripts/backup.sh list     list snapshots
@@ -50,7 +51,8 @@ case "$cmd" in
   backup)
     cd "$ROOT"
     # the request log sits beside data/raw and is not in git: back it up with the raw files
-    "$RESTIC" backup data/raw data/manifest.jsonl --tag bench-time --host bench-time-local \
+    # data/review holds the practitioner's question list (hand-maintained, gitignored)
+    "$RESTIC" backup data/raw data/manifest.jsonl data/review --tag bench-time --host bench-time-local \
       --exclude "data/raw/**/*.part"
     "$RESTIC" check
     "$RESTIC" snapshots --latest 3

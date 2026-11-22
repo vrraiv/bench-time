@@ -75,11 +75,39 @@ FINAL_RE = re.compile(
     r"|^[ \t]*\(?[ \t]*(?:final\s+decision|d[ée]cision\s+finale)[ \t]*\)?[ \t\r]*$",
     re.I | re.M,
 )
+# Entries written by the Registry's system from 1 January 2026 (``LEGACY_RE_IND`` = "N") open with
+# the document type and a qualifier: "Order (Final) dated 2026-05-28 rendered by ...",
+# "Reasons - for Judgment and Judgment (Final) dated ...", "Ordonnance (final(e)) daté(e)(s) du
+# ..."; other orders say "(Interlocutory)" / "(interlocutoire)" or nothing. Found 2026-11-21: with
+# only the two older forms above, no entry dated 2026 was marked final. Translations, corrections
+# to reasons, costs assessments and documents "placed on file" carry the qualifier of the decision
+# they belong to and are not the decision, so the entry must open with the decision itself.
+FINAL_2026_RE = re.compile(
+    r"\A\s*(?:(?:copy\s+of|copie\s+de)\s+){0,2}(?:\(confidenti[ae]l(?:le)?\)\s*)?"
+    r"(?:(?:reasons|motifs)\s*-\s*)?"
+    r"(?:order|judgment|decision|ordonnance|jugement|d[ée]cision|for\s|de\s|d['’])"
+    r"(?:(?!placed\s+on\s+file|vers[ée]e?\s+au\s+dossier|assessment|taxation|scheduling|fixant)"
+    r"[^()\n]){0,70}?\(\s*final(?:\(e\))?\s*\)",
+    re.I,
+)
+
+
+def is_final_marker(text: str) -> bool:
+    return bool(FINAL_RE.search(text) or FINAL_2026_RE.match(text))
+
 
 # ordered: first matching type wins (English and French recorded-entry wording)
 ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     # an entry withdrawn from the public record (not a file event)
-    ("removed_entry", re.compile(r"^\W*\*+\s*(?:removed|retir[ée])", re.I)),
+    (
+        "removed_entry",
+        re.compile(
+            r"^\W*\*+\s*(?:removed|retir[ée])|"
+            # 2026 format: the whole entry reads "Recorded entry cancelled."
+            r"^\s*(?:recorded\s+entry\s+cancelled|inscription\s+enregistr[ée]e\s+annul[ée]e)",
+            re.I,
+        ),
+    ),
     ("cancelled", re.compile(r"^\W*\*+\s*(?:cancelled|annul[ée])", re.I)),
     (
         "discontinuance",
@@ -94,7 +122,10 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
             r"(?:la\s+|les\s+)?demandes?\s+d['’]autorisation|"
             r"(?:application\s+for\s+leave|demande\s+d['’]autorisation)[^|]{0,200}?result\s*:|"
             r"leave\s+(?:to\s+commence\s+)?(?:is|was|be)\s+(?:granted|dismissed|refused|denied)|"
-            r"autorisation\s+(?:est\s+)?(?:accord[ée]e|rejet[ée]e|refus[ée]e)",
+            r"autorisation\s+(?:est\s+)?(?:accord[ée]e|rejet[ée]e|refus[ée]e)|"
+            # 2026 format: "Result - Leave dismissed", "Résultat - Demande d'autorisation rejetée"
+            r"(?:result|r[ée]sultat)\s*-\s*(?:leave\s+(?:granted|dismissed|refused|denied)|"
+            r"demande\s+d['’]autorisation\s+(?:accord|rejet|refus))",
             re.I | re.S,
         ),
     ),
@@ -140,7 +171,15 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
             re.I,
         ),
     ),
-    ("order", re.compile(r"\border\b|\bordonnance\b", re.I)),
+    (
+        "order",
+        re.compile(
+            r"\border\b|\bordonnance\b|"
+            # 2026 format: "Decision (Final) dated ...", "Reasons - Decision (Final) ..."
+            r"^\s*(?:(?:reasons|motifs)\s*-\s*)?d[ée]cision\s*\(",
+            re.I,
+        ),
+    ),
     ("direction", re.compile(r"\bdirection\b|\bdirective\b", re.I)),
     ("filing", re.compile(r"\bfiled\b|\bd[ée]pos[ée]e?\b|\breceived\b|\bre[çc]u", re.I)),
     ("correspondence", re.compile(r"\bletter\b|\blettre\b|\bcorrespondence\b|communication", re.I)),
@@ -148,6 +187,17 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
 RESULT_RE = re.compile(
     r"result(?:\s+of\s+hearing)?\s*:\s*(?:matter\s+)?([A-Za-z][A-Za-z\s\-]{2,40}?)"
     r"(?=\s+(?:filed|held|decision|style|[A-Z0-9])|[\.\n;]|$)",
+    re.I,
+)
+# 2026 format: "Result - Leave dismissed", "Résultat - affaire rejetée", "Résultat de l'audition :
+# décision mise en délibéré". The outcome is read from the words that follow the label.
+RESULT_2026_RE = re.compile(
+    r"(?:result|r[ée]sultat)(?:\s+de\s+l['’]audi(?:tion|ence))?\s*[-:]\s*(.{3,60})", re.I | re.S
+)
+# minutes of a conference, recognisable only from the result line in the 2026 format
+CONFERENCE_RESULT_RE = re.compile(
+    r"result\s+of\s+hearing\s*:\s*(?:cmc\b|timelines|various\s+matters|scheduling|"
+    r"next\s+steps|case\s+management)|r[ée]sultat\s+de\s+l['’]audi\w+\s*:\s*prochaine\s+cmc",
     re.I,
 )
 VERB_RESULT = [
@@ -181,6 +231,11 @@ NON_MERITS_RE = re.compile(
     r"motion|requ[êe]te|conf[ée]rence|m[ée]diation|meeting|r[ée]union|neutral\s+evaluation|"
     r"next\s+steps|show\s+cause|status\s+review|[ée]tat\s+de\s+l['’]instance",
     re.I,
+)
+# 2026 format, leave granted: "The hearing of the application for judicial review shall take place
+# ... on Wednesday, September 16, 2026"
+FIXED_DATE_2026_RE = re.compile(
+    r"hearing\b.{0,300}?\bon\s+(?:[A-Za-z]+day,?\s+)?([A-Z][a-z]+\s+\d{1,2},\s+\d{4})", re.S
 )
 FIXED_DATE_RE = re.compile(
     r"(?:fixing\s+the\s+hearing.{0,80}?\bon|fixant\s+l['’]audience.{0,80}?\ble)\s+"
@@ -223,10 +278,12 @@ def entry_result(text: str | None) -> str | None:
     if not text:
         return None
     m = RESULT_RE.search(text)
-    seg = m.group(1) if m else text
-    for rx, label in VERB_RESULT:
-        if rx.search(seg):
-            return label
+    m2 = RESULT_2026_RE.search(text)
+    # older label first; without it, the 2026 wording and then the whole text
+    for seg in [m.group(1)] if m else ([m2.group(1)] if m2 else []) + [text]:
+        for rx, label in VERB_RESULT:
+            if rx.search(seg):
+                return label
     return None
 
 
@@ -235,7 +292,7 @@ def hearing_subject(text: str | None) -> str | None:
         return None
     m = SUBJECT_RE.search(text)
     if not m:
-        return None
+        return "conference" if CONFERENCE_RESULT_RE.search(text) else None
     s = m.group(1).strip().lower()
     if "judicial review" in s or "contrôle judiciaire" in s or "controle judiciaire" in s:
         return "judicial_review"
@@ -255,7 +312,8 @@ def parse_entry_date(s) -> date | None:
     fm = re.fullmatch(r"(\d{1,2})-([A-Za-zÉÛéû]{3,4})-(\d{4})", t)
     if fm and fm.group(2).upper() in FR_MON:
         t = f"{fm.group(1)}-{FR_MON[fm.group(2).upper()]}-{fm.group(3)}"
-    for fmt in ("%Y-%m-%d", "%d-%b-%Y", "%d-%B-%Y", "%Y/%m/%d", "%d/%m/%Y", "%b %d, %Y"):
+    fmts = ("%Y-%m-%d", "%d-%b-%Y", "%d-%B-%Y", "%Y/%m/%d", "%d/%m/%Y", "%b %d, %Y", "%B %d, %Y")
+    for fmt in fmts:
         try:
             return datetime.strptime(t[:20], fmt).date()
         except ValueError:
@@ -298,11 +356,13 @@ def classify_docket_entries(docs: list[dict], docket: str) -> list[dict]:
             if et in {"leave_decision", "judgment", "hearing", "order"}
             else None,
             "hearing_subject": hearing_subject(text) if et == "hearing" else None,
-            "is_final": et not in {"cancelled", "removed_entry"} and bool(FINAL_RE.search(text)),
+            "is_final": et not in {"cancelled", "removed_entry"} and is_final_marker(text),
             "_fixed": None,
         }
         if et in {"leave_decision", "hearing_scheduled"}:
             fm = FIXED_DATE_RE.search(text)
+            if not fm and et == "leave_decision":
+                fm = FIXED_DATE_2026_RE.search(text)
             if fm:
                 e["_fixed"] = parse_entry_date(fm.group(1))
         out.append(e)

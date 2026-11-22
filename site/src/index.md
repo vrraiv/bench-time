@@ -37,7 +37,7 @@ const fcGen = latest("FC: all");
 ## What is new on this draft
 
 - **A census of court files.** Every Federal Court of Appeal file from 2010, every Federal Court non-immigration file from 2018 and every Tax Court file from 2018, read from the courts' public file searches in November 2026 and refreshed weekly. Results are on [Federal courts](./federal).
-- **Checked against the courts' own statistics.** Our yearly filing counts for the Federal Court of Appeal and the Federal Court are within 2.5% of the courts' published counts, and our counts of files ended are 94–100% of theirs.
+- **Checked against the courts' own statistics.** Federal Court (non-immigration): our yearly filing counts are within 2.5% of the Court's published counts and our counts of files ended are 95–102% of its for 2022–2025. Federal Court of Appeal: filings are within 2.5% and our counts of files ended are 94–100% of the court's, once its "preliminary applications" (motions brought before an appeal exists, which are not appeal files) are set aside.
 - **Decisions linked to files.** Published decisions are matched to their court files by file number (99.8% link inside the census), which separates final from interlocutory decisions and checks hearing dates against the court record.
 - **[Results under review](./review).** Tax Court durations, the wait for a Tax Court hearing, appeal chains, Supreme Court leave applications (every file opened from 2010) and judges against the judicial complement are shown there with their open questions. They are provisional.
 
@@ -52,7 +52,7 @@ These results exist but are not in the public repository. On this preview they a
 | Tax Court decisions matched to files | Held with the other Tax Court results so that everything about that court is reviewed together. |
 | Appeal chains: filing in the court below to the end of the appeal, and the Supreme Court leg | The totals are lower bounds, not a trend, because files in the courts below only go back to 2018. The Supreme Court tables (leave applications by court appealed from, stages of heard appeals, the Federal Court of Appeal chain through leave) were built on 20 November 2026 and have not been reviewed. |
 | Judges deciding against the judicial complement | No judge is named and small groups are withheld, but whether to publish this at all is still to be decided. |
-| Counts of pending files from our census | A few percent of file endings are missed, so our pending counts run above the courts' own (by about 200 Federal Court of Appeal files for 2025). Pending totals shown on this site are the courts' figures. |
+| Counts of pending files from our census | Some file endings are missed, so our pending counts can run above the courts' own (by about 110 Federal Court of Appeal files for 2025; the Federal Court non-immigration count now agrees with the Court's). The comparison is on the review page. Pending totals shown on this site are the courts' figures. |
 
 One further question is open and affects what may be published: 18 Federal Court files and 25 immigration files mention a publication ban. They are included in the aggregate figures for now, pending advice on whether they should be.
 

@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 from dataclasses import asdict, dataclass
 
 from courtdelay.common import paths
@@ -210,15 +211,97 @@ def crawl_sample(client: Client, s: Stratum, hint: int = 8000) -> dict:
     return result
 
 
+# -- list sample: immigration files opened before 2022 and still open in November 2022 ----------
+#
+# Owner approval 2026-11-22. The Court's pending count includes immigration files older than our
+# 2022+ sample. The Refugee Law Lab dockets (S4) give every such file as of November 2022; this
+# stratum draws from the ones S4 shows without an ending and reads their state today, to see how
+# many are still open and when the others closed. Files S4 shows as ended are assumed to have
+# stayed ended.
+
+PRE2022 = "IMM-PRE2022"
+PRE2022_GROUPS = {  # filing-year group -> files to fetch
+    "2021": 300,  # 1,092 in the frame, all active in 2021-22
+    "2018-2020": 150,  # 347 in the frame
+    "2011-2017": 150,  # about 5,000, last active 2013-2018: mostly endings S4 does not show
+    "to-2010": 60,  # about 1,100, last active in their filing year
+}
+
+
+def pre2022_group(filing_year: int) -> str:
+    if filing_year >= 2021:
+        return "2021"
+    if filing_year >= 2018:
+        return "2018-2020"
+    return "2011-2017" if filing_year >= 2011 else "to-2010"
+
+
+def pre2022_plan_path():
+    return paths.raw_dir(SOURCE) / f"plan_{PRE2022}.json"
+
+
+def make_pre2022_plan() -> dict:
+    """Frame: S4 files filed before 2022 with no ending recorded at the 2022 scrape, in four
+    filing-year groups; each group's files in seeded random order. Written once."""
+    import polars as pl
+
+    plan_path = pre2022_plan_path()
+    if plan_path.exists():
+        return json.loads(plan_path.read_text())
+    d = pl.read_parquet(paths.processed_dir() / "s4" / "dockets.parquet").filter(
+        (pl.col("filing_year") < 2022) & pl.col("final_disposition_date").is_null()
+    )
+    groups = {}
+    for g in PRE2022_GROUPS:
+        nos = sorted(
+            r["docket"]
+            for r in d.select("docket", "filing_year").iter_rows(named=True)
+            if pre2022_group(r["filing_year"]) == g
+        )
+        random.Random(f"{SEED}-{PRE2022}-{g}").shuffle(nos)
+        groups[g] = {"frame_n": len(nos), "n_sample": PRE2022_GROUPS[g], "order": nos}
+    plan = {"stratum": PRE2022, "seed": f"{SEED}-{PRE2022}-<group>", "groups": groups}
+    plan_path.write_text(json.dumps(plan))
+    return plan
+
+
+def crawl_pre2022(client: Client, limit: int | None = None) -> dict:
+    """``limit`` caps the files per group (pilot)."""
+    plan = make_pre2022_plan()
+    result = {"stratum": PRE2022}
+    for g, grp in plan["groups"].items():
+        want = min(grp["n_sample"], limit or grp["n_sample"])
+        found = tried = 0
+        for docket in grp["order"]:
+            if found >= want:
+                break
+            prefix, n, yy = docket.split("-")
+            s = Stratum(
+                PRE2022, prefix, "t", 1900 + int(yy) if int(yy) > 50 else 2000 + int(yy), "list"
+            )
+            tried += 1
+            if fetch_file(client, s, int(n)) is True:
+                found += 1
+        result[g] = {"frame_n": grp["frame_n"], "tried": tried, "found": found}
+        _progress(Stratum(PRE2022, "IMM", "t", 0, "list"), {"group": g, **result[g]})
+    return result
+
+
 def run_stratum(client: Client, s: Stratum) -> dict:
     return crawl_census(client, s) if s.mode == "census" else crawl_sample(client, s)
 
 
 def fetch(client: Client, strata: list[str] | None = None) -> list[dict]:
     plan = default_plan()
+    out = []
     if strata:
+        # the pre-2022 list sample runs only when named; "IMM-PRE2022:40" caps each group at 40
+        for name in strata:
+            if name.split(":")[0] == PRE2022:
+                limit = int(name.split(":")[1]) if ":" in name else None
+                out.append(crawl_pre2022(client, limit))
         plan = [s for s in plan if s.name in strata]
-    return [run_stratum(client, s) for s in plan]
+    return out + [run_stratum(client, s) for s in plan]
 
 
 # -- parse ---------------------------------------------------------------------------------
@@ -268,6 +351,156 @@ def appeal_from(entries: list[dict]) -> tuple[str | None, str | None]:
         dm = re.search(LOWER_DATED_RE, t, re.I)
         return number, dm.group(1) if dm else None
     return None, None
+
+
+# One order made in a lead file can end many files: the Registry places a copy on each ("Copy of
+# Order dated 27-APR-2020 rendered by ... placed on file. Original filed on Court File No.
+# T-nnnn-yy") and the copy carries no final-decision marker. Found 2026-11-22: 381 Federal Court
+# files we counted as open carry a copy of an order that ended its own file on that date (213
+# from one order dismissing a list of actions against the Crown in 2020, 74 from one striking
+# another list in 2023), and the Court's disposition counts include them.
+COPY_OF_DECISION_RE = re.compile(
+    r"^\s*(?:copy of|copie d[eu']\s*(?:la |l')?)\s*(?:reasons for )?"
+    r"(?:order|judgment|ordonnance|jugement|reasons|motifs)[^\n]{0,60}?"
+    r"(?:dated|en date du)\s+(\d{1,2}-[A-Za-zéû]{3,4}-\d{4})",
+    re.I,
+)
+ORIGINAL_ON_RE = re.compile(
+    r"(?:court file no\.?|dossier[^\n]{0,30}?)\s*((?:T|A|IMM)-\d+-\d\d)\b", re.I
+)
+
+
+def copies_of_decisions(texts: list[str], own: str | None) -> list[tuple[str, str]]:
+    """(file the original is on, decision date as written) for each copy of an order or judgment
+    from another file placed on this one."""
+    out = []
+    for t in texts:
+        m, src = COPY_OF_DECISION_RE.search(t), ORIGINAL_ON_RE.search(t)
+        if m and src and src.group(1).upper() != (own or "").upper():
+            out.append((src.group(1).upper(), m.group(1)))
+    return out
+
+
+# A judgment in the 2026 entry format with no "(Final)" or "(Interlocutory)" qualifier. It ends
+# the file when nothing but correspondence follows it (found 2026-11-22: 31 such files, all 2026).
+UNQUALIFIED_JUDGMENT_RE = re.compile(
+    r"^\s*(?:(?:reasons|motifs)\s*-?\s*(?:for|de|du)\s+(?:judgment|jugement)\s+(?:and|et)\s+)?"
+    r"(?:judgment|jugement)\b(?![^\n]{0,80}\(\s*(?:interlocut|final))",
+    re.I,
+)
+CONTINUES_RE = re.compile(
+    r"^\s*(?:order|ordonnance|judgment|jugement|reasons|motifs|notice of motion|avis de requ"
+    r"|motion record|dossier de requ|minutes|proc[èe]s-verbal|direction|oral direction"
+    r"|written direction|notice of appeal|avis d.appel)",
+    re.I,
+)
+GROUP_GRACE_DAYS = 90
+# A notice of discontinuance filed in one file and copied onto the others it covers ("Copy of
+# Notice of Discontinuance ... placed on file"). Found 2026-11-22 as the last entry of 19 dormant
+# appeal files.
+COPY_OF_DISCONTINUANCE_RE = re.compile(
+    r"^\s*(?:copy of|copie d[eu']\s*(?:la |l')?)\s*(?:the\s+)?(?:notice of\s+|avis de\s+)?"
+    r"(?:discontinuance|d[ée]sistement)",
+    re.I,
+)
+
+
+def copied_discontinuance_date(entries: list[dict]):
+    """Date of a copy of a notice of discontinuance placed on the file, when no order, motion,
+    hearing or direction follows it. None otherwise."""
+    es = sorted(entries, key=lambda e: ((e.get("DOC_DT") or "")[:10], e.get("RE_NO") or 0))
+    for i in range(len(es) - 1, -1, -1):
+        text = es[i].get("RECORDED_ENTRY") or ""
+        if str(es[i].get("IS_COPY", "N")).upper() == "Y" and not text.lower().startswith("cop"):
+            text = "Copy of " + text
+        if COPY_OF_DISCONTINUANCE_RE.search(text):
+            later = [x.get("RECORDED_ENTRY") or "" for x in es[i + 1 :]]
+            if any(CONTINUES_RE.search(t) for t in later):
+                return None
+            return (es[i].get("DOC_DT") or "")[:10] or None
+    return None
+
+
+def unqualified_judgment_date(entries: list[dict]):
+    """Date of the last 2026-format judgment that carries no qualifier, is not a copy, and is
+    followed by no order, motion, hearing or direction. None otherwise."""
+    es = sorted(entries, key=lambda e: ((e.get("DOC_DT") or "")[:10], e.get("RE_NO") or 0))
+    for i in range(len(es) - 1, -1, -1):
+        e, text = es[i], es[i].get("RECORDED_ENTRY") or ""
+        own = str(e.get("IS_COPY", "N")).upper() != "Y"
+        if own and str(e.get("LEGACY_RE_IND", "Y")).upper() == "N":
+            if UNQUALIFIED_JUDGMENT_RE.search(text):
+                later = [x.get("RECORDED_ENTRY") or "" for x in es[i + 1 :]]
+                if any(CONTINUES_RE.search(t) for t in later):
+                    return None
+                return (e.get("DOC_DT") or "")[:10] or None
+    return None
+
+
+def add_linked_endings(rows: list[dict]) -> dict[str, int]:
+    """Endings the file's own entries do not mark. Applied to files with no ending, in order:
+
+    ``unmarked_judgment``  a 2026-format judgment with no qualifier and nothing after it but
+                           correspondence: the file ends on the judgment date.
+    ``copied_discontinuance``  a copy of a notice of discontinuance from another file was
+                           placed on this one and nothing but correspondence follows.
+    ``lead_file``          the file carries a copy of a decision that ended the file it was made
+                           in, on that date (one order dismissing a list of files): the file ends
+                           on that date. Owner decision 2026-11-22: counted in the tables.
+
+    Both set ``final_disposition_date`` with ``final_disposition_source`` naming the rule.
+
+    A third inference is recorded apart, in ``group_end_date`` / ``group_end_file``, and no
+    table counts it: the file carries a copy of some decision from a file that has since ended
+    (by any route, a discontinuance included) and has had no entry of its own more than
+    ``GROUP_GRACE_DAYS`` days after that ending. These are companions in a consolidated or
+    jointly managed group; the lead's ending probably covers them but no entry says so."""
+    from datetime import timedelta
+
+    from courtdelay.sources import s4_rll_fc_dockets as s4
+
+    n = {"unmarked_judgment": 0, "copied_discontinuance": 0, "lead_file": 0, "group": 0}
+    for r in rows:
+        r["lead_order_file"], r["group_end_date"], r["group_end_file"] = None, None, None
+        uj = r.pop("_unqualified_judgment", None)
+        cd = r.pop("_copied_discontinuance", None)
+        if r.get("final_disposition_date") is None and cd and not uj:
+            r["final_disposition_date"] = s4.parse_entry_date(cd)
+            r["final_disposition_type"] = "discontinuance"
+            r["final_disposition_source"] = "copied_discontinuance"
+            n["copied_discontinuance"] += 1
+        if r.get("final_disposition_date") is None and uj:
+            r["final_disposition_date"] = s4.parse_entry_date(uj)
+            r["final_disposition_type"] = "judgment"
+            r["final_disposition_source"] = "unmarked_judgment"
+            n["unmarked_judgment"] += 1
+    ended = {
+        (r["division"], r["docket"]): (r["final_disposition_date"], r["final_disposition_type"])
+        for r in rows
+        if r.get("final_disposition_date") is not None
+    }
+    for r in rows:
+        copies = r.pop("_copies", [])
+        if r.get("final_disposition_date") is not None:
+            continue
+        for lead, written in copies:
+            end = ended.get((r["division"], lead))
+            if end and end[1] != "discontinuance" and s4.parse_entry_date(written) == end[0]:
+                r["final_disposition_date"] = end[0]
+                r["final_disposition_type"] = "lead_file_order"
+                r["final_disposition_source"] = "lead_file"
+                r["lead_order_file"] = lead
+                n["lead_file"] += 1
+                break
+        else:
+            last = r.get("last_entry_date")
+            for lead, _ in reversed(copies):
+                end = ended.get((r["division"], lead))
+                if end and last and last <= end[0] + timedelta(days=GROUP_GRACE_DAYS):
+                    r["group_end_date"], r["group_end_file"] = end[0], lead
+                    n["group"] += 1
+                    break
+    return n
 
 
 def ms_date(v):
@@ -340,6 +573,9 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "n_confidential_flag_entries": n_flag,
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,
+            "_copies": copies_of_decisions(texts, docket),
+            "_unqualified_judgment": unqualified_judgment_date(entries),
+            "_copied_discontinuance": copied_discontinuance_date(entries),
             **s4.derive_docket(ents, judgment_fallback=False),
         }
     )
@@ -374,8 +610,18 @@ def parse(client: Client | None = None):
     import polars as pl
 
     dockets, entries, dropped, dropped_nos = [], [], 0, []
+    # files of the pre-2022 list sample go to their own table: they are not part of the census
+    # or of the filing-year samples, and no other table should count them
+    listed, older = {}, []
+    if pre2022_plan_path().exists():
+        for g, grp in json.loads(pre2022_plan_path().read_text())["groups"].items():
+            listed.update({no: (g, grp["frame_n"]) for no in grp["order"]})
     for key, info, ents, fetched_at in _cached_pairs():
         row, erows = parse_file(info, ents, fetched_at)
+        if row is not None and key[0].lower() == "t" and row["docket"] in listed:
+            g, frame_n = listed[row["docket"]]
+            older.append({**row, "frame_group": g, "frame_n": frame_n})
+            continue
         if row is None:
             dropped += 1
             # file number only: lets the decision link tell "dropped by us" from "never found"
@@ -385,7 +631,20 @@ def parse(client: Client | None = None):
         entries.extend(erows)
     out = paths.processed_dir() / "s10"
     out.mkdir(exist_ok=True)
-    d = pl.DataFrame(dockets, infer_schema_length=None)
+    log.info("S10: endings not marked on the file itself: %s", add_linked_endings(dockets))
+    for r in older:
+        r.pop("_copies", None)
+        r.pop("_unqualified_judgment", None)
+        r.pop("_copied_discontinuance", None)
+    d = pl.DataFrame(
+        dockets,
+        infer_schema_length=None,
+        schema_overrides={
+            "lead_order_file": pl.String,
+            "group_end_date": pl.Date,
+            "group_end_file": pl.String,
+        },
+    )
     e = pl.DataFrame(entries, infer_schema_length=None)
     if d.height:
         d.write_parquet(out / "dockets.parquet")
@@ -393,7 +652,10 @@ def parse(client: Client | None = None):
         pl.DataFrame(dropped_nos, schema={"docket": pl.String}).write_parquet(
             out / "dropped_confidential.parquet"
         )
+    if older:
+        pl.DataFrame(older, infer_schema_length=None).write_parquet(out / "imm_pre2022.parquet")
     log.info("S10: %d dockets parsed, %d dropped as confidential/sealed", d.height, dropped)
+    log.info("S10: %d files of the pre-2022 immigration list sample", len(older))
     return {"dockets": d, "entries": e, "dropped": dropped}
 
 

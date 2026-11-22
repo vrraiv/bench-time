@@ -18,7 +18,15 @@ from pathlib import Path
 import polars as pl
 
 from courtdelay.common import paths
-from courtdelay.estimate import judges, linkage, panel, reserve_time, stock_flow, survival
+from courtdelay.estimate import (
+    benchmark,
+    judges,
+    linkage,
+    panel,
+    reserve_time,
+    stock_flow,
+    survival,
+)
 
 log = logging.getLogger(__name__)
 
@@ -219,6 +227,28 @@ def build_s8(derived: Path, site: Path) -> dict[str, pl.DataFrame]:
         _write(y, f"s8_{court.lower()}_annual_littles_law", derived, site)
         out[court] = w
     return out
+
+
+def build_s8_benchmark(derived: Path, site: Path) -> None:
+    """The Federal Court's published filings, dispositions and pending against counts from
+    court-file records. Held back: it carries docket-derived pending counts."""
+    proc = paths.processed_dir()
+    act = proc / "s8" / "fc_activity.parquet"
+    if not act.exists():
+        return
+    s10, s4 = proc / "s10" / "dockets.parquet", proc / "s4" / "dockets.parquet"
+    older = proc / "s10" / "imm_pre2022.parquet"
+    fca = proc / "s8" / "fca_activity.parquet"
+    if not (s10.exists() or s4.exists()):
+        return
+    t = benchmark.fc_benchmark(
+        pl.read_parquet(act),
+        pl.read_parquet(s10) if s10.exists() else None,
+        pl.read_parquet(s4) if s4.exists() else None,
+        pl.read_parquet(older) if older.exists() else None,
+        pl.read_parquet(fca) if fca.exists() else None,
+    )
+    _write(t, "s8_fc_benchmark_vs_court_files", derived, site, publish=False)
 
 
 def build_s9(derived: Path, site: Path) -> pl.DataFrame | None:
@@ -487,6 +517,14 @@ def build_s10(derived: Path, site: Path) -> None:
     d = (
         pl.read_parquet(p)
         .filter(pl.col("prefix").is_in(["A", "T"]) & ~pl.col("is_registration"))
+        # same population as the Court's own counts (owner rule 2026-11-22): its Federal Court
+        # figures appear to leave out the Crown's tax-collection matters, so the tables do too
+        .filter(
+            ~(
+                (pl.col("prefix") == "T")
+                & pl.col("nature").fill_null("").str.contains(benchmark.TAX_COLLECTION_RX)
+            )
+        )
         .with_columns(
             pl.col("scraped").str.to_date(strict=False).alias("scraped_date"),
             s10_proceeding_group(),
@@ -1325,7 +1363,20 @@ def build_all() -> None:
         _guard = None
 
 
+def copy_review_questions(site: Path) -> None:
+    """The practitioner's questions (data/review/questions.json, written by
+    scripts/import_review_questions.py; gitignored) go to the held-back folder for the
+    "Questions for review" page."""
+    src = paths.REPO_ROOT / "data" / "review" / "questions.json"
+    if src.exists():
+        review = site.parent / "review-data"
+        review.mkdir(exist_ok=True)
+        (review / "questions.json").write_bytes(src.read_bytes())
+        log.info("build: questions for review copied (held back)")
+
+
 def _build_all(derived: Path, site: Path) -> None:
+    copy_review_questions(site)
     build_s1(derived, site)
     build_s5(derived, site)
     build_s6(derived, site)
@@ -1340,6 +1391,7 @@ def _build_all(derived: Path, site: Path) -> None:
     build_s7(derived, site)
     build_s12(derived, site)
     build_s10(derived, site)
+    build_s8_benchmark(derived, site)
     build_links(derived, site)
     build_appeal_chains(derived, site)
     build_judges(derived, site, v)

@@ -12,8 +12,22 @@
   "send_metrics": false,
   "workers_dev": true,
   "preview_urls": true,
+  // The Worker script answers /api/* (replies to the Questions for review page) and hands every
+  // other request to the static assets. See worker/index.js.
+  "main": "worker/index.js",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "404-page"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*"]
+  },
+  // Replies database (schema in worker/schema.sql). ACCESS_TEAM_DOMAIN and ACCESS_AUD are Worker
+  // secrets (wrangler secret put), not kept here.
+  "d1_databases": [
+    {
+      "binding": "REPLIES",
+      "database_name": "docket-watch-replies",
+      "database_id": "e1acccaf-1904-4b12-b5cc-f8be860a4773"
+    }
+  ]
 }

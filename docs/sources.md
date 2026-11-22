@@ -223,6 +223,14 @@ request); add the real hostname once the owner confirms it.
   Traffic Manager, so earlier requests were presumably routed to a backend with a valid certificate).
   The crawl stopped at A-193-11; certificate verification is not bypassed. 1,576 requests made,
   5 non-200. Resume once the certificate is renewed; cached files are not re-fetched.
+- **Pre-2022 immigration list sample, 2026-11-22** (owner approval the same day, to test whether
+  older files closing explain a gap with the Court's late-2025 dispositions). Stratum
+  `IMM-PRE2022`: files the Refugee Law Lab dockets show filed before 2022 and without an ending
+  in November 2022 (7,498), drawn in seeded order within four filing-year groups; plan in
+  `plan_IMM-PRE2022.json`. 660 files fetched 12:33–13:37 UTC at 3 s spacing, single process;
+  677 numbers tried, 17 returned no file; no failed request, no 403, 429 or challenge. Parsed to
+  `data/processed/s10/imm_pre2022.parquet`, apart from the census and yearly samples. Result in
+  `docs/methods.md`.
 - **Crawl complete 2026-11-19 06:27** (resumed after the certificate was renewed; 3 s spacing on
   this host by owner approval 2026-11-16; interrupted twice on 2026-11-18 by a low-memory kill and
   a reboot, resumed from cache). No 403, 429 or challenge at any point. Parsed: 34,406 files and
