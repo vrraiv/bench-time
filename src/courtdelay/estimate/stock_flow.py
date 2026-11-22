@@ -20,6 +20,16 @@ from datetime import date
 
 import polars as pl
 
+#: Little's law assumes arrivals and departures balance. A period whose commenced/dispositions
+#: ratio falls outside this band is marked ``steady_state_ok = False``: the implied time in system
+#: is then not a usable approximation (with a growing backlog the disposal-rate version overstates
+#: and the arrival-rate version understates).
+STEADY_BAND = (0.8, 1.25)
+
+
+def _steady() -> pl.Expr:
+    return pl.col("backlog_ratio").is_between(*STEADY_BAND).alias("steady_state_ok")
+
 
 def _days(a: str, b: str) -> int:
     return (date.fromisoformat(b) - date.fromisoformat(a)).days + 1
@@ -106,7 +116,8 @@ def littles_law(df: pl.DataFrame) -> pl.DataFrame:
 
     L = mean(pending_prev, pending) when the previous stock is known, else pending.
     W_disp = L / (dispositions_q / days); W_arr = L / (commenced_q / days).
-    ``backlog_ratio`` = commenced_q / dispositions_q (>1: backlog growing)."""
+    ``backlog_ratio`` = commenced_q / dispositions_q (>1: backlog growing);
+    ``steady_state_ok`` is False when it falls outside ``STEADY_BAND``."""
     d = df.sort(["court", "subject_matter", "period_end"])
     grp = ["court", "subject_matter"]
     d = d.with_columns(pl.col("pending").shift(1).over(grp).alias("pending_prev"))
@@ -136,7 +147,8 @@ def littles_law(df: pl.DataFrame) -> pl.DataFrame:
     return d.with_columns(
         pl.lit("steady-state approximation (Little's law); mean, not median").alias(
             "bias_statement"
-        )
+        ),
+        _steady(),
     )
 
 
@@ -166,7 +178,7 @@ def annual_rollup(d: pl.DataFrame) -> pl.DataFrame:
         .otherwise(pl.col("pending_end"))
         .alias("L")
     )
-    return y.with_columns(
+    y = y.with_columns(
         pl.when(pl.col("dispositions") > 0)
         .then(pl.col("L") / (pl.col("dispositions") / pl.col("days")))
         .otherwise(None)
@@ -179,9 +191,12 @@ def annual_rollup(d: pl.DataFrame) -> pl.DataFrame:
         .then(pl.col("commenced") / pl.col("dispositions"))
         .otherwise(None)
         .alias("backlog_ratio"),
+    )
+    return y.with_columns(
         pl.lit("steady-state approximation (Little's law); mean, not median").alias(
             "bias_statement"
         ),
         # publishable only with a full year of quarters that all reconcile (docs/methods.md E2)
         ((pl.col("n_periods") == 4) & pl.col("identity_ok")).alias("publishable"),
+        _steady(),
     )

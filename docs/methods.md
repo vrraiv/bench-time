@@ -39,6 +39,13 @@ published counts are censuses, so the interval reflects the choice of denominato
 timing, not sampling. Cross-check (a) against (b) for FC immigration.
 Precondition: the identity pending_t = pending_{t−1} + commenced − dispositions must hold
 (within rounding) for each court-year before any W is published; violations are listed.
+Second precondition (2026-11-21): the period must be near steady state. Rows carry
+`steady_state_ok`, false when commenced ÷ dispositions is outside 0.8–1.25
+(`stock_flow.STEADY_BAND`; the band is a judgment call). For the Federal Court this fails in 21
+of 93 quarters, including every quarter from 2025 (ratios 1.3 to 3.0), where W at the disposal
+rate reaches 734 days and overstates the time a file takes. The site shows those quarters as
+hollow markers and says not to read them. The annual `publishable` flag does not yet include
+this condition.
 
 ### E3. Reserve time (hearing → decision), S3
 
@@ -101,6 +108,59 @@ only from about FY2021-22, because the census starts with 2018 docket numbers an
 files closing or heard in earlier years). Same idea for S10/S11 against the FC and FCA activity
 summaries (commenced, dispositions, pending). Report differences, not just agreement; a large gap in
 hearings tests whether "Minutes of Hearing" marks the trial.
+
+### Federal Court pending proceedings: checks and benchmark (2026-11-21)
+
+The pending series on the site is the Court's published stock (S8, total row of each quarterly
+Activity Summary), not a count of ours. It rises from 6,301 at end-2019 to 15,627 at end-2024,
+28,098 at end-2025 and 43,536 at 30 September 2026; immigration leave applications are 37,873 of
+the last figure, non-immigration 5,663 (2,760 at end-2019).
+
+Checks on our reading of the pages:
+
+- Total and immigration rows for end-2019, end-2025, June and September 2026 compared by eye
+  with the cached pages: identical.
+- Subject rows sum to the total for filings, dispositions and pending in all 30 quarters from
+  2019 (differences of 1 file in September 2019 and 9 in September 2023). Not checked before
+  2019, where the row hierarchy differs.
+- End-2019 stock plus published filings minus dispositions to September 2026 gives 44,648
+  against 43,536 published (2.5%), the sum of the identity breaks already listed for 2021 and
+  2023.
+
+Benchmark from court-file records (`estimate/benchmark.py`, table
+`s8_fc_benchmark_vs_court_files`, held back because it carries docket-derived pending counts;
+shown on the review page). Flows are year to date.
+
+| Component | Our count from | Ours ÷ Court's |
+|---|---|---|
+| Immigration filings, 2003–2021 by year | S4 dockets (census), by filing date | 0.998–1.006 |
+| Immigration filings, 2023–2026 by quarter | S10 immigration sample, share of the year's sampled files dated by the cut-off × top file number | 0.92–1.09; the Court's figure is inside the 95% sampling interval in 14 of 15 quarters (June 2026: 1.09) |
+| Non-immigration filings, 2018–2026 | S10 census of `T` files, registrations excluded | 1.008–1.033 |
+| Non-immigration dispositions, 2022–2025 | same | 0.954–1.002 |
+| Non-immigration dispositions, 2026 to 30 September | same | 0.684 |
+| Immigration pending, 2023–2026 by quarter | S10 immigration sample (files opened from 2022), open at the cut-off, scaled by stratum | 0.95–1.21; 1.05 at end-2024, 1.11 at end-2025, 1.15 at September 2026 (43,656, interval 42,253–45,059, against 37,873) |
+
+Reading:
+
+- The filings side of the rise is corroborated to within a few percent in every period, and the
+  third-quarter 2026 jump is in the filing dates: sampled files dated in the three quarters of
+  2026 number 209, 253 and 368, or about 6,900, 8,400 and 12,200 filings, against the Court's
+  6,650, 7,403 and 13,591. At most about 1,000 filings may have been counted a quarter late.
+- Our pending estimate follows the same path but runs above the Court's, increasingly so in
+  2026. The direction matches a known weakness of ours: endings are under-recorded for recent
+  months (the 0.684 above), so too many files look open. It is not evidence against the Court's
+  figure. Older years are missing from the estimate (files opened before 2022), which works the
+  other way and is small.
+- Highest immigration file number cited in published decisions (S3) is within 1–2% of the
+  Court's yearly immigration filings for 2012–2025 (6% in 2020). It is not usable within a year:
+  numbers are not issued in filing-date order.
+- About 900 files numbered for 2026 carry a late-2025 filing date (27 of 1,011 sampled; 1 to 7 a
+  year in 2023–2025). Which year the Court counts them in is not known.
+- S4 open-file counts are 1.2 to 4 times the Court's immigration pending (files with no ending
+  found), so S4 benchmarks flows only.
+- All of these sources are the Court's own registry seen through different windows. No count
+  from outside the Court was found; the Court's historic workbook (new proceedings by year) is
+  not in the cache and would only check the parse.
 
 ## Tax Court docket census (S12): provisional cohort tables
 

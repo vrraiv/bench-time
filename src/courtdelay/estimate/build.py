@@ -18,7 +18,15 @@ from pathlib import Path
 import polars as pl
 
 from courtdelay.common import paths
-from courtdelay.estimate import judges, linkage, panel, reserve_time, stock_flow, survival
+from courtdelay.estimate import (
+    benchmark,
+    judges,
+    linkage,
+    panel,
+    reserve_time,
+    stock_flow,
+    survival,
+)
 
 log = logging.getLogger(__name__)
 
@@ -219,6 +227,24 @@ def build_s8(derived: Path, site: Path) -> dict[str, pl.DataFrame]:
         _write(y, f"s8_{court.lower()}_annual_littles_law", derived, site)
         out[court] = w
     return out
+
+
+def build_s8_benchmark(derived: Path, site: Path) -> None:
+    """The Federal Court's published filings, dispositions and pending against counts from
+    court-file records. Held back: it carries docket-derived pending counts."""
+    proc = paths.processed_dir()
+    act = proc / "s8" / "fc_activity.parquet"
+    if not act.exists():
+        return
+    s10, s4 = proc / "s10" / "dockets.parquet", proc / "s4" / "dockets.parquet"
+    if not (s10.exists() or s4.exists()):
+        return
+    t = benchmark.fc_benchmark(
+        pl.read_parquet(act),
+        pl.read_parquet(s10) if s10.exists() else None,
+        pl.read_parquet(s4) if s4.exists() else None,
+    )
+    _write(t, "s8_fc_benchmark_vs_court_files", derived, site, publish=False)
 
 
 def build_s9(derived: Path, site: Path) -> pl.DataFrame | None:
@@ -1340,6 +1366,7 @@ def _build_all(derived: Path, site: Path) -> None:
     build_s7(derived, site)
     build_s12(derived, site)
     build_s10(derived, site)
+    build_s8_benchmark(derived, site)
     build_links(derived, site)
     build_appeal_chains(derived, site)
     build_judges(derived, site, v)

@@ -15,6 +15,44 @@ const chains = FileAttachment("review-data/link_appeal_chains_by_year.csv").csv(
 const judges = FileAttachment("review-data/link_judges_vs_complement_by_court_year.csv").csv({typed: true});
 ```
 
+## Federal Court: published workload figures against court-file records
+
+```js
+const fcBench = FileAttachment("review-data/s8_fc_benchmark_vs_court_files.csv").csv({typed: true});
+```
+
+```js
+const immPend = fcBench.filter(d => d.component === "immigration" && d.measure === "pending at period end")
+  .map(d => ({...d, date: new Date(d.period_end)}));
+display(Plot.plot({
+  y: {label: "immigration proceedings pending", grid: true}, x: {label: null},
+  color: {legend: true, domain: ["Court's published figure", "Our estimate from sampled files (95% interval)"]},
+  marks: [
+    Plot.ruleX(immPend, {x: "date", y1: "ours_lo", y2: "ours_hi", stroke: () => "Our estimate from sampled files (95% interval)", strokeOpacity: 0.5}),
+    Plot.dot(immPend, {x: "date", y: "ours", stroke: () => "Our estimate from sampled files (95% interval)", tip: true}),
+    Plot.lineY(immPend, {x: "date", y: "court_published", stroke: () => "Court's published figure"})
+  ]
+}));
+```
+
+```js
+const benchPick = view(Inputs.select(
+  [...new Set(fcBench.map(d => `${d.component}: ${d.measure}`))],
+  {label: "Component", value: "immigration: pending at period end"}
+));
+```
+
+```js
+display(Inputs.table(fcBench.filter(d => `${d.component}: ${d.measure}` === benchPick), {
+  columns: ["period_end", "court_published", "ours", "ours_lo", "ours_hi", "ratio", "basis"],
+  header: {period_end: "Period end", court_published: "Court's figure", ours: "Ours", ours_lo: "95% low", ours_hi: "95% high", ratio: "Ours ÷ court's", basis: "Our count is from"},
+  format: {period_end: d => typeof d === "string" ? d : d.toISOString().slice(0, 10), ratio: d3.format(".3f")},
+  layout: "auto", width: {basis: 380}
+}));
+```
+
+<p class="muted">Pending review: a check on the pending-proceedings chart of the Federal courts page, which shows the Court's own count. Flows are year to date. Filings agree closely: Refugee Law Lab dockets give 99.8–100.6% of the Court's yearly immigration filings for 2003–2021; our sample of immigration files (about 1,000 per filing year from 2023) reproduces year-to-date filings within its sampling interval in 14 of 15 quarters (June 2026 is 9% above the Court's count). The jump in the third quarter of 2026 is in the filing dates too: 13,600 immigration filings in that quarter by the Court's count, about 12,200 by ours, against about 7,000 to 8,400 in each of the two quarters before. Our census of other files gives 101–103% of non-immigration filings. The immigration pending estimate follows the same rise but sits above the Court's figure, by 5% at end-2024, 11% at end-2025 and 15% at September 2026. The likely reason is ours, not the Court's: recent endings are under-recorded in the court files we read (we find 68% of the Court's non-immigration dispositions for 2026 to date, against 95–100% for 2022–2025), which leaves too many files looking open. Limits: every count here comes from the same registry as the Court's statistics, so this shows the statistics agree with the Court's file system, not that an outside count confirms them; the estimate omits immigration files opened before 2022; the top file number in the sample stands in for the number of files opened in a year; about 900 files numbered for 2026 were filed in late 2025, and we do not know which year the Court counts them in.</p>
+
 ## Tax Court: time from filing to the end of the file
 
 ```js
