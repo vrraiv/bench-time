@@ -117,3 +117,26 @@ def test_steady_state_flag():
     )
     w = stock_flow.littles_law(df)
     assert w["steady_state_ok"].to_list() == [True, False, None]
+
+
+def test_benchmark_sets_aside_files_not_yet_numbered():
+    t = benchmark.fc_benchmark(_activity(), _dockets(), None)
+    # IMM-500-24 was filed on 1 June 2024, but IMM-300-24 before it was filed on 1 March and
+    # nothing shows a later number issued by 30 June, so all open files count as numbered ...
+    r = _get(t, "immigration", "pending at period end, files numbered by then", "2024-06-30")
+    assert r["ours"] == 900
+    # ... while a file filed before a lower-numbered one was numbered after its filing date
+    late = _dockets().vstack(
+        pl.DataFrame(
+            [
+                _file("IMM", 2024, 400, date(2024, 7, 15)),
+                _file("IMM", 2024, 450, date(2024, 6, 20)),
+            ],
+            schema_overrides={"final_disposition_date": pl.Date},
+        )
+    )
+    t = benchmark.fc_benchmark(_activity(), late, None)
+    full = _get(t, "immigration", "pending at period end", "2024-06-30")["ours"]
+    numbered = _get(t, "immigration", "pending at period end, files numbered by then", "2024-06-30")
+    # IMM-450-24 (filed 20 June) and IMM-500-24 (1 June) follow IMM-400-24, filed 15 July
+    assert full - numbered["ours"] == round(2 / 6 * 800)

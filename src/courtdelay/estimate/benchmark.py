@@ -59,9 +59,16 @@ def fc_court_series(fc_activity: pl.DataFrame) -> pl.DataFrame:
 
 def _strata(sample: pl.DataFrame) -> list[tuple[pl.DataFrame, int, int]]:
     """(files, n sampled, top file number) per filing-year stratum of the immigration sample.
-    The top number in the sample stands in for the number of files opened in the year."""
+    The top number in the sample stands in for the number of files opened in the year.
+
+    Adds ``numbered_by``: the latest filing date among sampled files with a lower number. File
+    numbers are issued in sequence when the Registry opens a file, so a file cannot have been
+    numbered before that date. It is a lower bound on the opening date (found 2026-11-21: from
+    March 2025 to July 2026 a quarter of files were numbered two to five weeks after their
+    filing date)."""
     out = []
     for (_,), k in sample.partition_by("docket_year", as_dict=True).items():
+        k = k.sort("number").with_columns(pl.col("date_filed").cum_max().alias("numbered_by"))
         out.append((k, k.height, int(k["number"].max())))
     return out
 
@@ -144,11 +151,27 @@ def fc_benchmark(
 
             # immigration pending: sampled files open at the cut-off, scaled stratum by stratum
             if first_sample_year is not None and cut.year > first_sample_year:
-                est = var = 0.0
+                est = var = est_n = var_n = 0.0
                 for k, n, top in strata:
                     p = k.filter(open_at).height / n
                     est += p * top
                     var += top**2 * p * (1 - p) / n
+                    p = k.filter(open_at & (pl.col("numbered_by") <= cut)).height / n
+                    est_n += p * top
+                    var_n += top**2 * p * (1 - p) / n
+                rows.append(
+                    _row(
+                        "immigration",
+                        "pending at period end, files numbered by then",
+                        r["period_end"],
+                        r["pending_imm"],
+                        est_n,
+                        est_n - Z * math.sqrt(var_n),
+                        est_n + Z * math.sqrt(var_n),
+                        "as the pending estimate, leaving out files filed by the date but not "
+                        "yet given a number (an upper bound: some more were numbered later)",
+                    )
+                )
                 rows.append(
                     _row(
                         "immigration",

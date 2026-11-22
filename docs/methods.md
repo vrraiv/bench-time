@@ -136,40 +136,87 @@ shown on the review page). Flows are year to date.
 | Immigration filings, 2003–2021 by year | S4 dockets (census), by filing date | 0.998–1.006 |
 | Immigration filings, 2023–2026 by quarter | S10 immigration sample, share of the year's sampled files dated by the cut-off × top file number | 0.92–1.09; the Court's figure is inside the 95% sampling interval in 14 of 15 quarters (June 2026: 1.09) |
 | Non-immigration filings, 2018–2026 | S10 census of `T` files, registrations excluded | 1.008–1.033 |
-| Non-immigration dispositions, 2022–2025 | same | 0.954–1.002 |
-| Non-immigration dispositions, 2026 to 30 September | same | 0.684 |
-| Immigration pending, 2023–2026 by quarter | S10 immigration sample (files opened from 2022), open at the cut-off, scaled by stratum | 0.95–1.21; 1.05 at end-2024, 1.11 at end-2025, 1.15 at September 2026 (43,656, interval 42,253–45,059, against 37,873) |
+| Non-immigration dispositions, 2022–2026 | same | 0.954–1.001 (2026 to 30 September: 0.959) |
+| Immigration pending, 2023–2026 by quarter | S10 immigration sample (files opened from 2022), open at the cut-off, scaled by stratum | 0.96–1.12; 1.05 at end-2024, 1.10 at end-2025, 1.05 at September 2026 (39,844, interval 38,450–41,239, against 37,873) |
+| The same, leaving out files not yet numbered at the cut-off | as above | 0.95–1.11; inside the sampling interval in all nine quarters from September 2023 to September 2025, then 1.05–1.09 |
 
 Reading:
 
 - The filings side of the rise is corroborated to within a few percent in every period, and the
   third-quarter 2026 jump is in the filing dates: sampled files dated in the three quarters of
   2026 number 209, 253 and 368, or about 6,900, 8,400 and 12,200 filings, against the Court's
-  6,650, 7,403 and 13,591. At most about 1,000 filings may have been counted a quarter late.
-- Our pending estimate follows the same path but runs above the Court's, increasingly so in
-  2026. The direction matches a known weakness of ours: endings are under-recorded for recent
-  months (the 0.684 above), so too many files look open. It is not evidence against the Court's
-  figure. Older years are missing from the estimate (files opened before 2022), which works the
-  other way and is small.
-- **Cause of the 2026 shortfall in endings (found 2026-11-21, not yet fixed).** The Registry's
-  entries change format at 1 January 2026 (`LEGACY_RE_IND` goes from `Y` to `N`): a final
-  decision is now written "Order (Final) dated …", "Judgment (Final) …" or "Decision (Final) …",
-  and other orders "(Interlocutory)". `FINAL_RE` matches only the two older forms, so no entry
-  dated 2026 is marked final and only discontinuances end a file. Disposition capture drops in
-  the first quarter of 2026 and stays flat (immigration 0.72–0.74, non-immigration 0.63–0.73 by
-  quarter), which is a rule failure, not a recording lag. Counting the new marker in a trial run
-  (not in the built tables) raises 2026 dispositions to 30 September from 0.73 to 0.95 of the
-  Court's for immigration and from 0.68 to 0.82 for non-immigration, and brings the September
-  2026 immigration pending estimate from 43,656 to 40,765 (±1,400) against 37,873. Still to do:
-  extend the end-of-file, leave-result and hearing rules to the new format (no French "final"
-  form was seen in the trial; leave decisions and judgment entries recognised also fall by
-  two-thirds and a third in 2026), re-parse S10, rebuild. The published FC/FCA cohort tables
-  are affected for endings in 2026.
+  6,650, 7,403 and 13,591.
+- **The 2026 entry format (found and fixed 2026-11-21).** The Registry's entries change format
+  at 1 January 2026 (`LEGACY_RE_IND` goes from `Y` to `N`; a few appear from September 2025). A
+  final decision is now written "Order (Final) dated …", "Reasons - for Judgment and Judgment
+  (Final) …", "Decision (Final) …", "Ordonnance (final(e)) …"; other orders say
+  "(Interlocutory)" or nothing; leave outcomes read "Result - Leave dismissed" or "Résultat -
+  Demande d'autorisation rejetée"; a withdrawn entry reads "Recorded entry cancelled." The old
+  rules matched none of this, so no entry dated 2026 was marked final and only discontinuances
+  ended a file: our share of the Court's dispositions fell to 0.72–0.74 (immigration) and
+  0.63–0.73 (non-immigration) in every quarter of 2026. Now recognised
+  (`FINAL_2026_RE`, and additions to the leave, result, removed-entry and hearing-date rules in
+  `s4_rll_fc_dockets.py`). Translations, corrections to reasons, costs assessments and documents
+  "placed on file" carry the qualifier of the decision they belong to and are not counted as the
+  ending. Effect of the re-parse: 1,206 files gain or change an ending (816 Federal Court
+  non-immigration, 158 immigration, 232 Federal Court of Appeal), all but 11 dated 2026; 308
+  leave decisions are newly recognised. Dispositions for 2026 are back to 0.93–0.98 of the
+  Court's by quarter (non-immigration) and 1.00–1.07 (immigration, sampled). The published cohort
+  tables move: share of files ended, Federal Court 2025 cohort 48% to 59%, Federal Court of
+  Appeal 2025 cohort 31% to 58% and 2024 cohort 69% to 86%.
+- Side effects on older entries, all small: the hearing date moves on 7 files (minutes whose
+  result line shows a case conference are no longer taken as the hearing), and the recorded
+  result of a hearing or judgment changes on 64 files (the result is now read from the words
+  after "Résultat" before the rest of the entry). S4 has not been re-parsed with these rules.
+- Not done: a judgment or order in the 2026 format with no qualifier at all is not treated as
+  an ending (about 40 judgment entries and 690 orders in files still open, most of them
+  certainly interlocutory); English minutes in the 2026 format name the subject only sometimes,
+  so a few conferences may still be read as hearings.
+
+Residual after the fix (immigration pending, ours above the Court's by 5% at September 2026 and
+by 10–12% in the three quarters before):
+
+- **Files filed but not yet numbered.** File numbers are issued in sequence when the Registry
+  opens a file. Sorting the sampled files by number, a file cannot have been numbered before the
+  latest filing date among lower-numbered files. By that lower bound, numbering followed filing
+  by 0 to 1 days (median) and about one to two weeks (90th percentile) until early 2025; from
+  March 2025 to July 2026 the 75th percentile is 3 to 34 days and the 90th 13 to 53 days; from
+  September 2026 it is back to 0 to 3 days. The first 500 numbers of 2026 went mostly to files
+  filed in the second half of December 2025. The Court's counts follow the opened file, ours the
+  filing date, so our stock is ahead by the files waiting for a number: at least 630 at
+  end-2025, 560 at March 2026, 1,560 at June 2026 and 230 at September 2026 (lower bounds, ±170
+  to ±430). This also explains why the Court's year-to-date filings ran 4% and 9% below ours in
+  March and June 2026 and caught up in September, and part of the 13,591 filings it reports for
+  the third quarter.
+- **Leaving those files out**, our estimate is within sampling error of the Court's in every
+  quarter from September 2023 to September 2025 (ratios 0.95–1.06), then sits 1,700 to 2,200
+  files above it from December 2025 on (ratios 1.05–1.09; sampling error about ±1,000 to ±1,400).
+- **That step arises in the fourth quarter of 2025.** The Court reports 4,559 immigration
+  dispositions in that quarter; our sample gives 3,550 (±610), a ratio of 0.78 against 0.92–1.11
+  in the ten other quarters of 2024–2026. The sampled files we count as open at end-2025 show
+  no unrecognised endings in that quarter (their entries with words such as dismiss, final,
+  closed, settle are leave grants, motions and letters). Of the files we count as open at
+  September 2026, 94% have no decision of any kind recorded, and entries that look like an
+  unmarked ending account for about 130 files of 39,800.
+- **Not explained.** Candidates not tested: dispositions in late 2025 of immigration files
+  opened before 2022, which our sample does not cover (published decisions show no such
+  judgments, but an administrative closure would not appear there); a year-end adjustment in
+  the Court's count; chance (the quarter is about three standard errors out, one of eleven
+  quarters). A sample of pre-2022 immigration files from the Court's file search would test the
+  first; it needs the owner's approval as a new stratum.
+- Also noted: the Court's own immigration stock fell by about 380 more than its flows imply in
+  the first quarter of 2024 (the identity break flagged for that quarter).
+- **Non-immigration.** Our open files (opened from 2018) are 11–13% above the Court's
+  non-immigration pending in every quarter from 2024 (6,373 against 5,663 at September 2026),
+  although the Court's figure also includes files opened before 2018. The gap is about the sum
+  of two small yearly differences: we count 1–3% more filings than the Court (file types it
+  does not count as proceedings commenced, beyond the registrations we already exclude) and 0–5%
+  fewer dispositions (endings our rules miss). Which file types is not yet identified.
 - Highest immigration file number cited in published decisions (S3) is within 1–2% of the
   Court's yearly immigration filings for 2012–2025 (6% in 2020). It is not usable within a year:
   numbers are not issued in filing-date order.
 - About 900 files numbered for 2026 carry a late-2025 filing date (27 of 1,011 sampled; 1 to 7 a
-  year in 2023–2025). Which year the Court counts them in is not known.
+  year in 2023–2025): files that waited for a number over the year end (see the residual above).
 - S4 open-file counts are 1.2 to 4 times the Court's immigration pending (files with no ending
   found), so S4 benchmarks flows only.
 - All of these sources are the Court's own registry seen through different windows. No count

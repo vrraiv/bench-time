@@ -184,3 +184,92 @@ def test_french_and_appeal_court_hearing_minutes():
     ]
     d = s4.derive_docket(s4.classify_docket_entries(docs, "T-9-20"))
     assert d["hearing_date"] == date(2020, 5, 12)  # the case conference is not the hearing
+
+
+# Entries in the Registry's format from 1 January 2026 (synthetic, modelled on real headers)
+LEAVE_DISMISSED_2026 = (
+    "Order (Final) dated 2026-05-28 rendered by The Honourable Mr. Justice Example without "
+    "personal appearance regarding doc # 1 - IMM-CIT - APPLICATION FOR LEAVE AND JUDICIAL REVIEW "
+    "Result - Leave dismissed issued to: all parties by email received on 2026-05-29"
+)
+LEAVE_GRANTED_2026 = (
+    "Order dated 2026-06-25 rendered by The Honourable Madam Justice Example Result - Leave "
+    "granted, Judicial Review scheduled The hearing of the application for judicial review shall "
+    "take place before the Court in person at the Federal Court in the City of Toronto, on "
+    "Wednesday, September 16, 2026, to commence at 11:00 a.m. issued to: all parties by email"
+)
+LEAVE_DISMISSED_2026_FR = (
+    "Ordonnance (final(e)) daté(e)(s) du 2026-02-11 rendu(e)(s) par Monsieur le juge Exemple sans "
+    "comparution des parties concernant le doc # 1 - IMM-CIT - DEMANDE D'AUTORISATION ET DE "
+    "CONTRÔLE JUDICIARE Résultat - Demande d'autorisation rejetée délivré(e)(s) à : toutes les "
+    "parties par courriel déposé(e)(s) le 2026-02-12"
+)
+JUDGMENT_2026 = (
+    "Reasons - for Judgment and Judgment (Final) dated 2026-08-28 rendered by The Honourable "
+    "Madam Justice Example with personal appearance Result - dismissed issued to: all parties"
+)
+INTERLOCUTORY_2026 = (
+    "Order (Interlocutory) dated 2026-08-14 rendered by Associate Judge Example without personal "
+    "appearance regarding doc # 3 - Notice of Status Review filed on 2026-08-14"
+)
+TRANSLATION_2026 = (
+    "Traduction - texte français - jugement (final(e)) daté(e)(s) du 2026-03-02 déposé(e)(s) le "
+    "2026-04-20"
+)
+HEARING_CMC_2026 = (
+    "This matter comes on for Hearing on 2026-10-30 at Toronto virtual before Associate Judge "
+    "Example hearing language: English Duration on 15 minutes Courtroom: Toronto (Zoom) "
+    "Result of Hearing: CMC heard"
+)
+HEARING_FR_2026 = (
+    "L'audition de cette affaire a eu lieu Audition le 2026-09-01 à Montréal en personne en "
+    "présence de Monsieur le juge Exemple langue de l'audience : français Matière en litige : "
+    "Contrôle judiciaire Résultat de l'audition : décision mise en délibéré"
+)
+
+
+def test_2026_registry_format():
+    assert s4.classify_entry(LEAVE_DISMISSED_2026) == "leave_decision"
+    assert s4.entry_result(LEAVE_DISMISSED_2026) == "dismissed"
+    assert s4.is_final_marker(LEAVE_DISMISSED_2026)
+    assert s4.classify_entry(LEAVE_GRANTED_2026) == "leave_decision"
+    assert s4.entry_result(LEAVE_GRANTED_2026) == "granted"
+    assert not s4.is_final_marker(LEAVE_GRANTED_2026)
+    assert s4.classify_entry(LEAVE_DISMISSED_2026_FR) == "leave_decision"
+    assert s4.entry_result(LEAVE_DISMISSED_2026_FR) == "dismissed"
+    assert s4.is_final_marker(LEAVE_DISMISSED_2026_FR)
+    assert s4.classify_entry(JUDGMENT_2026) == "judgment"
+    assert s4.entry_result(JUDGMENT_2026) == "dismissed"
+    assert s4.is_final_marker(JUDGMENT_2026)
+    assert s4.is_final_marker("Copy of Copy of Order (Final) dated 2026-03-01 rendered by X")
+    # not the decision itself: interlocutory orders, translations, corrections, placed on file
+    assert not s4.is_final_marker(INTERLOCUTORY_2026)
+    assert not s4.is_final_marker(TRANSLATION_2026)
+    assert not s4.is_final_marker("Corrections to reasons (Final) dated 2026-03-01")
+    assert not s4.is_final_marker("Copy of Decision placed on file (Final) dated 2026-03-01")
+    assert s4.classify_entry("Recorded entry cancelled.") == "removed_entry"
+    assert s4.classify_entry("Inscription enregistrée annulée.") == "removed_entry"
+    # the older markers still work
+    assert s4.is_final_marker(LEAVE_DISMISSED) and not s4.is_final_marker(LEAVE_GRANTED)
+
+
+def test_2026_docket_stages():
+    docs = [
+        {"RE_NO": 1, "DOC_DT": "2026-01-05", "RECORDED_ENTRY": "Application for leave filed"},
+        {"RE_NO": 2, "DOC_DT": "2026-06-25", "RECORDED_ENTRY": LEAVE_GRANTED_2026},
+        {"RE_NO": 3, "DOC_DT": "2026-07-10", "RECORDED_ENTRY": HEARING_CMC_2026},
+        {"RE_NO": 4, "DOC_DT": "2026-09-16", "RECORDED_ENTRY": HEARING_FR_2026},
+        {"RE_NO": 5, "DOC_DT": "2026-10-20", "RECORDED_ENTRY": JUDGMENT_2026},
+        {"RE_NO": 6, "DOC_DT": "2026-11-02", "RECORDED_ENTRY": TRANSLATION_2026},
+    ]
+    d = s4.derive_docket(s4.classify_docket_entries(docs, "IMM-1-26"), judgment_fallback=False)
+    assert (d["leave_decision_date"], d["leave_result"]) == (date(2026, 6, 25), "granted")
+    assert d["scheduled_hearing_date"] == date(2026, 9, 16)
+    # the case conference is not the hearing of the application
+    assert (d["hearing_date"], d["hearing_result"]) == (date(2026, 9, 16), "reserved")
+    assert d["final_disposition_date"] == date(2026, 10, 20)
+    assert d["final_disposition_source"] == "marker" and d["final_disposition_type"] == "judgment"
+    one = [{"RE_NO": 1, "DOC_DT": "2026-05-29", "RECORDED_ENTRY": LEAVE_DISMISSED_2026}]
+    d = s4.derive_docket(s4.classify_docket_entries(one, "IMM-2-26"), judgment_fallback=False)
+    assert d["final_disposition_date"] == date(2026, 5, 29)
+    assert d["final_disposition_type"] == "leave_decision"
