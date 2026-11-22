@@ -1,0 +1,68 @@
+# Build the site and deploy it to the access-restricted preview (Cloudflare Worker docket-watch)
+# whenever main changes under site/, or by hand (Actions > Preview deploy > Run workflow, or
+# `gh workflow run preview-deploy.yml`).
+#
+# The held-back files in site/src/review-data/ are gitignored, so they are downloaded from the
+# private R2 bucket docket-watch-review-data (uploaded with scripts/push_review_data.sh). The job
+# stops before building if they cannot all be fetched, so it never deploys a preview without them.
+#
+# Repository secrets needed once (Settings > Secrets and variables > Actions):
+#   CLOUDFLARE_API_TOKEN   token limited to this account: Workers Scripts edit, Workers R2 Storage
+#   CLOUDFLARE_ACCOUNT_ID  the account id (not secret, kept with the token for convenience)
+name: Preview deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", ".github/workflows/preview-deploy.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BUCKET: docket-watch-review-data
+      OBSERVABLE_TELEMETRY_DISABLE: "true"
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Fetch held-back files from R2
+        run: |
+          set -euo pipefail
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN secret is not set"; exit 1; }
+          mkdir -p src/review-data
+          npx wrangler r2 object get "$BUCKET/MANIFEST.txt" --file manifest.txt --remote
+          n=0
+          while IFS= read -r name; do
+            [ -n "$name" ] || continue
+            case "$name" in */*|.*) echo "unexpected name in manifest: $name"; exit 1;; esac
+            npx wrangler r2 object get "$BUCKET/$name" --file "src/review-data/$name" --remote
+            n=$((n + 1))
+          done < manifest.txt
+          rm manifest.txt
+          for f in questions.json s8_fc_benchmark_vs_court_files.csv; do
+            test -s "src/review-data/$f" || { echo "missing held-back file: $f"; exit 1; }
+          done
+          echo "fetched $n held-back files"
+      - name: Build
+        run: npm run build
+      - name: Deploy
+        run: npx wrangler deploy
