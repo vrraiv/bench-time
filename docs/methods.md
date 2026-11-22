@@ -151,6 +151,20 @@ Reading:
   months (the 0.684 above), so too many files look open. It is not evidence against the Court's
   figure. Older years are missing from the estimate (files opened before 2022), which works the
   other way and is small.
+- **Cause of the 2026 shortfall in endings (found 2026-11-21, not yet fixed).** The Registry's
+  entries change format at 1 January 2026 (`LEGACY_RE_IND` goes from `Y` to `N`): a final
+  decision is now written "Order (Final) dated …", "Judgment (Final) …" or "Decision (Final) …",
+  and other orders "(Interlocutory)". `FINAL_RE` matches only the two older forms, so no entry
+  dated 2026 is marked final and only discontinuances end a file. Disposition capture drops in
+  the first quarter of 2026 and stays flat (immigration 0.72–0.74, non-immigration 0.63–0.73 by
+  quarter), which is a rule failure, not a recording lag. Counting the new marker in a trial run
+  (not in the built tables) raises 2026 dispositions to 30 September from 0.73 to 0.95 of the
+  Court's for immigration and from 0.68 to 0.82 for non-immigration, and brings the September
+  2026 immigration pending estimate from 43,656 to 40,765 (±1,400) against 37,873. Still to do:
+  extend the end-of-file, leave-result and hearing rules to the new format (no French "final"
+  form was seen in the trial; leave decisions and judgment entries recognised also fall by
+  two-thirds and a third in 2026), re-parse S10, rebuild. The published FC/FCA cohort tables
+  are affected for endings in 2026.
 - Highest immigration file number cited in published decisions (S3) is within 1–2% of the
   Court's yearly immigration filings for 2012–2025 (6% in 2020). It is not usable within a year:
   numbers are not issued in filing-date order.
