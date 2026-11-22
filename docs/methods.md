@@ -196,7 +196,7 @@ by 10–12% in the three quarters before):
   quarter from September 2023 to September 2025 (ratios 0.95–1.06), then sits 1,700 to 2,200
   files above it from December 2025 on (ratios 1.05–1.09; sampling error about ±1,000 to ±1,400).
 - **That step arises in the fourth quarter of 2025.** The Court reports 4,559 immigration
-  dispositions in that quarter; our sample gives 3,550 (±610), a ratio of 0.78 against 0.92–1.11
+  dispositions in that quarter; our sample gives 3,550 (±610), a ratio of 0.78 against 0.93–1.12
   in the ten other quarters of 2024–2026. The sampled files we count as open at end-2025 show
   no unrecognised endings in that quarter (their entries with words such as dismiss, final,
   closed, settle are leave grants, motions and letters). Of the files we count as open at
@@ -220,7 +220,8 @@ by 10–12% in the three quarters before):
     after March. The step is not older files closing. Scaled endings of these files: about 530
     in 2023, 85 in 2024, 7 in 2025, 8 in 2026; they are now in the benchmark's immigration
     dispositions row, which is 0.95–1.06 of the Court's by year and 0.78 for that one quarter
-    (3,550 against 4,559), 0.92–1.25 in the fourteen others.
+    (3,550 against 4,559), 0.93–1.26 in the fourteen other quarters from January 2023 to
+    September 2026 (1.26 is July–September 2023; the rest are 0.93–1.12).
   - None of the 210 sampled files from before 2018 has an ending or any entry after 2017. They
     are not pending in the Court's sense (its whole immigration stock at end-2019 was 3,541) and
     are not added to our stock.
