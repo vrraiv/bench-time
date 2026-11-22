@@ -1363,7 +1363,20 @@ def build_all() -> None:
         _guard = None
 
 
+def copy_review_questions(site: Path) -> None:
+    """The practitioner's questions (data/review/questions.json, written by
+    scripts/import_review_questions.py; gitignored) go to the held-back folder for the
+    "Questions for review" page."""
+    src = paths.REPO_ROOT / "data" / "review" / "questions.json"
+    if src.exists():
+        review = site.parent / "review-data"
+        review.mkdir(exist_ok=True)
+        (review / "questions.json").write_bytes(src.read_bytes())
+        log.info("build: questions for review copied (held back)")
+
+
 def _build_all(derived: Path, site: Path) -> None:
+    copy_review_questions(site)
     build_s1(derived, site)
     build_s5(derived, site)
     build_s6(derived, site)

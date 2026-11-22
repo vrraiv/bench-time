@@ -11,6 +11,7 @@ export default {
     {name: "Appellate: SCC and ONCA", path: "/appellate"},
     {name: "Resources", path: "/resources"},
     {name: "Results under review", path: "/review"},
+    {name: "Questions for review", path: "/questions"},
     {name: "Methods", path: "/methods"},
     {name: "Sources & limitations", path: "/sources"}
   ],

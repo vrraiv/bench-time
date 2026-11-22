@@ -221,6 +221,8 @@ __marimo__/
 # --- bench-time project ---
 data/raw/
 data/processed/
+# practitioner question list: quotes provisional figures, kept out of the public repo
+data/review/
 site/dist/
 site/.observablehq/cache/
 site/node_modules/
