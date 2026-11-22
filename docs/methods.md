@@ -274,8 +274,8 @@ new requests.
   rule leaves the file open. The Court counts them: its Crown litigation dispositions for 2020
   are 480 against our 204, and 423 once these are counted. Recorded per file as
   `lead_order_end_date` and `lead_order_file` (`add_lead_file_endings` in the S10 module), kept
-  apart from `final_disposition_date`: the published cohort tables do not use them yet (owner's
-  decision pending). With them, open files at September 2026 are 5,992 against 5,663 (6% above,
+  apart from `final_disposition_date` at first; counted in the tables from the same day (see
+  the rules adopted below). With them, open files at September 2026 are 5,992 against 5,663 (6% above,
   from 13%), and the Crown and other group 926 against 749.
 - **Other dormant files (806), by words in their entries; not read one by one.** About 160 show
   enforcement steps after a judgment (writs, garnishment, default judgment); about 150 an order
@@ -293,6 +293,61 @@ new requests.
   entry dated 2025 and 46 one dated 2026 with no final-decision marker (201 in all years); the
   S10 rule does not end a file on an unmarked judgment. The counts are close to the shortfall
   but the entries have not been read, so this is the leading candidate, not a finding.
+- **Rules adopted 2026-11-22 (owner decision).** Why our count differed although we hold the
+  files: the Court publishes totals only, never the list of files behind them, so its count
+  cannot be looked up file by file; we infer endings from each file's entries, and a file whose
+  own entries never say it ended stays open in our count. Where the file's record shows the
+  ending by another route we now count it. We do not scale our counts to the Court's totals:
+  that would hide real differences and would not say which files ended when, which the
+  duration tables need.
+  - *Lead-file order*: a file carrying a copy of a decision that ended the file it was made in,
+    on that date, ends on that date (`final_disposition_source = lead_file`; 381 Federal Court
+    files, 72 Federal Court of Appeal).
+  - *Unqualified 2026 judgment*: a judgment in the 2026 entry format with no "(Final)" or
+    "(Interlocutory)" qualifier, not a copy, followed by no order, motion, hearing or direction,
+    ends the file (`unmarked_judgment`; 30 Federal Court files, 1 immigration, all 2026). Of the
+    538 open files with an entry classed as a judgment, 404 were motions for judgment,
+    directions or copies, and 90 of the 134 real judgments are marked interlocutory; none of
+    those is an ending.
+  - Both are in the published cohort tables. Effect: share ended, Federal Court actions 2018
+    cohort 74% to 92%, 2021 cohort 77% to 88%; Federal Court all files 2018 80% to 89%; 75th
+    percentile, all files 2018, 1,387 to 804 days; Federal Court of Appeal 2018 cohort 92% to
+    97% ended, 90th percentile 1,271 to 877 days. Medians move by 0 to 32 days (54 for 2019
+    actions).
+  - *Group ending, recorded but not counted* (`group_end_date`): a file carrying a copy of some
+    decision from a file that has since ended, with no entry of its own more than 90 days after
+    that ending (209 files; 57 judicial review files in 2025, 50 of them consolidated under one
+    2018 application). Probably ended with the lead file; no entry says so. Benchmark only.
+- **Tax-collection matters.** Our extra Crown-group filings track the Crown's tax-collection
+  files (Income Tax Act and excise applications, jeopardy collection orders, search warrants)
+  year for year: excess 54, 43, 34, 9, 29, 57, 49, 28 for 2019–2026 against 53, 38, 34, 27, 33,
+  47, 40, 30 such files (303 against 302). Prairie Grain files fit less well. The Court's count
+  of proceedings appears to leave these out; it publishes no definition, so this is inferred.
+  146 of them were open at September 2026, up from 100 at end-2022. The benchmark leaves them
+  out; the cohort tables keep them (owner's decision pending).
+- **Result.** With the two adopted rules, group endings, and tax-collection matters left out:
+
+  | | Filings, ours − Court | Dispositions, ours ÷ Court | Open files, ours ÷ Court pending |
+  |---|---|---|---|
+  | 2022 | −1 | 0.955 | 0.907 |
+  | 2023 | +2 | 1.018 | 0.908 |
+  | 2024 | +11 | 1.002 | 0.955 |
+  | 2025 | −3 | 0.984 | 0.982 |
+  | 2026 to 30 September | −1 | 0.963 | 1.001 |
+
+  Without group endings the last column is 0.928, 0.933, 0.981, 1.013, 1.029. Filings now agree
+  to within 11 files a year. The stock ratio still rises about 9 points over four years. Two
+  things push it up: the Court's figure holds files opened before 2018, a share that shrinks as
+  they close (Aboriginal law alone: 305 pending against our 189); and judicial review, where
+  our dispositions remain short by 11, 35 and 45 in 2024–2026 (2–3%) and our open files are
+  155 above the Court's at September 2026. That judicial review residual is the part still
+  unexplained; candidates are orders that end a file without a marker (dismissal for delay,
+  consent orders) and settlements never followed by a discontinuance. Crown and other is now
+  747 open against 749.
+- **Federal Court of Appeal: gap found, not resolved.** Our yearly dispositions are 85–92% of
+  that court's total (369 against 407 in 2025) and our open files are 25% above its pending
+  (602 against 482 at end-2025), after the lead-file rule (674 before). The published appeal
+  cohort tables therefore overstate upper quantiles. Not yet investigated.
 - **Reading.** For 2024–2026 the Court's extra dispositions are almost entirely of files in
   our records (older files: about 25 to 30 a year). The level of the excess is files ended in
   substance without an ending entry of their own. The published Federal Court cohort medians

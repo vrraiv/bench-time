@@ -381,30 +381,93 @@ def copies_of_decisions(texts: list[str], own: str | None) -> list[tuple[str, st
     return out
 
 
-def add_lead_file_endings(rows: list[dict]) -> int:
-    """Fill ``lead_order_end_date`` / ``lead_order_file`` on files with no ending of their own
-    that carry a copy of a decision which ended the file it was made in, on that date. Kept apart
-    from ``final_disposition_date``: whether the tables should count these is the owner's call.
-    Returns the number of files filled."""
+# A judgment in the 2026 entry format with no "(Final)" or "(Interlocutory)" qualifier. It ends
+# the file when nothing but correspondence follows it (found 2026-11-22: 31 such files, all 2026).
+UNQUALIFIED_JUDGMENT_RE = re.compile(
+    r"^\s*(?:(?:reasons|motifs)\s*-?\s*(?:for|de|du)\s+(?:judgment|jugement)\s+(?:and|et)\s+)?"
+    r"(?:judgment|jugement)\b(?![^\n]{0,80}\(\s*(?:interlocut|final))",
+    re.I,
+)
+CONTINUES_RE = re.compile(
+    r"^\s*(?:order|ordonnance|judgment|jugement|reasons|motifs|notice of motion|avis de requ"
+    r"|motion record|dossier de requ|minutes|proc[èe]s-verbal|direction|oral direction"
+    r"|written direction|notice of appeal|avis d.appel)",
+    re.I,
+)
+GROUP_GRACE_DAYS = 90
+
+
+def unqualified_judgment_date(entries: list[dict]):
+    """Date of the last 2026-format judgment that carries no qualifier, is not a copy, and is
+    followed by no order, motion, hearing or direction. None otherwise."""
+    es = sorted(entries, key=lambda e: ((e.get("DOC_DT") or "")[:10], e.get("RE_NO") or 0))
+    for i in range(len(es) - 1, -1, -1):
+        e, text = es[i], es[i].get("RECORDED_ENTRY") or ""
+        own = str(e.get("IS_COPY", "N")).upper() != "Y"
+        if own and str(e.get("LEGACY_RE_IND", "Y")).upper() == "N":
+            if UNQUALIFIED_JUDGMENT_RE.search(text):
+                later = [x.get("RECORDED_ENTRY") or "" for x in es[i + 1 :]]
+                if any(CONTINUES_RE.search(t) for t in later):
+                    return None
+                return (e.get("DOC_DT") or "")[:10] or None
+    return None
+
+
+def add_linked_endings(rows: list[dict]) -> dict[str, int]:
+    """Endings the file's own entries do not mark. Applied to files with no ending, in order:
+
+    ``unmarked_judgment``  a 2026-format judgment with no qualifier and nothing after it but
+                           correspondence: the file ends on the judgment date.
+    ``lead_file``          the file carries a copy of a decision that ended the file it was made
+                           in, on that date (one order dismissing a list of files): the file ends
+                           on that date. Owner decision 2026-11-22: counted in the tables.
+
+    Both set ``final_disposition_date`` with ``final_disposition_source`` naming the rule.
+
+    A third inference is recorded apart, in ``group_end_date`` / ``group_end_file``, and no
+    table counts it: the file carries a copy of some decision from a file that has since ended
+    (by any route, a discontinuance included) and has had no entry of its own more than
+    ``GROUP_GRACE_DAYS`` days after that ending. These are companions in a consolidated or
+    jointly managed group; the lead's ending probably covers them but no entry says so."""
+    from datetime import timedelta
+
     from courtdelay.sources import s4_rll_fc_dockets as s4
 
+    n = {"unmarked_judgment": 0, "lead_file": 0, "group": 0}
+    for r in rows:
+        r["lead_order_file"], r["group_end_date"], r["group_end_file"] = None, None, None
+        uj = r.pop("_unqualified_judgment", None)
+        if r.get("final_disposition_date") is None and uj:
+            r["final_disposition_date"] = s4.parse_entry_date(uj)
+            r["final_disposition_type"] = "judgment"
+            r["final_disposition_source"] = "unmarked_judgment"
+            n["unmarked_judgment"] += 1
     ended = {
         (r["division"], r["docket"]): (r["final_disposition_date"], r["final_disposition_type"])
         for r in rows
         if r.get("final_disposition_date") is not None
     }
-    n = 0
     for r in rows:
-        r["lead_order_end_date"], r["lead_order_file"] = None, None
         copies = r.pop("_copies", [])
         if r.get("final_disposition_date") is not None:
             continue
         for lead, written in copies:
             end = ended.get((r["division"], lead))
             if end and end[1] != "discontinuance" and s4.parse_entry_date(written) == end[0]:
-                r["lead_order_end_date"], r["lead_order_file"] = end[0], lead
-                n += 1
+                r["final_disposition_date"] = end[0]
+                r["final_disposition_type"] = "lead_file_order"
+                r["final_disposition_source"] = "lead_file"
+                r["lead_order_file"] = lead
+                n["lead_file"] += 1
                 break
+        else:
+            last = r.get("last_entry_date")
+            for lead, _ in reversed(copies):
+                end = ended.get((r["division"], lead))
+                if end and last and last <= end[0] + timedelta(days=GROUP_GRACE_DAYS):
+                    r["group_end_date"], r["group_end_file"] = end[0], lead
+                    n["group"] += 1
+                    break
     return n
 
 
@@ -479,6 +542,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,
             "_copies": copies_of_decisions(texts, docket),
+            "_unqualified_judgment": unqualified_judgment_date(entries),
             **s4.derive_docket(ents, judgment_fallback=False),
         }
     )
@@ -534,14 +598,18 @@ def parse(client: Client | None = None):
         entries.extend(erows)
     out = paths.processed_dir() / "s10"
     out.mkdir(exist_ok=True)
-    n_lead = add_lead_file_endings(dockets)
-    log.info("S10: %d open files carry a copy of a lead file's closing decision", n_lead)
+    log.info("S10: endings not marked on the file itself: %s", add_linked_endings(dockets))
     for r in older:
         r.pop("_copies", None)
+        r.pop("_unqualified_judgment", None)
     d = pl.DataFrame(
         dockets,
         infer_schema_length=None,
-        schema_overrides={"lead_order_end_date": pl.Date, "lead_order_file": pl.String},
+        schema_overrides={
+            "lead_order_file": pl.String,
+            "group_end_date": pl.Date,
+            "group_end_file": pl.String,
+        },
     )
     e = pl.DataFrame(entries, infer_schema_length=None)
     if d.height:

@@ -25,6 +25,12 @@ IMM_TOTAL_RX = (
     r"|total immigration)$"
 )
 Z = 1.96
+# Tax-collection matters brought by the Crown (jeopardy collection orders, Income Tax Act and
+# excise applications, search warrants). The Court's count of proceedings appears to leave them
+# out: with them our yearly non-immigration filings exceed the Court's by 9 to 57 (2019-2026),
+# without them the two agree to within 11 in every year from 2022 (found 2026-11-22). Left out
+# of the benchmark only; the cohort tables keep them.
+TAX_COLLECTION_RX = r"Income Tax|\bITA\b|Excise|Customs|GST|Search Warrant"
 
 SCHEMA = {
     "component": pl.Utf8,
@@ -143,6 +149,8 @@ def fc_benchmark(
         fc = s10.filter(pl.col("division") == "T")
         sample = fc.filter(pl.col("prefix") == "IMM")
         census = fc.filter((pl.col("prefix") == "T") & ~pl.col("is_registration"))
+        if "nature" in census.columns:
+            census = census.filter(~pl.col("nature").fill_null("").str.contains(TAX_COLLECTION_RX))
         first_census_year = census["docket_year"].min() if census.height else None
         strata = _strata(sample) if sample.height else []
         first_sample_year = min((int(k["docket_year"][0]) for k, _, _ in strata), default=None)
@@ -253,19 +261,20 @@ def fc_benchmark(
                         census.filter(in_ytd).height,
                         None,
                         None,
-                        "our census of court files, registrations excluded",
+                        "our census of court files, registrations and tax-collection matters "
+                        "excluded",
                     )
                 )
             # stock: our open files against the Court's pending, which also holds older files.
-            # Second version counts a file as ended when a lead file's closing order was copied
-            # onto it (found 2026-11-22; see S10 ``add_lead_file_endings``).
+            # Second version also counts companions of a group whose lead file has ended
+            # (an inference no table uses; see S10 ``add_linked_endings``).
             if cut.year >= first_census_year + 4:
                 ends = [("", pl.col("final_disposition_date"))]
-                if "lead_order_end_date" in census.columns:
+                if "group_end_date" in census.columns:
                     ends.append(
                         (
-                            ", counting lead-file orders",
-                            pl.coalesce("final_disposition_date", "lead_order_end_date"),
+                            ", counting group endings",
+                            pl.coalesce("final_disposition_date", "group_end_date"),
                         )
                     )
                 for label, end in ends:
@@ -296,7 +305,7 @@ def fc_benchmark(
                                 None,
                                 None,
                                 f"our census of court files opened from {first_census_year}, "
-                                "registrations excluded",
+                                "registrations and tax-collection matters excluded",
                             )
                         )
             # endings of files opened before the census began are missing in its first years
@@ -312,7 +321,7 @@ def fc_benchmark(
                         None,
                         None,
                         f"our census of court files opened from {first_census_year}, "
-                        "registrations excluded",
+                        "registrations and tax-collection matters excluded",
                     )
                 )
 
