@@ -43,6 +43,41 @@ def test_confidential_file_is_kept_and_counted(monkeypatch):
     assert s10.parse_file(FIX["info"], entries, "2026-11-16") == (None, [])
 
 
+def test_copy_of_a_lead_file_order_is_recorded_apart_from_the_ending():
+    copy = (
+        "Copy of Order dated 27-APR-2020 rendered by a judge placed on file.\n"
+        "Original filed on Court File No. T-10-18"
+    )
+    assert s10.copies_of_decisions([copy, "Letter received"], "T-11-18") == [
+        ("T-10-18", "27-APR-2020")
+    ]
+    assert s10.copies_of_decisions([copy], "T-10-18") == [], "the file's own order is not a copy"
+
+    def row(docket, end, kind, copies):
+        return {
+            "division": "T",
+            "docket": docket,
+            "final_disposition_date": end,
+            "final_disposition_type": kind,
+            "_copies": copies,
+        }
+
+    rows = [
+        row("T-10-18", date(2020, 4, 27), "order", []),
+        row("T-11-18", None, None, [("T-10-18", "27-APR-2020")]),  # the lead's closing order
+        row("T-12-18", None, None, [("T-10-18", "03-MAR-2019")]),  # an earlier, procedural order
+        row("T-13-18", None, None, [("T-99-18", "27-APR-2020")]),  # lead file not in our records
+    ]
+    assert s10.add_lead_file_endings(rows) == 1
+    by = {r["docket"]: r for r in rows}
+    assert by["T-11-18"]["lead_order_end_date"] == date(2020, 4, 27)
+    assert by["T-11-18"]["lead_order_file"] == "T-10-18"
+    assert by["T-11-18"]["final_disposition_date"] is None, "the file's own ending is untouched"
+    assert by["T-12-18"]["lead_order_end_date"] is None
+    assert by["T-13-18"]["lead_order_end_date"] is None
+    assert all("_copies" not in r for r in rows)
+
+
 def test_appeal_from_reads_the_lower_file_number():
     e = [
         {"DOC_DT": "2021-04-02", "RE_NO": 2, "RECORDED_ENTRY": "Letter received"},

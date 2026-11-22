@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import re
 from dataclasses import asdict, dataclass
 
 from courtdelay.common import paths
@@ -210,15 +211,97 @@ def crawl_sample(client: Client, s: Stratum, hint: int = 8000) -> dict:
     return result
 
 
+# -- list sample: immigration files opened before 2022 and still open in November 2022 ----------
+#
+# Owner approval 2026-11-22. The Court's pending count includes immigration files older than our
+# 2022+ sample. The Refugee Law Lab dockets (S4) give every such file as of November 2022; this
+# stratum draws from the ones S4 shows without an ending and reads their state today, to see how
+# many are still open and when the others closed. Files S4 shows as ended are assumed to have
+# stayed ended.
+
+PRE2022 = "IMM-PRE2022"
+PRE2022_GROUPS = {  # filing-year group -> files to fetch
+    "2021": 300,  # 1,092 in the frame, all active in 2021-22
+    "2018-2020": 150,  # 347 in the frame
+    "2011-2017": 150,  # about 5,000, last active 2013-2018: mostly endings S4 does not show
+    "to-2010": 60,  # about 1,100, last active in their filing year
+}
+
+
+def pre2022_group(filing_year: int) -> str:
+    if filing_year >= 2021:
+        return "2021"
+    if filing_year >= 2018:
+        return "2018-2020"
+    return "2011-2017" if filing_year >= 2011 else "to-2010"
+
+
+def pre2022_plan_path():
+    return paths.raw_dir(SOURCE) / f"plan_{PRE2022}.json"
+
+
+def make_pre2022_plan() -> dict:
+    """Frame: S4 files filed before 2022 with no ending recorded at the 2022 scrape, in four
+    filing-year groups; each group's files in seeded random order. Written once."""
+    import polars as pl
+
+    plan_path = pre2022_plan_path()
+    if plan_path.exists():
+        return json.loads(plan_path.read_text())
+    d = pl.read_parquet(paths.processed_dir() / "s4" / "dockets.parquet").filter(
+        (pl.col("filing_year") < 2022) & pl.col("final_disposition_date").is_null()
+    )
+    groups = {}
+    for g in PRE2022_GROUPS:
+        nos = sorted(
+            r["docket"]
+            for r in d.select("docket", "filing_year").iter_rows(named=True)
+            if pre2022_group(r["filing_year"]) == g
+        )
+        random.Random(f"{SEED}-{PRE2022}-{g}").shuffle(nos)
+        groups[g] = {"frame_n": len(nos), "n_sample": PRE2022_GROUPS[g], "order": nos}
+    plan = {"stratum": PRE2022, "seed": f"{SEED}-{PRE2022}-<group>", "groups": groups}
+    plan_path.write_text(json.dumps(plan))
+    return plan
+
+
+def crawl_pre2022(client: Client, limit: int | None = None) -> dict:
+    """``limit`` caps the files per group (pilot)."""
+    plan = make_pre2022_plan()
+    result = {"stratum": PRE2022}
+    for g, grp in plan["groups"].items():
+        want = min(grp["n_sample"], limit or grp["n_sample"])
+        found = tried = 0
+        for docket in grp["order"]:
+            if found >= want:
+                break
+            prefix, n, yy = docket.split("-")
+            s = Stratum(
+                PRE2022, prefix, "t", 1900 + int(yy) if int(yy) > 50 else 2000 + int(yy), "list"
+            )
+            tried += 1
+            if fetch_file(client, s, int(n)) is True:
+                found += 1
+        result[g] = {"frame_n": grp["frame_n"], "tried": tried, "found": found}
+        _progress(Stratum(PRE2022, "IMM", "t", 0, "list"), {"group": g, **result[g]})
+    return result
+
+
 def run_stratum(client: Client, s: Stratum) -> dict:
     return crawl_census(client, s) if s.mode == "census" else crawl_sample(client, s)
 
 
 def fetch(client: Client, strata: list[str] | None = None) -> list[dict]:
     plan = default_plan()
+    out = []
     if strata:
+        # the pre-2022 list sample runs only when named; "IMM-PRE2022:40" caps each group at 40
+        for name in strata:
+            if name.split(":")[0] == PRE2022:
+                limit = int(name.split(":")[1]) if ":" in name else None
+                out.append(crawl_pre2022(client, limit))
         plan = [s for s in plan if s.name in strata]
-    return [run_stratum(client, s) for s in plan]
+    return out + [run_stratum(client, s) for s in plan]
 
 
 # -- parse ---------------------------------------------------------------------------------
@@ -268,6 +351,61 @@ def appeal_from(entries: list[dict]) -> tuple[str | None, str | None]:
         dm = re.search(LOWER_DATED_RE, t, re.I)
         return number, dm.group(1) if dm else None
     return None, None
+
+
+# One order made in a lead file can end many files: the Registry places a copy on each ("Copy of
+# Order dated 27-APR-2020 rendered by ... placed on file. Original filed on Court File No.
+# T-2126-18") and the copy carries no final-decision marker. Found 2026-11-22: 381 Federal Court
+# files we counted as open carry a copy of an order that ended its own file on that date (213
+# from one order dismissing a list of actions against the Crown in 2020, 74 from one striking
+# another list in 2023), and the Court's disposition counts include them.
+COPY_OF_DECISION_RE = re.compile(
+    r"^\s*(?:copy of|copie d[eu']\s*(?:la |l')?)\s*(?:reasons for )?"
+    r"(?:order|judgment|ordonnance|jugement|reasons|motifs)[^\n]{0,60}?"
+    r"(?:dated|en date du)\s+(\d{1,2}-[A-Za-zéû]{3,4}-\d{4})",
+    re.I,
+)
+ORIGINAL_ON_RE = re.compile(
+    r"(?:court file no\.?|dossier[^\n]{0,30}?)\s*((?:T|A|IMM)-\d+-\d\d)\b", re.I
+)
+
+
+def copies_of_decisions(texts: list[str], own: str | None) -> list[tuple[str, str]]:
+    """(file the original is on, decision date as written) for each copy of an order or judgment
+    from another file placed on this one."""
+    out = []
+    for t in texts:
+        m, src = COPY_OF_DECISION_RE.search(t), ORIGINAL_ON_RE.search(t)
+        if m and src and src.group(1).upper() != (own or "").upper():
+            out.append((src.group(1).upper(), m.group(1)))
+    return out
+
+
+def add_lead_file_endings(rows: list[dict]) -> int:
+    """Fill ``lead_order_end_date`` / ``lead_order_file`` on files with no ending of their own
+    that carry a copy of a decision which ended the file it was made in, on that date. Kept apart
+    from ``final_disposition_date``: whether the tables should count these is the owner's call.
+    Returns the number of files filled."""
+    from courtdelay.sources import s4_rll_fc_dockets as s4
+
+    ended = {
+        (r["division"], r["docket"]): (r["final_disposition_date"], r["final_disposition_type"])
+        for r in rows
+        if r.get("final_disposition_date") is not None
+    }
+    n = 0
+    for r in rows:
+        r["lead_order_end_date"], r["lead_order_file"] = None, None
+        copies = r.pop("_copies", [])
+        if r.get("final_disposition_date") is not None:
+            continue
+        for lead, written in copies:
+            end = ended.get((r["division"], lead))
+            if end and end[1] != "discontinuance" and s4.parse_entry_date(written) == end[0]:
+                r["lead_order_end_date"], r["lead_order_file"] = end[0], lead
+                n += 1
+                break
+    return n
 
 
 def ms_date(v):
@@ -340,6 +478,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "n_confidential_flag_entries": n_flag,
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,
+            "_copies": copies_of_decisions(texts, docket),
             **s4.derive_docket(ents, judgment_fallback=False),
         }
     )
@@ -374,8 +513,18 @@ def parse(client: Client | None = None):
     import polars as pl
 
     dockets, entries, dropped, dropped_nos = [], [], 0, []
+    # files of the pre-2022 list sample go to their own table: they are not part of the census
+    # or of the filing-year samples, and no other table should count them
+    listed, older = {}, []
+    if pre2022_plan_path().exists():
+        for g, grp in json.loads(pre2022_plan_path().read_text())["groups"].items():
+            listed.update({no: (g, grp["frame_n"]) for no in grp["order"]})
     for key, info, ents, fetched_at in _cached_pairs():
         row, erows = parse_file(info, ents, fetched_at)
+        if row is not None and key[0].lower() == "t" and row["docket"] in listed:
+            g, frame_n = listed[row["docket"]]
+            older.append({**row, "frame_group": g, "frame_n": frame_n})
+            continue
         if row is None:
             dropped += 1
             # file number only: lets the decision link tell "dropped by us" from "never found"
@@ -385,7 +534,15 @@ def parse(client: Client | None = None):
         entries.extend(erows)
     out = paths.processed_dir() / "s10"
     out.mkdir(exist_ok=True)
-    d = pl.DataFrame(dockets, infer_schema_length=None)
+    n_lead = add_lead_file_endings(dockets)
+    log.info("S10: %d open files carry a copy of a lead file's closing decision", n_lead)
+    for r in older:
+        r.pop("_copies", None)
+    d = pl.DataFrame(
+        dockets,
+        infer_schema_length=None,
+        schema_overrides={"lead_order_end_date": pl.Date, "lead_order_file": pl.String},
+    )
     e = pl.DataFrame(entries, infer_schema_length=None)
     if d.height:
         d.write_parquet(out / "dockets.parquet")
@@ -393,7 +550,10 @@ def parse(client: Client | None = None):
         pl.DataFrame(dropped_nos, schema={"docket": pl.String}).write_parquet(
             out / "dropped_confidential.parquet"
         )
+    if older:
+        pl.DataFrame(older, infer_schema_length=None).write_parquet(out / "imm_pre2022.parquet")
     log.info("S10: %d dockets parsed, %d dropped as confidential/sealed", d.height, dropped)
+    log.info("S10: %d files of the pre-2022 immigration list sample", len(older))
     return {"dockets": d, "entries": e, "dropped": dropped}
 
 

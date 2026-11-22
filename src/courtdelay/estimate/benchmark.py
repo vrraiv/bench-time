@@ -73,6 +73,29 @@ def _strata(sample: pl.DataFrame) -> list[tuple[pl.DataFrame, int, int]]:
     return out
 
 
+def _older(older: pl.DataFrame | None) -> list[tuple[pl.DataFrame, int, int]]:
+    """(files, n fetched, files in the frame) per group of the pre-2022 list sample: immigration
+    files opened before 2022 that the Refugee Law Lab dockets show without an ending in November
+    2022, re-read from the Court's file search. Files S4 shows as ended are taken as ended."""
+    if older is None or older.height == 0:
+        return []
+    return [
+        (k, k.height, int(k["frame_n"][0]))
+        for k in older.partition_by("frame_group", maintain_order=True)
+    ]
+
+
+def _scaled(groups, cond) -> tuple[float, float]:
+    """Estimate and variance of the number of frame files meeting ``cond`` (simple random sample
+    without replacement in each group)."""
+    est = var = 0.0
+    for k, n, size in groups:
+        p = k.filter(cond).height / n
+        est += p * size
+        var += size**2 * p * (1 - p) / n * max(0.0, 1 - n / size)
+    return est, var
+
+
 def _row(component, measure, period_end, court, ours, lo, hi, basis) -> dict:
     return {
         "component": component,
@@ -87,7 +110,10 @@ def _row(component, measure, period_end, court, ours, lo, hi, basis) -> dict:
 
 
 def fc_benchmark(
-    fc_activity: pl.DataFrame, s10: pl.DataFrame | None, s4: pl.DataFrame | None
+    fc_activity: pl.DataFrame,
+    s10: pl.DataFrame | None,
+    s4: pl.DataFrame | None,
+    older: pl.DataFrame | None = None,
 ) -> pl.DataFrame:
     """Long table of the Court's published figure against ours, with a 95% sampling interval
     where ours is scaled from the immigration sample. Flows are year to date at ``period_end``."""
@@ -120,6 +146,7 @@ def fc_benchmark(
         first_census_year = census["docket_year"].min() if census.height else None
         strata = _strata(sample) if sample.height else []
         first_sample_year = min((int(k["docket_year"][0]) for k, _, _ in strata), default=None)
+        old_groups = _older(older)
 
         for r in court.iter_rows(named=True):
             cut = date.fromisoformat(r["period_end"])
@@ -172,6 +199,31 @@ def fc_benchmark(
                         "yet given a number (an upper bound: some more were numbered later)",
                     )
                 )
+                if old_groups:
+                    ended_ytd = pl.col("final_disposition_date").is_between(jan1, cut)
+                    # The older files are used for endings only. Those still without an ending
+                    # are not added to the stock: none sampled has had an entry since 2023 that
+                    # is not a copy from a lead file, and the Court's own pending count for
+                    # 2019 (3,541) is below the number of them (about 6,800).
+                    d_est, d_var = _scaled(old_groups, ended_ytd)
+                    for k, n, top in strata:
+                        p = k.filter(ended_ytd).height / n
+                        d_est += p * top
+                        d_var += top**2 * p * (1 - p) / n
+                    rows.append(
+                        _row(
+                            "immigration",
+                            "dispositions, year to date",
+                            r["period_end"],
+                            r["dispositions_imm"],
+                            d_est,
+                            d_est - Z * math.sqrt(d_var),
+                            d_est + Z * math.sqrt(d_var),
+                            "our samples of immigration files (opened from "
+                            f"{first_sample_year}, and older files open in November 2022), "
+                            "scaled; endings by date of the ending",
+                        )
+                    )
                 rows.append(
                     _row(
                         "immigration",
@@ -203,6 +255,49 @@ def fc_benchmark(
                         "our census of court files, registrations excluded",
                     )
                 )
+            # stock: our open files against the Court's pending, which also holds older files.
+            # Second version counts a file as ended when a lead file's closing order was copied
+            # onto it (found 2026-11-22; see S10 ``add_lead_file_endings``).
+            if cut.year >= first_census_year + 4:
+                ends = [("", pl.col("final_disposition_date"))]
+                if "lead_order_end_date" in census.columns:
+                    ends.append(
+                        (
+                            ", counting lead-file orders",
+                            pl.coalesce("final_disposition_date", "lead_order_end_date"),
+                        )
+                    )
+                for label, end in ends:
+                    still = census.filter(
+                        (pl.col("date_filed") <= cut) & (end.is_null() | (end > cut))
+                    )
+                    rows.append(
+                        _row(
+                            "non-immigration",
+                            f"pending at period end{label}",
+                            r["period_end"],
+                            r["pending_nonimm"],
+                            still.height,
+                            None,
+                            None,
+                            f"our census of court files opened from {first_census_year} with "
+                            "no ending by the date; the Court's figure also holds older files",
+                        )
+                    )
+                    if label:
+                        rows.append(
+                            _row(
+                                "non-immigration",
+                                f"dispositions, year to date{label}",
+                                r["period_end"],
+                                r["dispositions_nonimm"],
+                                census.filter(end.is_between(jan1, cut)).height,
+                                None,
+                                None,
+                                f"our census of court files opened from {first_census_year}, "
+                                "registrations excluded",
+                            )
+                        )
             # endings of files opened before the census began are missing in its first years
             if cut.year >= first_census_year + 4:
                 ended = census.filter(pl.col("final_disposition_date").is_between(jan1, cut))

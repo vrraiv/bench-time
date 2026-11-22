@@ -237,12 +237,14 @@ def build_s8_benchmark(derived: Path, site: Path) -> None:
     if not act.exists():
         return
     s10, s4 = proc / "s10" / "dockets.parquet", proc / "s4" / "dockets.parquet"
+    older = proc / "s10" / "imm_pre2022.parquet"
     if not (s10.exists() or s4.exists()):
         return
     t = benchmark.fc_benchmark(
         pl.read_parquet(act),
         pl.read_parquet(s10) if s10.exists() else None,
         pl.read_parquet(s4) if s4.exists() else None,
+        pl.read_parquet(older) if older.exists() else None,
     )
     _write(t, "s8_fc_benchmark_vs_court_files", derived, site, publish=False)
 

@@ -140,3 +140,27 @@ def test_benchmark_sets_aside_files_not_yet_numbered():
     numbered = _get(t, "immigration", "pending at period end, files numbered by then", "2024-06-30")
     # IMM-450-24 (filed 20 June) and IMM-500-24 (1 June) follow IMM-400-24, filed 15 July
     assert full - numbered["ours"] == round(2 / 6 * 800)
+
+
+def test_benchmark_adds_older_files_from_the_list_sample():
+    # 4 fetched of 100 files in the frame: two still open, one ended in 2024, one in 2023
+    older = pl.DataFrame(
+        [
+            {"frame_group": "2021", "frame_n": 100, **_file("IMM", 2021, n, date(2021, 5, 1), end)}
+            for n, end in ((1, None), (2, None), (3, date(2024, 3, 1)), (4, date(2023, 5, 1)))
+        ],
+        schema_overrides={"final_disposition_date": pl.Date},
+    )
+    t = benchmark.fc_benchmark(_activity(), _dockets(), None, older)
+    # older files still without an ending are not added to the stock
+    assert t.filter(pl.col("measure").str.contains("older")).is_empty()
+    # endings to 30 June 2024: 250 + 200 from the yearly samples, 25 from the older files
+    r = _get(t, "immigration", "dispositions, year to date", "2024-06-30")
+    assert (r["ours"], r["court_published"]) == (475, 350)
+    # without the older sample neither row is produced
+    t0 = benchmark.fc_benchmark(_activity(), _dockets(), None)
+    assert (
+        t0.filter(pl.col("measure").str.contains("dispositions"))
+        .filter(pl.col("component") == "immigration")
+        .is_empty()
+    )
