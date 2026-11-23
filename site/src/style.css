@@ -4,9 +4,6 @@
    Palette is built from a deep navy (#0A1D37) with an amber complement for status and accents. */
 @import url("observablehq:default.css");
 
-/* IBM Plex is self-hosted from fonts/ and registered by the script in observablehq.config.js's
-   head (Framework's CSS bundler cannot copy font files referenced from url()). */
-
 :root {
   --plex: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --serif: var(--plex);
