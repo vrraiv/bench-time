@@ -93,3 +93,8 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
 - Ask before: any Tier 3 source, publishing names or texts, faster request rates, any
   cloud/deployment/scheduling step.
 - End each session with: what works, verified vs. not, data coverage per source, open questions.
+- Research log (owner, 2026-11-23): any change that matters for the research (data coverage,
+  definitions, results, owner decisions, open questions) gets a dated entry in
+  `site/src/research-log.md` in the same commit, in plain language for a non-technical reader.
+  Code housekeeping does not. Held-back results are described there without quoting figures.
+  A weekly local task drafts the partners' status summary from it for the owner's approval.
