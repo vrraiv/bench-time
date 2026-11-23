@@ -1,3 +1,8 @@
+# Manual fallback only since 2026-11-23 (owner decision): the Sunday refresh on the owner's
+# machine now rebuilds the open-data tables weekly and opens the pull request
+# (scripts/weekly_refresh.ps1). The schedule was removed; run this from the Actions tab
+# ("Run workflow") when that machine is off for a while.
+#
 # Monthly refresh of the Statistics Canada tables (owner decision 2026-11-20).
 #
 # Scope: Statistics Canada open data only (sources S1 and S2). The court-file censuses, the
@@ -13,8 +18,6 @@
 name: StatCan refresh
 
 on:
-  schedule:
-    - cron: "17 9 3 * *" # 3rd of each month, 09:17 UTC
   workflow_dispatch:
 
 permissions:

@@ -1,3 +1,8 @@
+# Manual fallback only since 2026-11-23 (owner decision): the Sunday refresh on the owner's
+# machine now rebuilds the open-data tables weekly and opens the pull request
+# (scripts/weekly_refresh.ps1). The schedule was removed; run this from the Actions tab
+# ("Run workflow") when that machine is off for a while.
+#
 # Quarterly refresh of the statistics pages the courts publish themselves (owner decision
 # 2026-11-20): Supreme Court statistics (S5), Ontario Court of Justice criminal statistics (S7),
 # Federal Court and Federal Court of Appeal activity summaries (S8), federal judicial vacancies
@@ -21,8 +26,6 @@
 name: Court statistics pages refresh
 
 on:
-  schedule:
-    - cron: "23 9 25 2,5,8,11 *" # 25 Feb, May, Aug, Nov, 09:23 UTC
   workflow_dispatch:
 
 permissions:
