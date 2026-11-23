@@ -1,6 +1,15 @@
 // Observable Framework config. The built site (dist/) is served as static assets by a Cloudflare
 // Worker behind Cloudflare Access (see wrangler.jsonc): a restricted preview, not a public site.
 // Telemetry: run with OBSERVABLE_TELEMETRY_DISABLE=true (see site/README.md).
+const FONTS = [
+  ["ibm-plex-sans-latin-400-normal", "IBM Plex Sans", "400", "normal"],
+  ["ibm-plex-sans-latin-400-italic", "IBM Plex Sans", "400", "italic"],
+  ["ibm-plex-sans-latin-500-normal", "IBM Plex Sans", "500", "normal"],
+  ["ibm-plex-sans-latin-600-normal", "IBM Plex Sans", "600", "normal"],
+  ["ibm-plex-sans-latin-700-normal", "IBM Plex Sans", "700", "normal"],
+  ["ibm-plex-mono-latin-400-normal", "IBM Plex Mono", "400", "normal"]
+];
+
 export default {
   title: "Docket Watch (preview)",
   root: "src",
@@ -16,14 +25,26 @@ export default {
     {name: "Sources & limitations", path: "/sources"}
   ],
   style: "style.css",
-  // IBM Plex Sans (text) and Plex Mono (code), replacing Framework's default Source Serif 4; same
-  // Google Fonts mechanism as before.
-  globalStylesheets: [
-    "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
-  ],
-  // Light by default; dark only if the reader chose it with the header toggle. Runs before paint
-  // so there is no flash of the wrong theme. The system colour-scheme setting is not followed.
-  head: `<script>
+  // No external stylesheets: this drops Framework's default Google Fonts link (Source Serif 4).
+  globalStylesheets: [],
+  // Fonts: IBM Plex, self-hosted from src/fonts/ (see fonts/README.txt). Framework copies files named
+  // in <link href> and rewrites the paths, but cannot follow url() inside CSS, so the fonts are
+  // preloaded here and registered with the FontFace API from those links.
+  // Theme: light by default; dark only if the reader chose it with the header toggle. Runs before
+  // paint so there is no flash of the wrong theme. The system colour-scheme setting is not followed.
+  head: `${FONTS.map(([file, family, weight, style]) =>
+    `<link rel="preload" as="font" type="font/woff2" crossorigin href="/fonts/${file}.woff2" data-family="${family}" data-weight="${weight}" data-style="${style}">`
+  ).join("\n")}
+<script>
+(() => {
+  for (const l of document.querySelectorAll("link[data-family]")) {
+    try {
+      const f = new FontFace(l.dataset.family, "url(" + l.href + ")", {weight: l.dataset.weight, style: l.dataset.style, display: "swap"});
+      document.fonts.add(f);
+      f.load().catch(() => {});
+    } catch {}
+  }
+})();
 (() => {
   const KEY = "docket-watch-theme";
   const root = document.documentElement;
