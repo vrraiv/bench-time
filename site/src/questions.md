@@ -8,7 +8,13 @@ title: Questions for review
 These questions quote provisional figures. They are shown only on this access-restricted preview and are not in the public repository. Please do not forward them.
 </div>
 
-These are the questions we need a practitioner's reading on, collected from the review lists. Answer any of them in the box under the question, choose the kind of reply (a reply marks the question answered only when you choose **Answer** or **Don't know**), and press **Send**. A short answer is fine, and "don't know" is a useful answer. Replies are saved at once, can be seen by everyone who can open this preview, and show the email address you signed in with. You can reply more than once; nothing is overwritten.
+These are the questions we need a practitioner's reading on, collected from the review lists.
+
+- **To reply:** type in the box under the question, choose the kind of reply, and press **Send**.
+- **What counts as answered:** a question is marked answered only when you choose **Answer** or **Don't know**.
+- **Short is fine.** "Don't know" is a useful answer.
+- **Replies are visible** to everyone who can open this preview, saved at once, and show the email address you signed in with.
+- You can reply more than once; nothing is overwritten.
 
 ```js
 const data = FileAttachment("review-data/questions.json").json();
@@ -73,21 +79,71 @@ function table(t) {
   return el;
 }
 
+const el = (tag, props = {}, ...kids) => {
+  const e = Object.assign(document.createElement(tag), props);
+  e.append(...kids);
+  return e;
+};
+
+// Paragraph text with a short lead-in label ("Why we are asking. …") shown in bold.
+function leadPara(text) {
+  const m = text.match(/^([^.]{3,45}\.)\s+(.*)$/s);
+  if (m && m[1].split(/\s+/).length <= 6) return el("p", {}, el("strong", {textContent: m[1]}), " ", m[2]);
+  return el("p", {textContent: text});
+}
+
+// A paragraph with an inline enumeration "(1) … (2) … (3) …" or "(a) … (b) …" becomes a lead
+// paragraph, a list, and any closing sentences after the last item.
+function introBlock(text) {
+  for (const marks of [["1", "2", "3", "4", "5"], ["a", "b", "c", "d", "e"]]) {
+    const pos = [];
+    let from = 0;
+    for (const k of marks) {
+      const i = text.indexOf(` (${k}) `, from);
+      if (i < 0) break;
+      pos.push(i);
+      from = i + 1;
+    }
+    if (pos.length < 2) continue;
+    const items = pos.map((p, j) => text.slice(p + 5, pos[j + 1] ?? text.length).trim());
+    // the last item runs to its first full stop; what follows is a closing paragraph
+    const last = items.at(-1);
+    const cut = last.search(/\.\s+(?=[A-Z])/);
+    const tail = cut >= 0 ? last.slice(cut + 1).trim() : "";
+    if (cut >= 0) items[items.length - 1] = last.slice(0, cut + 1);
+    const out = [leadPara(text.slice(0, pos[0]).trim()), el("ul", {}, ...items.map((t) => el("li", {textContent: t})))];
+    if (tail) out.push(...introBlock(tail));
+    return out;
+  }
+  return [leadPara(text)];
+}
+
+// "Entry label: … Entries: … How we read it now: …" shown as a small labelled block.
+const CONTEXT_LABELS = ["Entry label", "Entries", "How we read it now"];
+function contextBlock(text) {
+  const re = new RegExp(`(${CONTEXT_LABELS.join("|")}):\\s`, "g");
+  const parts = text.split(re);
+  if (parts.length < 3 || parts[0].trim()) return null;
+  const dl = el("dl", {className: "entry"});
+  for (let i = 1; i < parts.length; i += 2) dl.append(el("dt", {textContent: parts[i]}), el("dd", {textContent: parts[i + 1].trim()}));
+  return dl;
+}
+
 function issueCard(q) {
-  const card = document.createElement("section");
-  card.className = "card question";
-  card.id = q.id;
-  const h = document.createElement("h3");
-  // a heading of its own when the list gave one; otherwise just the number (the question follows)
-  const ownTitle = q.title !== q.question && !q.title.endsWith("…");
-  h.textContent = ownTitle ? `${q.id}. ${q.title}` : q.id;
-  const tag = document.createElement("span");
-  tag.className = answered(q.id) ? "tag tag-done" : "tag";
-  tag.textContent = answered(q.id) ? "answered" : "open";
+  const card = el("section", {className: "card question", id: q.id});
+  const ctx = q.context ? contextBlock(q.context) : null;
+  // a heading of its own when the list gave one, unless the entry details must come first;
+  // otherwise just the number, with the whole question below
+  const ownTitle = !ctx && q.title !== q.question && !q.title.endsWith("…");
+  const h = el("h3", {}, el("span", {className: "qid", textContent: q.id}), ownTitle ? q.title : "");
+  const tag = el("span", {className: answered(q.id) ? "tag tag-done" : "tag", textContent: answered(q.id) ? "answered" : "open"});
   h.append(" ", tag);
   card.append(h);
-  card.append(Object.assign(document.createElement("p"), {textContent: q.question}));
-  if (q.context) card.append(Object.assign(document.createElement("p"), {className: "muted", textContent: q.context}));
+  if (ctx) card.append(ctx);
+  // don't repeat a heading that is just the question's first sentence
+  const body = ownTitle && q.question.startsWith(q.title) ? q.question.slice(q.title.length).trim() : q.question;
+  if (body) card.append(el("p", {className: "q-text", textContent: body}));
+  if (q.context && !ctx) card.append(el("p", {className: "muted", textContent: q.context}));
   if (q.answer_in_word) card.append(Object.assign(document.createElement("p"), {className: "muted", textContent: `Answer already given in the Word list: ${q.answer_in_word}`}));
 
   const list = document.createElement("ul");
@@ -140,23 +196,28 @@ for (const g of data.groups) {
   if (groupPick && g.id !== groupPick) continue;
   const qs = data.issues.filter((q) => q.group === g.id && !(onlyOpen && answered(q.id)));
   if (!qs.length) continue;
-  root.append(Object.assign(document.createElement("h2"), {textContent: g.title}));
-  for (const para of (g.intro || "").split("\n\n").filter(Boolean))
-    root.append(Object.assign(document.createElement("p"), {textContent: para}));
-  for (const t of g.tables || []) {
-    const d = document.createElement("details");
-    d.append(Object.assign(document.createElement("summary"), {textContent: "Reference table"}), table(t));
-    root.append(d);
-  }
-  root.append(Object.assign(document.createElement("p"), {className: "muted", textContent: `From: ${g.source}`}));
+  root.append(el("h2", {textContent: g.title}));
+  root.append(el("p", {className: "group-meta", textContent: `${qs.length} question${qs.length === 1 ? "" : "s"} · from ${g.source}`}));
+  const intro = el("div", {className: "group-intro"});
+  for (const para of (g.intro || "").split("\n\n").filter(Boolean)) intro.append(...introBlock(para));
+  root.append(intro);
+  for (const t of g.tables || []) root.append(el("details", {}, el("summary", {textContent: "Reference table"}), table(t)));
   for (const q of qs) root.append(issueCard(q));
 }
 display(root);
 ```
 
 <style>
-.question { margin: 1rem 0; max-width: 960px; }
-.question h3 { margin-top: 0; }
+.group-meta { font-size: 14px; color: var(--theme-foreground-muted); margin-top: 0; }
+.group-intro { max-width: 720px; }
+.group-intro p, .group-intro ul { max-width: none; }
+.question { margin: 1.25rem 0; max-width: 960px; padding: 1rem 1.25rem; }
+#observablehq-main .question h3 { margin-top: 0; margin-bottom: 0.5rem; font-size: 17px; font-weight: 600; color: var(--theme-foreground); max-width: 720px; }
+.qid { font-size: 13px; font-weight: 500; color: var(--theme-foreground-muted); margin-right: 0.5rem; }
+.q-text { font-size: 17px; max-width: 720px; margin: 0.5rem 0; }
+.entry { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; margin: 0.5rem 0 0.75rem; padding: 0.5rem 0.75rem; font-size: 15px; background: var(--theme-background-alt); border-radius: 6px; max-width: 720px; }
+.entry dt { font-weight: 600; color: var(--theme-foreground-muted); }
+.entry dd { margin: 0; }
 .tag { font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--theme-foreground-faintest); vertical-align: middle; }
 .tag-done { background: #2e8b57; color: white; }
 .replies { list-style: none; padding-left: 0; }

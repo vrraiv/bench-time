@@ -15,7 +15,8 @@ export default {
     {name: "Methods", path: "/methods"},
     {name: "Sources & limitations", path: "/sources"}
   ],
-  footer: "Working draft on a restricted preview: please do not forward. Aggregates only; no party names or decision texts. Each caption names its source and vintage.",
+  style: "style.css",
+  footer:"Working draft on a restricted preview: please do not forward. Aggregates only; no party names or decision texts. Each caption names its source and vintage.",
   search: false,
   linkify: true
 };
