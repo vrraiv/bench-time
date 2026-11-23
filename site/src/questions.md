@@ -10,6 +10,11 @@ These questions quote provisional figures. They are shown only on this access-re
 
 These are the questions we need a practitioner's reading on, collected from the review lists.
 
+```js
+const summary = FileAttachment("review-data/status-summary.pdf");
+display(html`<p>For background: <a href=${summary.href} target="_blank" rel="noopener">where the project stands (status summary, PDF)</a>. It is updated from time to time; this link always opens the latest version.</p>`);
+```
+
 - **To reply:** type in the box under the question, choose the kind of reply, and press **Send**.
 - **What counts as answered:** a question is marked answered only when you choose **Answer** or **Don't know**.
 - **Short is fine.** "Don't know" is a useful answer.
