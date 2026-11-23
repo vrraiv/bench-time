@@ -212,3 +212,61 @@ def test_refresh_tier1_rerequests_open_data_but_keeps_a_good_copy_on_failure(env
         pass
     c.refresh_tier1 = False
     assert c.get(url, source="s_test").text == "second" and not answers
+
+
+OUTAGE = b"<!DOCTYPE html><title>We're sorry! The website is currently unavailable</title>"
+
+
+def _not_zip(content, ctype):
+    return not content.startswith(b"PK")
+
+
+def test_transient_page_is_retried_and_never_cached(env):
+    replies = [OUTAGE, OUTAGE, b"PK\x03\x04real zip"]
+
+    def handler(request):
+        return httpx.Response(200, content=replies.pop(0), headers={"content-type": "x"})
+
+    clock = FakeClock()
+    c = make_client(handler, clock)
+    r = c.get("https://example.gc.ca/t.zip", source="s_test", transient=_not_zip, attempts=5)
+    assert r.content.startswith(b"PK") and not r.from_cache
+    assert [s for s in clock.slept if s >= 30] == [30.0, 60.0], "backs off between outage pages"
+    files = sorted(p.name for p in (env / "raw" / "s_test").iterdir())
+    assert not any(f.endswith(".html") for f in files)
+    rows = [json.loads(line) for line in (env / "manifest.jsonl").read_text().splitlines()]
+    assert [row["error"] for row in rows] == ["transient page", "transient page", None]
+    assert rows[0]["path"] is None, "outage pages are logged but not stored"
+
+
+def test_persistent_transient_page_raises_and_keeps_good_copy(env):
+    replies = [b"PK\x03\x04good", OUTAGE, OUTAGE]
+
+    def handler(request):
+        return httpx.Response(200, content=replies.pop(0), headers={"content-type": "x"})
+
+    c = make_client(handler, FakeClock())
+    good = c.get("https://example.gc.ca/t.zip", source="s_test", transient=_not_zip)
+    with pytest.raises(http.FetchError, match="outage page"):
+        c.get(
+            "https://example.gc.ca/t.zip",
+            source="s_test",
+            transient=_not_zip,
+            attempts=2,
+            refresh=True,
+        )
+    again = c.get("https://example.gc.ca/t.zip", source="s_test", transient=_not_zip)
+    assert again.from_cache and again.content == good.content
+
+
+def test_cached_outage_page_is_fetched_again(env):
+    replies = [OUTAGE, b"PK\x03\x04good"]
+
+    def handler(request):
+        return httpx.Response(200, content=replies.pop(0), headers={"content-type": "x"})
+
+    c = make_client(handler, FakeClock())
+    first = c.get("https://example.gc.ca/t.zip", source="s_test")  # cached without a check
+    assert first.content == OUTAGE
+    second = c.get("https://example.gc.ca/t.zip", source="s_test", transient=_not_zip)
+    assert second.content.startswith(b"PK") and not second.from_cache

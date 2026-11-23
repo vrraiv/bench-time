@@ -1,4 +1,4 @@
-"""S1: Statistics Canada Integrated Criminal Court Survey (ICCS) tables via WDS.
+"""S1: Statistics Canada Integrated Criminal Court Survey (ICCS) tables (full-table zip downloads).
 
 Tables (verified 2026-11-15; see docs/sources.md):
   35-10-0029-01  Adult criminal courts, cases by median elapsed time in days
@@ -9,7 +9,7 @@ Tables (verified 2026-11-15; see docs/sources.md):
   35-10-0176-01  Youth courts, preliminary quarterly indicators
 
 Outputs: data/processed/s1/<pid>.parquet (Canada + Ontario rows, all dimensions) and
-data/processed/s1/cube_metadata.parquet (release vintage per table).
+data/processed/s1/tables.parquet (fetch time and raw hash per table).
 
 Bias statement (carry onto every chart): completed cases only; elapsed time runs from first
 appearance to final decision and cannot be attributed to Crown, defence or court.
@@ -41,11 +41,12 @@ GEOS = ("Canada", "Ontario")
 
 
 def fetch(client: Client, *, vintage: str = "") -> dict[int, dict]:
-    """Download metadata and full-table zips for every table. Returns {pid: {meta, zip_path}}."""
+    """Download the full-table zip for every table. Returns {pid: {meta, zip_path, fetched_at}}."""
     out: dict[int, dict] = {}
     for pid in TABLES:
-        meta = statcan.cube_metadata(client, pid, source=SOURCE, vintage=vintage)
-        resp = statcan.fetch_full_table(client, pid, source=SOURCE, vintage=vintage)
+        resp = statcan.fetch_table_zip(client, pid, source=SOURCE, vintage=vintage)
+        headers = statcan.cached_meta(resp).get("response_headers", {})
+        meta = statcan.table_meta(resp.content, pid, release_time=headers.get("last-modified", ""))
         log.info(
             "S1 %s %s: %s..%s released %s (%d bytes%s)",
             pid,
