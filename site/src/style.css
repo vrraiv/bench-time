@@ -1,0 +1,72 @@
+/* Site-wide typography on top of Framework's default theme (air, with near-midnight in dark mode). */
+@import url("observablehq:default.css");
+@import url("observablehq:theme-air.css") (prefers-color-scheme: light);
+@import url("observablehq:theme-near-midnight.css") (prefers-color-scheme: dark);
+
+body {
+  line-height: 1.6;
+}
+
+/* Section headers: room above, a little below, so each section reads as a unit. */
+#observablehq-main h2 {
+  margin-top: 2.75rem;
+  margin-bottom: 0.6rem;
+}
+#observablehq-main h3 {
+  margin-top: 1.75rem;
+  margin-bottom: 0.4rem;
+}
+#observablehq-main h1 + h2,
+#observablehq-main .card h2 {
+  margin-top: 0;
+}
+
+p {
+  margin: 0.75rem 0;
+}
+li + li {
+  margin-top: 0.3rem;
+}
+
+/* Notes under charts and tables: smaller type, broken into short labelled paragraphs and lists. */
+.chart-note {
+  max-width: 720px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--theme-foreground-muted);
+  margin: 0.75rem 0 1.5rem;
+}
+.chart-note p,
+.chart-note ul {
+  max-width: none;
+  margin: 0.45rem 0;
+}
+.chart-note ul {
+  padding-left: 1.25rem;
+}
+.chart-note strong {
+  color: var(--theme-foreground);
+  font-weight: 600;
+}
+.chart-note h4 {
+  font-size: 15px;
+  margin: 1rem 0 0.2rem;
+  color: var(--theme-foreground);
+}
+.chart-note .status {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--theme-foreground-faintest);
+  color: var(--theme-foreground);
+  margin-right: 0.35rem;
+}
+
+details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}

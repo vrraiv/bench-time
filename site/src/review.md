@@ -51,7 +51,50 @@ display(Inputs.table(fcBench.filter(d => `${d.component}: ${d.measure}` === benc
 }));
 ```
 
-<p class="muted">Pending review: a check on the pending-proceedings chart of the Federal courts page, which shows the Court's own count. Flows are year to date. Filings agree closely: Refugee Law Lab dockets give 99.8–100.6% of the Court's yearly immigration filings for 2003–2021; our sample of immigration files (about 1,000 per filing year from 2023) reproduces year-to-date filings within its sampling interval in 14 of 15 quarters (June 2026 is 9% above the Court's count). The jump in the third quarter of 2026 is in the filing dates too: 13,600 immigration filings in that quarter by the Court's count, about 12,200 by ours, against about 7,000 to 8,400 in each of the two quarters before. Our census of other files gives 101–103% of non-immigration filings. The immigration pending estimate follows the same rise and sits above the Court's figure, by 5% at end-2024, 10% at end-2025 and 5% at September 2026. Two things are behind this. First, a correction on our side: from January 2026 the Registry writes final decisions in a new form that our rules did not recognise, so no 2026 decision was ending a file; with that fixed (21 November 2026) we find 96% of the Court's non-immigration dispositions for 2026 and all of its immigration dispositions, and the September 2026 gap fell from 15% to 5%. Second, a real difference in what is counted: from March 2025 to July 2026 the Registry was giving files their number days to weeks after the filing date, and the Court counts a file once it is opened while we count from the filing date. The option "files numbered by then" in the menu leaves out files that had not yet been numbered; on that basis our estimate is within sampling error of the Court's in every quarter from September 2023 to September 2025, and 5–9% above it from December 2025. That remaining step comes from the last quarter of 2025, when the Court reports 4,559 immigration dispositions and our sample supports about 3,550 (±610); we have not found the reason. It is not older files closing: a sample of 660 immigration files opened before 2022 (drawn 22 November 2026 from those still open in the Refugee Law Lab data) shows none ending in that quarter. Non-immigration: our open files run 13% above the Court's pending at September 2026, and 6% once files ended by an order made in a lead file are counted (381 files, mostly two lists of actions against the Crown dismissed in 2020 and struck in 2023; the copy placed on each file carries no final-decision marker). Those endings are counted in the published cohort tables from 22 November 2026, with copies of a notice of discontinuance placed on a file (78 files) and 2026 judgments that carry no qualifier (30 files). The non-immigration rows here also leave out the Crown's tax-collection files, which the Court appears not to count: our extra filings matched them year for year (303 against 302 over 2019–2026), and without them filings agree to within 11 a year. The option "counting group endings" adds companions of a group whose lead file has ended (209 files, an inference no table uses). On that basis our open files are 0.91 of the Court's pending at end-2022 and 0.99 at September 2026 (0.92 and 1.02 without the group endings). The rise that remains comes from older files leaving the Court's stock and from judicial review, where we still find 1–3% fewer dispositions than the Court in 2024–2026; that part is unexplained. Federal Court of Appeal (choose it in the menu): the court's total includes "preliminary applications", motions brought before an appeal exists, which have no appeal file and are not in our census. With those set aside our filings are within 2.5% of the court's and our endings 94–100% of its in every year from 2019. Our open files are still about 110 above its pending (18–22%), a gap already 59 files in 2019 that grows by about 8 a year: appeal files that go dormant with no ending entry. The courts administration service's annual reports define a disposition as a proceeding "concluded by way of judgment, discontinuance or other documents" and list consolidated and stayed files as pending; neither court publishes which file types its counts leave out. Limits: every count here comes from the same registry as the Court's statistics, so this shows the statistics agree with the Court's file system, not that an outside count confirms them; the estimate omits immigration files opened before 2022; the top file number in the sample stands in for the number of files opened in a year; the "not yet numbered" count is a lower bound.</p>
+<div class="chart-note">
+
+<p><span class="status">Pending review</span> A check on the pending-proceedings chart of the Federal courts page, which shows the Court's own count. Flows are year to date.</p>
+
+<h4>Filings agree closely</h4>
+<ul>
+<li><strong>Immigration, 2003–2021:</strong> Refugee Law Lab dockets give 99.8–100.6% of the Court's yearly immigration filings.</li>
+<li><strong>Immigration, from 2023:</strong> our sample (about 1,000 files per filing year) reproduces year-to-date filings within its sampling interval in 14 of 15 quarters (June 2026 is 9% above the Court's count).</li>
+<li><strong>The Q3 2026 jump is real</strong> and in the filing dates too: 13,600 immigration filings in that quarter by the Court's count, about 12,200 by ours, against about 7,000 to 8,400 in each of the two quarters before.</li>
+<li><strong>Non-immigration:</strong> our census of other files gives 101–103% of the Court's filings.</li>
+</ul>
+
+<h4>Immigration pending: above the Court's figure</h4>
+<p>Our estimate follows the same rise and sits above the Court's figure, by <strong>5% at end-2024, 10% at end-2025 and 5% at September 2026</strong>. Two things are behind this:</p>
+<ul>
+<li><strong>A correction on our side.</strong> From January 2026 the Registry writes final decisions in a new form that our rules did not recognise, so no 2026 decision was ending a file. With that fixed (21 November 2026) we find 96% of the Court's non-immigration dispositions for 2026 and all of its immigration dispositions, and the September 2026 gap fell from 15% to 5%.</li>
+<li><strong>A real difference in what is counted.</strong> From March 2025 to July 2026 the Registry was giving files their number days to weeks after the filing date; the Court counts a file once it is opened, while we count from the filing date. The menu option "files numbered by then" leaves out files not yet numbered. On that basis our estimate is within sampling error of the Court's in every quarter from September 2023 to September 2025, and 5–9% above it from December 2025.</li>
+</ul>
+<p><strong>Unexplained:</strong> that remaining step comes from the last quarter of 2025, when the Court reports 4,559 immigration dispositions and our sample supports about 3,550 (±610). It is not older files closing: a sample of 660 immigration files opened before 2022 (drawn 22 November 2026 from those still open in the Refugee Law Lab data) shows none ending in that quarter.</p>
+
+<h4>Non-immigration pending</h4>
+<ul>
+<li><strong>13% above</strong> the Court's pending at September 2026, and <strong>6%</strong> once files ended by an order made in a lead file are counted (381 files, mostly two lists of actions against the Crown dismissed in 2020 and struck in 2023; the copy placed on each file carries no final-decision marker).</li>
+<li>Those endings are counted in the published cohort tables from 22 November 2026, with copies of a notice of discontinuance placed on a file (78 files) and 2026 judgments that carry no qualifier (30 files).</li>
+<li><strong>Tax-collection files left out.</strong> These rows leave out the Crown's tax-collection files, which the Court appears not to count: our extra filings matched them year for year (303 against 302 over 2019–2026), and without them filings agree to within 11 a year.</li>
+<li><strong>"Counting group endings"</strong> (menu option) adds companions of a group whose lead file has ended (209 files, an inference no table uses). On that basis our open files are <strong>0.91</strong> of the Court's pending at end-2022 and <strong>0.99</strong> at September 2026 (0.92 and 1.02 without the group endings).</li>
+<li><strong>Unexplained:</strong> the rise that remains comes from older files leaving the Court's stock and from judicial review, where we still find 1–3% fewer dispositions than the Court in 2024–2026.</li>
+</ul>
+
+<h4>Federal Court of Appeal (choose it in the menu)</h4>
+<ul>
+<li>The court's total includes <strong>"preliminary applications"</strong>, motions brought before an appeal exists, which have no appeal file and are not in our census.</li>
+<li>With those set aside our filings are within 2.5% of the court's and our endings 94–100% of its in every year from 2019.</li>
+<li>Our open files are still <strong>about 110 above its pending (18–22%)</strong>, a gap already 59 files in 2019 that grows by about 8 a year: appeal files that go dormant with no ending entry.</li>
+</ul>
+
+<h4>Definitions and limits</h4>
+<ul>
+<li>The courts administration service's annual reports define a disposition as a proceeding "concluded by way of judgment, discontinuance or other documents" and list consolidated and stayed files as pending; neither court publishes which file types its counts leave out.</li>
+<li><strong>Same registry:</strong> every count here comes from the same registry as the Court's statistics, so this shows the statistics agree with the Court's file system, not that an outside count confirms them.</li>
+<li>The estimate omits immigration files opened before 2022; the top file number in the sample stands in for the number of files opened in a year; the "not yet numbered" count is a lower bound.</li>
+</ul>
+
+</div>
 
 ## Tax Court: time from filing to the end of the file
 
@@ -69,7 +112,7 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Pending review: how to treat files held in abeyance, which entry marks the trial, and what several entry labels mean (questions sent to the practitioner). Census of Tax Court files from 2018 from the court's public file search; end of file follows the court's own status field. Kaplan–Meier, censored at the scrape date.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> How to treat files held in abeyance, which entry marks the trial, and what several entry labels mean (questions sent to the practitioner). Census of Tax Court files from 2018 from the court's public file search; end of file follows the court's own status field. Kaplan–Meier, censored at the scrape date.</p></div>
 
 ## Tax Court: share of files with a hearing within two years of filing
 
@@ -86,7 +129,7 @@ display(Plot.plot({
 }));
 ```
 
-<p class="muted">Pending review: the first "Minutes of Hearing" entry is used, and it is sometimes a motion or status hearing, not the trial. Most files end without a hearing, so this is a cumulative incidence with "ended without a hearing" as the competing outcome, not a waiting-time median.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> The first "Minutes of Hearing" entry is used, and <strong>it is sometimes a motion or status hearing, not the trial.</strong></p><p>Most files end without a hearing, so this is a cumulative incidence with "ended without a hearing" as the competing outcome, not a waiting-time median.</p></div>
 
 ## Appeal chains: from filing in the court below to the end of the appeal
 
@@ -99,7 +142,7 @@ display(Inputs.table(chains, {
 }));
 ```
 
-<p class="muted">Pending review: these totals are lower bounds, not a trend. Files in the court below start in 2018, so early appeal years can only link to quick files. About a third of appeals do not name the file appealed from and are not linked. The Supreme Court stage is shown separately below.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> <strong>These totals are lower bounds, not a trend.</strong> Files in the court below start in 2018, so early appeal years can only link to quick files. About a third of appeals do not name the file appealed from and are not linked. The Supreme Court stage is shown separately below.</p></div>
 
 ## Supreme Court leg: appeals from the Federal Court of Appeal that were heard
 
@@ -115,7 +158,7 @@ display(Inputs.table(sccLeg, {
 }));
 ```
 
-<p class="muted">Pending review: this covers only appeals the Supreme Court heard and decided, 95 since 2010. Cases refused leave, which are most of them, are covered by the tables below, built from the Supreme Court's own case pages. Federal Court of Appeal files start in 2010, so the FCA stage for the earlier period rests on its quicker files. Published decisions (A2AJ) joined to FCA court files by the judgment each Supreme Court decision says it is appealed from.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> <strong>This covers only appeals the Supreme Court heard and decided, 95 since 2010.</strong> Cases refused leave, which are most of them, are covered by the tables below, built from the Supreme Court's own case pages. Federal Court of Appeal files start in 2010, so the FCA stage for the earlier period rests on its quicker files. Published decisions (A2AJ) joined to FCA court files by the judgment each Supreme Court decision says it is appealed from.</p></div>
 
 ## Supreme Court: applications for leave to appeal, by court appealed from
 
@@ -139,7 +182,13 @@ display(Inputs.table(sccLeave.filter(d => d.filing_period === sccPeriod), {
 }));
 ```
 
-<p class="muted">Pending review. Every Supreme Court file opened from 2010 (about 9,100 files), read from the court's case information pages in November 2026. Unit is the file. Leave times are within a few weeks of each other across courts appealed from; applications from the Court of Appeal of Quebec take consistently longer (median 160 days against 142 to 156 elsewhere). Measured from first filing, the median has grown from 125 days (2010–2014) to 177 days (2020–2026); the court's own average, which starts when the application is complete, has stayed near four months, so the growth is in the time applications take to become complete. The last column is the time between the first ruling listed for the case and the appeal judgment below. It describes only cases that went on to seek leave, a selected group, and says nothing about those courts in general. Files carrying a sealing or publication-ban note (7% of files) are included.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> Every Supreme Court file opened from 2010 (about 9,100 files), read from the court's case information pages in November 2026. Unit is the file.</p>
+<ul>
+<li><strong>Similar across courts:</strong> leave times are within a few weeks of each other across courts appealed from; applications from the Court of Appeal of Quebec take consistently longer (median 160 days against 142 to 156 elsewhere).</li>
+<li><strong>Growing from first filing:</strong> the median has grown from 125 days (2010–2014) to 177 days (2020–2026). The court's own average, which starts when the application is complete, has stayed near four months, so <strong>the growth is in the time applications take to become complete.</strong></li>
+<li><strong>Last column:</strong> the time between the first ruling listed for the case and the appeal judgment below. It describes only cases that went on to seek leave, a selected group, and says nothing about those courts in general.</li>
+<li>Files carrying a sealing or publication-ban note (7% of files) are included.</li>
+</ul></div>
 
 ## Supreme Court: our figures against the court's published statistics
 
@@ -156,7 +205,7 @@ display(Inputs.table(sccCheck.filter(d => d.measure === sccMeasure), {
 }));
 ```
 
-<p class="muted">Pending review. A check on the data: counts of appeals heard and of judgments match the court's within one or two a year, and average hearing-to-judgment times match to within 0.3 months. The court's leave average runs from the date the application was complete; the same interval from first filing is shown as a separate measure and has no court figure. Medians and 90th percentiles are ours; the court publishes averages only. The average from hearing to judgment sits below the median because judgments given from the bench count as zero days.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> A check on the data: counts of appeals heard and of judgments match the court's within one or two a year, and average hearing-to-judgment times match to within 0.3 months. The court's leave average runs from the date the application was complete; the same interval from first filing is shown as a separate measure and has no court figure. Medians and 90th percentiles are ours; the court publishes averages only. The average from hearing to judgment sits below the median because judgments given from the bench count as zero days.</p></div>
 
 ## Supreme Court: stages of appeals that were heard
 
@@ -168,7 +217,7 @@ display(Inputs.table(sccStages, {
 }));
 ```
 
-<p class="muted">Pending review. Completed intervals, files opened 2010 to 2026 pooled. "Ready for hearing" is the Registry's entry that the appeal is perfected. Appeals as of right have no leave stage and appear only in the hearing rows.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> Completed intervals, files opened 2010 to 2026 pooled. "Ready for hearing" is the Registry's entry that the appeal is perfected. Appeals as of right have no leave stage and appear only in the hearing rows.</p></div>
 
 ## Federal Court of Appeal files through the leave stage
 
@@ -186,7 +235,7 @@ display(Inputs.table(sccFca.filter(d => d.table === "intervals"), {
 }));
 ```
 
-<p class="muted">Pending review. Supreme Court files that name the Federal Court of Appeal, matched to our census of its files by file number, then by citation. For most litigants the leave decision is the end of the road: a median of 629 days after the appeal was filed in the Federal Court of Appeal, of which about 210 days are the leave stage (60 days to apply, about 150 for the decision). Where leave was granted, the Supreme Court judgment came a median of 1,094 days after the Federal Court of Appeal filing, in line with the 1,103 days found from published decisions above. Applications for leave are a selected group of appeals.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> Supreme Court files that name the Federal Court of Appeal, matched to our census of its files by file number, then by citation.</p><p><strong>For most litigants the leave decision is the end of the road:</strong> a median of 629 days after the appeal was filed in the Federal Court of Appeal, of which about 210 days are the leave stage (60 days to apply, about 150 for the decision).</p><p>Where leave was granted, the Supreme Court judgment came a median of 1,094 days after the Federal Court of Appeal filing, in line with the 1,103 days found from published decisions above. Applications for leave are a selected group of appeals.</p></div>
 
 ## Judges deciding against the judicial complement
 
@@ -203,4 +252,4 @@ display(Inputs.table(judges.filter(d => d.court === jc && d.year >= 2010), {
 }));
 ```
 
-<p class="muted">Pending review: whether this table should be published at all. No individual is named or identifiable by design: figures are counts or distributions across judges, and a distribution over fewer than five judges is withheld. Published decisions only; Federal Court and Tax Court, where one judge decides; associate judges excluded; complement from Federal Judicial Affairs snapshots.</p>
+<div class="chart-note"><p><span class="status">Pending review</span> <strong>Whether this table should be published at all.</strong></p><p>No individual is named or identifiable by design: figures are counts or distributions across judges, and a distribution over fewer than five judges is withheld. Published decisions only; Federal Court and Tax Court, where one judge decides; associate judges excluded; complement from Federal Judicial Affairs snapshots.</p></div>
