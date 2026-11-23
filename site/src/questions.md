@@ -216,8 +216,10 @@ display(root);
 .qid { font-size: 13px; font-weight: 500; color: var(--theme-foreground-muted); margin-right: 0.5rem; }
 .q-text { font-size: 17px; max-width: 720px; margin: 0.5rem 0; }
 .entry { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; margin: 0.5rem 0 0.75rem; padding: 0.5rem 0.75rem; font-size: 15px; background: var(--theme-background-alt); border-radius: 6px; max-width: 720px; }
-.entry dt { font-weight: 600; color: var(--subheading); }
+.entry dt { font-weight: 600; color: var(--theme-foreground-muted); }
 .entry dd { margin: 0; }
+.tag { font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--theme-foreground-faintest); vertical-align: middle; }
+.tag-done { background: #2e8b57; color: white; }
 .replies { list-style: none; padding-left: 0; }
 .replies li { border-left: 3px solid var(--theme-foreground-faint); padding: 2px 0 2px 10px; margin: 8px 0; }
 .reply-body { white-space: pre-wrap; }

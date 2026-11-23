@@ -1,98 +1,16 @@
-/* Site theme. Light by default; dark only when the reader picks it with the header toggle (stored
-   in localStorage, set on <html data-theme> by the script in observablehq.config.js before paint).
-   The system colour-scheme setting is deliberately not followed.
-   Palette is built from a deep navy (#0A1D37) with an amber complement for status and accents. */
+/* Site-wide typography on top of Framework's default theme (air, with near-midnight in dark mode). */
 @import url("observablehq:default.css");
-
-:root {
-  --plex: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --serif: var(--plex);
-  --sans-serif: var(--plex);
-  --monospace: "IBM Plex Mono", Menlo, Consolas, monospace;
-  --monospace-font: 14px/1.5 var(--monospace);
-  --font-big: 600 32px/1 var(--plex);
-  --font-small: 14px var(--plex);
-
-  /* light (default) */
-  --theme-background-a: #ffffff;
-  --theme-background-b: #f2f5f9;
-  --theme-background: var(--theme-background-a);
-  --theme-background-alt: var(--theme-background-b);
-  --theme-foreground: #1c2433;
-  --theme-foreground-alt: #0a1d37;
-  --theme-foreground-muted: #5a6779;
-  --theme-foreground-faint: #7a8696;
-  --theme-foreground-fainter: #b4bdc8;
-  --theme-foreground-faintest: #e1e6ed;
-  --theme-foreground-focus: #1f5fa8;
-
-  --heading: #0a1d37; /* h1, h2 */
-  --subheading: #1b4978; /* h3, h4, labels */
-  --rule: #c9d4e2; /* lines under section headers, card borders */
-  --accent: #a8551a; /* amber complement: status tags, active marks */
-  --accent-soft: #fbecdf;
-  --ok: #1e6b43;
-  --ok-soft: #e1f2e8;
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  --theme-background-a: #0e1726;
-  --theme-background-b: #15223a;
-  --theme-foreground: #e3e8ef;
-  --theme-foreground-alt: #a9c8ec;
-  --theme-foreground-muted: #9aa7b8;
-  --theme-foreground-faint: #7d8a9c;
-  --theme-foreground-fainter: #3e4c62;
-  --theme-foreground-faintest: #233149;
-  --theme-foreground-focus: #7fb0e6;
-
-  --heading: #a9c8ec;
-  --subheading: #7fb0e6;
-  --rule: #1b4978;
-  --accent: #f2a65a;
-  --accent-soft: #3a2a18;
-  --ok: #7fd3a1;
-  --ok-soft: #173326;
-  color-scheme: dark;
-}
+@import url("observablehq:theme-air.css") (prefers-color-scheme: light);
+@import url("observablehq:theme-near-midnight.css") (prefers-color-scheme: dark);
 
 body {
-  font: 16px/1.65 var(--plex);
-}
-table,
-input,
-select,
-textarea,
-button,
-svg[class^="plot-"] {
-  font-family: var(--plex);
-}
-table {
-  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
 }
 
-/* Headings: navy for titles, a lighter navy for sub-headings. */
-h1,
-h2 {
-  color: var(--heading);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-h3,
-h4,
-h5,
-h6 {
-  color: var(--subheading);
-  font-weight: 600;
-}
-
-/* Section headers: room above, a rule below, so each section reads as a unit. */
+/* Section headers: room above, a little below, so each section reads as a unit. */
 #observablehq-main h2 {
   margin-top: 2.75rem;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0.6rem;
 }
 #observablehq-main h3 {
   margin-top: 1.75rem;
@@ -101,17 +19,6 @@ h6 {
 #observablehq-main h1 + h2,
 #observablehq-main .card h2 {
   margin-top: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-#observablehq-main .card h2 {
-  color: var(--subheading);
-}
-#observablehq-main .card .big {
-  color: var(--heading);
-}
-.card {
-  border-color: var(--rule);
 }
 
 p {
@@ -120,49 +27,12 @@ p {
 li + li {
   margin-top: 0.3rem;
 }
-strong {
-  font-weight: 600;
-}
-
-/* Sidebar: active page marked in the amber accent. */
-.observablehq-link-active a[href] {
-  color: var(--heading);
-  font-weight: 600;
-}
-.observablehq-link-active::before,
-.observablehq-secondary-link-highlight {
-  background: var(--accent);
-}
-
-/* Theme toggle in the page header. */
-#observablehq-header {
-  display: flex;
-  justify-content: flex-end;
-}
-#theme-toggle {
-  font: 500 13px/1 var(--plex);
-  color: var(--subheading);
-  background: var(--theme-background-alt);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  padding: 6px 12px;
-  cursor: pointer;
-}
-#theme-toggle:hover {
-  border-color: var(--subheading);
-}
-#theme-toggle::after {
-  content: "Dark mode";
-}
-:root[data-theme="dark"] #theme-toggle::after {
-  content: "Light mode";
-}
 
 /* Notes under charts and tables: smaller type, broken into short labelled paragraphs and lists. */
 .chart-note {
   max-width: 720px;
   font-size: 15px;
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--theme-foreground-muted);
   margin: 0.75rem 0 1.5rem;
 }
@@ -176,36 +46,27 @@ strong {
 }
 .chart-note strong {
   color: var(--theme-foreground);
+  font-weight: 600;
 }
 .chart-note h4 {
   font-size: 15px;
   margin: 1rem 0 0.2rem;
-  color: var(--subheading);
+  color: var(--theme-foreground);
 }
-
-/* Status tags ("Pending review", "open", "answered"). */
-.status,
-.tag {
+.chart-note .status {
   display: inline-block;
-  font: 600 12px/1.5 var(--plex);
-  letter-spacing: 0.03em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   padding: 1px 8px;
   border-radius: 999px;
-  color: var(--accent);
-  background: var(--accent-soft);
-  vertical-align: middle;
-}
-.status {
+  background: var(--theme-foreground-faintest);
+  color: var(--theme-foreground);
   margin-right: 0.35rem;
-}
-.tag-done {
-  color: var(--ok);
-  background: var(--ok-soft);
 }
 
 details > summary {
   cursor: pointer;
   font-weight: 600;
-  color: var(--subheading);
 }
