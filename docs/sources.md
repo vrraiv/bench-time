@@ -37,7 +37,15 @@ request); add the real hostname once the owner confirms it.
 
 ### S1 — StatCan Integrated Criminal Court Survey (WDS) — **OK**
 
-- Endpoints verified: `POST https://www150.statcan.gc.ca/t1/wds/rest/getCubeMetadata`
+- **Method since 2026-11-23:** one request per table, the direct zip
+  `GET https://www150.statcan.gc.ca/n1/tbl/csv/{pid}-eng.zip`. Title, reference period, archive
+  status and dimensions come from `{pid}_MetaData.csv` inside the zip; the release time is the
+  zip's `Last-Modified` header (e.g. 35-10-0029: Thu, 01 Oct 2026 12:30 GMT = 08:30 ET release).
+  WDS is no longer called. A 200 response that is not a zip is treated as an outage page: logged
+  to the manifest, never cached, retried after 30/60/90/120 s (5 attempts), then the fetch fails.
+  `latest_cached_zip` skips any non-zip file. First run 2026-11-23: 9 outage pages over 10
+  tables, all recovered on retry.
+- Original endpoints (2026-11-15, no longer used): `POST https://www150.statcan.gc.ca/t1/wds/rest/getCubeMetadata`
   (body `[{"productId": 35100029}]`, 8-digit PID) and
   `GET https://www150.statcan.gc.ca/t1/wds/rest/getFullTableDownloadCSV/{pid}/en`, which returns
   `{"status":"SUCCESS","object":"https://www150.statcan.gc.ca/n1/tbl/csv/{pid}-eng.zip"}`.
@@ -51,6 +59,19 @@ request); add the real hostname once the owner confirms it.
 - Surprise: the WDS user guide moved to `https://www.statcan.gc.ca/en/developers/wds/user-guide`.
   Whole-table download is far cheaper than per-vector calls; we filter Canada/Ontario locally.
 - Data note: see S1 section at the bottom once fetched.
+- **Outage 2026-11-23 (applies to S1 and S2):** from at least 02:45 to 07:00 local, every
+  www150.statcan.gc.ca URL (WDS metadata, the zip locator and the direct zip) answered **200 OK**
+  with StatCan's "We're sorry! The website is currently unavailable" HTML page (93,457 bytes). The
+  site also failed to load in the owner's browser, so this was a site-wide outage, not a block.
+  StatCan's notice announced maintenance for Saturday 2026-11-21, 07:00-12:00 ET; it apparently
+  overran. At 07:04 on 11-23 the site was back but intermittent: 2 of 4 S2 zip requests and 1
+  metadata request still got the outage page, the rest succeeded (looks like some servers behind
+  the load balancer were still down). The
+  Sunday refresh's S1/S2 steps failed on it (JSON parse error); published tables are unchanged.
+  Those outage pages are now cached as 200 responses under `data/raw/s1_statcan_iccs/` and
+  `data/raw/s2_statcan_civil/`; a later `fetch s1|s2 --refresh` replaces them. The owner reports
+  StatCan reliability problems through the week of 2026-11-16 in other repos (SDMX unreliable,
+  per-series WDS calls more reliable than whole tables, direct zip URLs working).
 
 ### S2 — StatCan Civil Court Survey (WDS) — **OK**
 

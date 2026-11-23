@@ -38,7 +38,7 @@ DEFAULT_DELAY = 4.0
 
 #: Hosts whose published terms / nature permit faster polling. Seconds between requests.
 FAST_HOSTS: dict[str, float] = {
-    "www150.statcan.gc.ca": 2.0,  # StatCan WDS; robots.txt asks Crawl-delay: 2
+    "www150.statcan.gc.ca": 2.0,  # Statistics Canada; robots.txt asks Crawl-delay: 2
     "huggingface.co": 1.0,
     "datasets-server.huggingface.co": 1.0,
     "web.archive.org": 2.0,  # Wayback: polite but it is built for this
@@ -189,6 +189,8 @@ class Client:
         vintage: str = "",
         refresh: bool = False,
         accept=None,
+        transient=None,
+        attempts: int | None = None,
     ) -> Response:
         return self.request(
             "GET",
@@ -199,6 +201,8 @@ class Client:
             vintage=vintage,
             refresh=refresh,
             accept=accept,
+            transient=transient,
+            attempts=attempts,
         )
 
     def post_json(
@@ -210,6 +214,8 @@ class Client:
         tier: int = 1,
         vintage: str = "",
         refresh: bool = False,
+        transient=None,
+        attempts: int | None = None,
     ) -> Response:
         raw = json.dumps(body, separators=(",", ":"), sort_keys=True).encode()
         return self.request(
@@ -221,6 +227,8 @@ class Client:
             headers={"Content-Type": "application/json"},
             vintage=vintage,
             refresh=refresh,
+            transient=transient,
+            attempts=attempts,
         )
 
     def request(
@@ -236,11 +244,18 @@ class Client:
         vintage: str = "",
         refresh: bool = False,
         accept=None,
+        transient=None,
+        attempts: int | None = None,
     ) -> Response:
         """``refresh=True`` re-requests a cached URL and replaces the stored copy. A good cached
         copy is never replaced by a worse one: a non-2xx answer, or a body that ``accept(bytes)``
         rejects (e.g. an empty result for a file known to exist), leaves the cache as it was and
-        raises FetchError."""
+        raises FetchError.
+
+        ``transient(content, content_type)`` marks a 2xx body as a temporary failure (e.g. a
+        site's "currently unavailable" page served with status 200). Such a body is never cached:
+        it is logged to the manifest, retried like a 5xx up to ``attempts`` times, and then
+        raises FetchError, leaving any earlier cached copy untouched."""
         refresh = refresh or (self.refresh_tier1 and tier == 1)
         if params:
             url = str(httpx.URL(url, params=params))
@@ -251,19 +266,40 @@ class Client:
         if not refresh and meta_path.exists():
             meta = json.loads(meta_path.read_text())
             data_path = raw / meta["file"]
-            if 200 <= meta["status"] < 300 and data_path.exists():
+            cached = (
+                data_path.read_bytes()
+                if 200 <= meta["status"] < 300 and data_path.exists()
+                else None
+            )
+            if (
+                cached is not None
+                and transient is not None
+                and transient(cached, meta.get("content_type", ""))
+            ):
+                cached = None  # an outage page cached before the check existed: fetch again
+            if cached is not None:
                 return Response(
                     url=url,
                     final_url=meta.get("final_url", url),
                     status=meta["status"],
-                    content=data_path.read_bytes(),
+                    content=cached,
                     content_type=meta.get("content_type", ""),
                     path=data_path,
                     fetched_at=meta["fetched_at"],
                     from_cache=True,
                 )
         return self._fetch_and_store(
-            method, url, body, headers, source, raw, key, meta_path, accept=accept
+            method,
+            url,
+            body,
+            headers,
+            source,
+            raw,
+            key,
+            meta_path,
+            accept=accept,
+            transient=transient,
+            attempts=attempts,
         )
 
     def download(
@@ -400,7 +436,10 @@ class Client:
         key: str,
         meta_path: Path,
         accept=None,
+        transient=None,
+        attempts: int | None = None,
     ) -> Response:
+        attempts = attempts or MAX_ATTEMPTS  # read at call time so tests can lower it
         host = _host(url)
         had_good_copy = False
         if meta_path.exists():
@@ -409,7 +448,7 @@ class Client:
             except (ValueError, KeyError):
                 had_good_copy = False
         last_exc: Exception | None = None
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+        for attempt in range(1, attempts + 1):
             self._throttle(host)
             fetched_at = datetime.now(UTC).isoformat(timespec="seconds")
             try:
@@ -417,7 +456,7 @@ class Client:
             except httpx.HTTPError as exc:
                 last_exc = exc
                 self._log_manifest(url, method, source, fetched_at, None, None, None, str(exc))
-                log.warning("attempt %d/%d failed for %s: %s", attempt, MAX_ATTEMPTS, url, exc)
+                log.warning("attempt %d/%d failed for %s: %s", attempt, attempts, url, exc)
                 self._sleep(min(30.0, 5.0 * attempt))
                 continue
             content = resp.content
@@ -426,13 +465,30 @@ class Client:
             fname = f"{key}.{_ext_for(ctype, url)}"
             data_path = raw / fname
             ok = 200 <= resp.status_code < 300
+            if ok and transient is not None and transient(content, ctype):
+                # a 2xx outage page: never cache it, retry like a server error
+                self._log_manifest(
+                    url, method, source, fetched_at, resp.status_code, sha, None, "transient page"
+                )
+                if attempt < attempts:
+                    wait = min(30.0 * attempt, 120.0)
+                    log.warning(
+                        "%s served a temporary-outage page (attempt %d/%d); retrying in %.0fs",
+                        host,
+                        attempt,
+                        attempts,
+                        wait,
+                    )
+                    self._sleep(wait)
+                    continue
+                raise FetchError(url, resp.status_code, f"outage page after {attempts} attempts")
             rejected = ok and accept is not None and not accept(content)
             if had_good_copy and (not ok or rejected):
                 # keep the earlier good copy; record the attempt and let the caller decide
                 self._log_manifest(
                     url, method, source, fetched_at, resp.status_code, sha, None, "kept cached copy"
                 )
-                if resp.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:
+                if resp.status_code in RETRY_STATUSES and attempt < attempts:
                     self._sleep(min(10.0 * attempt, 120.0))
                     continue
                 raise FetchError(url, resp.status_code, "rejected; cached copy kept")
@@ -457,7 +513,7 @@ class Client:
             self._log_manifest(
                 url, method, source, fetched_at, resp.status_code, sha, str(data_path), ""
             )
-            if resp.status_code in RETRY_STATUSES and attempt < MAX_ATTEMPTS:
+            if resp.status_code in RETRY_STATUSES and attempt < attempts:
                 ra = resp.headers.get("retry-after")
                 wait = float(ra) if ra and ra.isdigit() else 10.0 * attempt
                 log.warning("%s from %s; retrying in %.0fs", resp.status_code, host, wait)
@@ -475,7 +531,7 @@ class Client:
                 fetched_at=fetched_at,
                 from_cache=False,
             )
-        raise FetchError(url, None, f"after {MAX_ATTEMPTS} attempts: {last_exc}")
+        raise FetchError(url, None, f"after {attempts} attempts: {last_exc}")
 
     def _log_manifest(
         self,

@@ -1,4 +1,4 @@
-"""S2: Statistics Canada Civil Court Survey tables via WDS (counts, and elapsed-time bands).
+"""S2: Statistics Canada Civil Court Survey tables (full-table zips): counts and elapsed time.
 
   35-10-0112-01  Civil court cases, by level of court and type of case (counts)
   35-10-0114-01  Civil court active cases, by level of court and type of action
@@ -34,17 +34,20 @@ TABLES: dict[int, str] = {
 def fetch(client: Client, *, vintage: str = "") -> dict[int, dict]:
     out = {}
     for pid in TABLES:
-        meta = statcan.cube_metadata(client, pid, source=SOURCE, vintage=vintage)
-        resp = statcan.fetch_full_table(client, pid, source=SOURCE, vintage=vintage)
+        resp = statcan.fetch_table_zip(client, pid, source=SOURCE, vintage=vintage)
+        headers = statcan.cached_meta(resp).get("response_headers", {})
+        meta = statcan.table_meta(resp.content, pid, release_time=headers.get("last-modified", ""))
         log.info(
-            "S2 %s %s: %s..%s released %s",
+            "S2 %s %s: %s..%s released %s (%d bytes%s)",
             pid,
             meta.title_en,
             meta.start,
             meta.end,
             meta.release_time,
+            len(resp.content),
+            ", cached" if resp.from_cache else "",
         )
-        out[pid] = {"meta": meta, "zip_path": resp.path}
+        out[pid] = {"meta": meta, "zip_path": resp.path, "fetched_at": resp.fetched_at}
     return out
 
 
