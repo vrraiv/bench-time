@@ -22,7 +22,9 @@ const el = (tag, props = {}, ...kids) => {
   e.append(...kids);
   return e;
 };
-const followUp = new Map(current.issues.filter((q) => q.follows).map((q) => [q.follows, q.id]));
+const followUp = new Map(
+  current.issues.flatMap((q) => [q.follows, ...(q.also_follows || [])].filter(Boolean).map((f) => [f, q.id]))
+);
 
 function table(t) {
   const tb = el("table");

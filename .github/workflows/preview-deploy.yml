@@ -58,7 +58,7 @@ jobs:
             n=$((n + 1))
           done < manifest.txt
           rm manifest.txt
-          for f in questions.json s8_fc_benchmark_vs_court_files.csv; do
+          for f in questions.json questions-archive-round1.json s8_fc_benchmark_vs_court_files.csv; do
             test -s "src/review-data/$f" || { echo "missing held-back file: $f"; exit 1; }
           done
           echo "fetched $n held-back files"

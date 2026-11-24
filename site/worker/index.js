@@ -15,7 +15,7 @@
 // back into the project with scripts/pull_replies.sh.
 
 const STATUSES = new Set(["answer", "partial", "dont-know", "discuss", "comment"]);
-const ISSUE_RE = /^[A-Z]{2}-\d{1,3}$/;
+const ISSUE_RE = /^[A-Z]{2}-\d{1,3}[a-z]?$/; // FS-3, or a follow-up such as FS-3b
 const MAX_BODY = 20000;
 
 const json = (data, status = 200) =>
