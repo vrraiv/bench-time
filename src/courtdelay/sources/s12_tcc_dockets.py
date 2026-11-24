@@ -481,6 +481,16 @@ def parse(client: Client | None = None):
 
     listing = listing_ledger()
     latest = max((r["_last_listed"] for r in listing.values()), default=None)
+
+    # A file keeps its number when its letter changes (an extension application that becomes
+    # an appeal: 2026-1984(IT)APP is later listed as 2026-1984(IT)I). The earlier listing of a
+    # number that is now listed under another letter is the same file, so it is left out.
+    def _stem(n: str) -> str:
+        m = NUMBER_RE.match(n.replace(" ", ""))
+        return f"{m.group(1)}-{m.group(2)}({m.group(3)})" if m else n
+
+    listed_stems = {_stem(n) for n, r in listing.items() if r["_last_listed"] == latest}
+    relettered = 0
     entries: dict[str, tuple[list, str]] = {}
     for meta, j in _cached_json("/appealnumberRE"):
         nbr = meta["url"].split("appealnumber=")[1].split("&")[0]
@@ -489,6 +499,9 @@ def parse(client: Client | None = None):
         entries[unquote(nbr)] = (j.get("data") or [], meta["fetched_at"])
     rows, erows, dropped, missing = [], [], 0, 0
     for nbr, lrow in listing.items():
+        if lrow["_last_listed"] != latest and _stem(nbr) in listed_stems:
+            relettered += 1
+            continue
         if nbr not in entries:
             missing += 1
             continue
@@ -515,6 +528,7 @@ def parse(client: Client | None = None):
         dropped,
         missing,
     )
+    log.info("S12: %d earlier listings left out (same number now under another letter)", relettered)
     return {"dockets": d, "entries": e, "dropped": dropped, "missing": missing}
 
 

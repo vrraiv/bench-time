@@ -335,6 +335,12 @@ terms, two site maps, one case page); nothing parsed or stored beyond the cache.
 
 ### S12 — Tax Court dockets — **ENDPOINTS VERIFIED, PILOTED**
 
+- **Restored 2026-11-24.** Probed with seven requests (search page and two scripts, three
+  listings, two entries requests; all cached under `verify`): `finddoc.js` now renders
+  `APPELLANT_INITIALS`, the field is back in the listing, prefix `2018-25` returns all 108
+  files ever listed under it, and entries are served for a file that had been delisted. A
+  full re-listing (`courtdelay refresh tcc --new-only`, 12:47-12:57 UTC) found 29,626 files,
+  58 new and 7 with a changed status. The gap below was temporary.
 - **Listing shrank 2026-11-19 (found 2026-11-24).** The nine-prefix year listings returned 29,714
   files on 2026-11-16 and 4,721 on 2026-11-19 and 2026-11-23 (e.g. prefix `2018-1`: 1,093 rows,
   then 218; the response also lost its `APPELLANT_INITIALS` field, so the site changed). The

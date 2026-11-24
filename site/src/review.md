@@ -153,7 +153,7 @@ display(Inputs.table(tccMix.filter(d => ["General", "Informal"].includes(d.proce
 ```
 
 <div class="chart-note"><p>Share of each year's files with any sitting on record, and with a sitting read as the trial, at any time up to the date we read the file. Recent years are incomplete.</p>
-<p><strong>Coverage warning.</strong> The Tax Court's public file list held 29,714 files when we read it on 16 November 2026 and about 4,700 from 19 November; we do not know why. Our census keeps every file listed on either date, but the status of files no longer listed cannot be updated.</p></div>
+<p><strong>Coverage note.</strong> From about 19 to 23 November 2026 the Tax Court's public file list returned only about 4,700 of its 29,700 files. It was complete again on 24 November, apparently after a site update. Our census was not affected: it keeps every file the court has ever listed.</p></div>
 
 ## Appeal chains: from filing in the court below to the end of the appeal
 

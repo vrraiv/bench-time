@@ -693,16 +693,22 @@ earlier figure, which counted any sitting):
 General procedure: about a third of 2018-2020 files had some sitting, about one in eight a trial
 sitting. The low point for Informal files filed in 2020 is the pandemic closure.
 
-**The court's public listing shrank (found 2026-11-24).** The year listings the search returned
-on 16 November 2026 held 29,714 files; from 19 November they hold about 4,700 (4,709 of our
-29,722 files are still listed). The files that dropped out span every year, status and
-procedure; applications mostly stayed. We found no rule that separates them. The weekly refresh
-had overwritten the cached listings, so a re-parse would have cut the census to the files still
-listed; the 16 November listings were restored from the backup and the parser now keeps a ledger
-of every file ever listed (`_listing_ledger.json` in the raw folder; contains names, never
-exported). Each file carries `last_listed` and `listed_now`. Consequence: the weekly refresh can
-only see status changes for files still listed, so the status of the other 25,000 is frozen at 16
-November until this is resolved. An open issue for the Tax Court Registry.
+**The court's public listing was incomplete from about 19 to 23 November 2026 (found and
+resolved 2026-11-24).** The year listings returned 29,714 files on 16 November, about 4,700 on 19
+and 23 November, and 29,626 again on 24 November (re-listed at 12:47 UTC; a search by number that
+found nothing at about 02:00 UTC found the file at 12:50). During the gap the responses also
+lacked the `APPELLANT_INITIALS` field, and the site's page script changed to display initials, so
+the cause was most likely a site update in progress, not a removal of files; we do not know more.
+Extension applications were mostly still listed during the gap (91%) and ordinary appeals mostly
+not (9%). The entries endpoint answered for a delisted file throughout our test. Because the
+weekly refresh had overwritten the cached listings, the parser now keeps a ledger of every file
+ever listed (`_listing_ledger.json` in the raw folder; contains names, never exported); each file
+carries `last_listed` and `listed_now`, and the refresh refuses a listing that shrinks. After the
+24 November re-listing 29,614 of 29,780 files ever listed are listed now. Of the 166 that are
+not, 134 are extension applications with no recorded status. **Re-lettered files:** 11 numbers
+listed on 16 November are now listed under another letter (seven `APP` files now `I` or
+unlettered; four unlettered files now `G` or `I`), which shows a file keeps its number when an
+application becomes an appeal; the earlier listing is left out of the census as the same file.
 
 ### Confidentiality markers: files kept, markers counted (owner decision 2026-11-19)
 
