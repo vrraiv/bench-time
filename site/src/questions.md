@@ -22,7 +22,7 @@ display(html`<p>For background: <a href=${summary.href} target="_blank" rel="noo
 - You can reply more than once; nothing is overwritten.
 
 ```js
-import {linkify, richText} from "./components/filelinks.js";
+import {linkify, richText, useRecords} from "./components/filelinks.js";
 const data = FileAttachment("review-data/questions.json").json();
 const round1 = FileAttachment("review-data/questions-archive-round1.json").json();
 ```
@@ -208,6 +208,7 @@ function issueCard(q) {
   return card;
 }
 
+useRecords(data.records_folder, data.records);
 const root = document.createElement("div");
 for (const g of data.groups) {
   if (groupPick && g.id !== groupPick) continue;

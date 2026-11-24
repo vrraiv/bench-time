@@ -11,7 +11,7 @@ These questions quote provisional figures. They are shown only on this access-re
 Each round's questions, with the replies given on the [Questions for review](./questions) page, frozen when the round closed. Nothing here can be edited; where we needed more, the question was carried into the current round as a follow-up (marked below).
 
 ```js
-import {linkify} from "./components/filelinks.js";
+import {linkify, useRecords} from "./components/filelinks.js";
 const r1 = FileAttachment("review-data/questions-archive-round1.json").json();
 const current = FileAttachment("review-data/questions.json").json();
 ```
@@ -75,6 +75,7 @@ function round(a) {
   }
   return root;
 }
+useRecords(current.records_folder, current.records);
 display(round(r1));
 ```
 

@@ -489,3 +489,14 @@ September 2007 and June 2021 are missing from the Court's index, so 2007 and 202
 quarters. FCA: 48 of 49 reconcile. Quarterly Little's-law rows carry `identity_ok`; annual rows carry
 `publishable` (four quarters, all reconciling): 13 of 24 FC years qualify (not: 2006, 2007, 2009,
 2015, 2016, 2018, 2019, 2021, 2023, 2024, 2026). The site marks failing quarters.
+
+## Working copies of court records for the practitioner (owner decision 2026-11-23)
+
+The courts' file searches cannot be linked per file, and one Tax Court file named in the questions
+(2018-2533(IT)) no longer appears in the public search. `scripts/export_review_records.py` renders
+the cached records (no new requests) of the Federal Court and Tax Court files named in the current
+question list as PDFs, one per file, for the practitioner to read. They reproduce the public record
+including names, so they live only in a private shared folder outside the repository and the site;
+the questions page links to the folder (link kept in the gitignored question data). Supreme Court
+case pages are linked directly. Federal Court links otherwise open the court-number search tab
+(`#tab02`); neither court's search page reads a file number from its address (checked 2026-11-23).

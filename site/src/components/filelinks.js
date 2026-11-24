@@ -3,7 +3,15 @@
 // load a file only from a number typed into the page, so those numbers open the search page and
 // copy the number to the clipboard for pasting.
 
-const FC_SEARCH = "https://www.fct-cf.ca/en/court-files-and-decisions/court-files";
+// "#tab02" opens the search with the "Search by court number" tab selected
+const FC_SEARCH = "https://www.fct-cf.ca/en/court-files-and-decisions/court-files#tab02";
+
+// Working copies of the records (PDFs in a shared folder; see scripts/export_review_records.py).
+// The folder link and the list of files come from the gitignored question data, never this file.
+let RECORDS = {folder: null, have: new Set()};
+export function useRecords(folder, files = []) {
+  RECORDS = {folder: folder || null, have: new Set(files)};
+}
 const TCC_SEARCH = "https://www.tcc-cci.ca/en/pages/find-a-court-file";
 const SCC_CASE = (n) => `https://www.scc-csc.ca/cases-dossiers/search-recherche/${n}/`;
 
@@ -25,11 +33,16 @@ const PATTERNS = [
 
 function link({text, href, copy}) {
   const a = document.createElement("a");
-  a.href = href;
   a.target = "_blank";
   a.rel = "noopener";
   a.textContent = text;
   a.className = "filelink";
+  if (copy && RECORDS.folder && RECORDS.have.has(copy)) {
+    a.href = RECORDS.folder;
+    a.title = `Opens the shared folder of record copies; the file is named "${copy}"`;
+    return a;
+  }
+  a.href = href;
   if (copy) {
     a.title = `Opens the court's file search; ${copy} is copied for pasting`;
     a.addEventListener("click", () => navigator.clipboard?.writeText(copy).catch(() => {}));
