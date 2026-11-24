@@ -8,7 +8,7 @@ title: Questions for review
 These questions quote provisional figures. They are shown only on this access-restricted preview and are not in the public repository. Please do not forward them.
 </div>
 
-These are the questions we need a practitioner's reading on, collected from the review lists.
+These are our follow-up questions after the first round of answers (23 November 2026). Most ask you to look at a specific file we name; each shows, folded, what we asked before and what you said. The first round's questions and answers are kept in full on the **[earlier rounds](./questions-archive)** page.
 
 ```js
 const summary = FileAttachment("review-data/status-summary.pdf");
@@ -23,6 +23,7 @@ display(html`<p>For background: <a href=${summary.href} target="_blank" rel="noo
 
 ```js
 const data = FileAttachment("review-data/questions.json").json();
+const round1 = FileAttachment("review-data/questions-archive-round1.json").json();
 ```
 
 ```js
@@ -149,6 +150,16 @@ function issueCard(q) {
   const body = ownTitle && q.question.startsWith(q.title) ? q.question.slice(q.title.length).trim() : q.question;
   if (body) card.append(el("p", {className: "q-text", textContent: body}));
   if (q.context && !ctx) card.append(el("p", {className: "muted", textContent: q.context}));
+  // the earlier exchange this follow-up builds on
+  const prev = q.follows ? round1.issues.find((p) => p.id === q.follows) : null;
+  if (prev) {
+    const det = el("details", {className: "earlier"}, el("summary", {textContent: `Round 1 (${prev.id}): what we asked and what you said`}));
+    det.append(el("p", {className: "muted", textContent: prev.question}));
+    const ul = el("ul", {className: "replies"});
+    for (const r of prev.replies || []) ul.append(replyItem({...r, author: "round 1"}));
+    det.append(ul);
+    card.append(det);
+  }
   if (q.answer_in_word) card.append(Object.assign(document.createElement("p"), {className: "muted", textContent: `Answer already given in the Word list: ${q.answer_in_word}`}));
 
   const list = document.createElement("ul");
@@ -228,6 +239,8 @@ display(root);
 .replies { list-style: none; padding-left: 0; }
 .replies li { border-left: 3px solid var(--theme-foreground-faint); padding: 2px 0 2px 10px; margin: 8px 0; }
 .reply-body { white-space: pre-wrap; }
+.earlier { margin: 0.5rem 0; max-width: 720px; font-size: 15px; }
+.earlier summary { cursor: pointer; color: var(--theme-foreground-muted); }
 .reply-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
 .reply-form textarea { flex: 1 1 100%; font: inherit; }
 </style>

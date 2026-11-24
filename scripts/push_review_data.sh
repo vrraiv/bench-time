@@ -16,6 +16,10 @@ SRC="$ROOT/site/src/review-data"
 if [ -f "$ROOT/data/review/questions.json" ]; then
   cp "$ROOT/data/review/questions.json" "$SRC/questions.json"
 fi
+# earlier rounds, frozen by scripts/archive_review_round.py, for the archive page
+for f in "$ROOT"/data/review/questions-archive-round*.json; do
+  [ -f "$f" ] && cp "$f" "$SRC/"
+done
 cd "$ROOT/site"
 MANIFEST="$(mktemp)"
 trap 'rm -f "$MANIFEST"' EXIT

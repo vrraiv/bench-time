@@ -1366,13 +1366,17 @@ def build_all() -> None:
 def copy_review_questions(site: Path) -> None:
     """The practitioner's questions (data/review/questions.json, written by
     scripts/import_review_questions.py; gitignored) go to the held-back folder for the
-    "Questions for review" page."""
-    src = paths.REPO_ROOT / "data" / "review" / "questions.json"
-    if src.exists():
+    "Questions for review" page; earlier rounds frozen by scripts/archive_review_round.py
+    (questions-archive-round*.json) go with them for the archive page."""
+    folder = paths.REPO_ROOT / "data" / "review"
+    files = [folder / "questions.json", *sorted(folder.glob("questions-archive-round*.json"))]
+    files = [f for f in files if f.exists()]
+    if files:
         review = site.parent / "review-data"
         review.mkdir(exist_ok=True)
-        (review / "questions.json").write_bytes(src.read_bytes())
-        log.info("build: questions for review copied (held back)")
+        for f in files:
+            (review / f.name).write_bytes(f.read_bytes())
+        log.info("build: questions for review copied (held back): %d files", len(files))
 
 
 def _build_all(derived: Path, site: Path) -> None:

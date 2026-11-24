@@ -7,6 +7,11 @@
 into any file). Writes data/review/questions.json (gitignored: the questions quote provisional
 figures). Run again after a Word list changes: issues keep their ids, and any status, answer or
 note already set in data/review/questions.json is kept.
+
+Round 1 (the Word lists) closed 2026-11-23 and is frozen in
+data/review/questions-archive-round1.json
+(scripts/archive_review_round.py). From round 2 the current list is written by hand, so this
+script refuses to overwrite a list whose "round" is 2 or more.
 """
 
 from __future__ import annotations
@@ -163,6 +168,11 @@ def _from_tables(doc) -> list[dict]:
 def main(folder: str) -> None:
     folder = Path(folder)
     old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {"issues": []}
+    if old.get("round", 1) >= 2:
+        sys.exit(
+            f"{OUT} holds round {old['round']} follow-ups written by hand; not overwriting. "
+            "Archive the round first (scripts/archive_review_round.py) if a new Word round starts."
+        )
     keep = {i["id"]: i for i in old.get("issues", [])}
     groups, issues = [], []
     for fname, gid, gtitle, prefix in LISTS:
