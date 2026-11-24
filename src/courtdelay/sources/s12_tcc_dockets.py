@@ -382,7 +382,11 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             "first_scheduled_date": first("scheduled"),
             # first sitting of any kind, and the first read as the trial (see MINUTES_RX)
             "first_hearing_date": min((d for d, _ in sittings), default=None),
-            "first_trial_date": min(trial_days, default=None),
+            # not before the filing date: in a file that began as an extension
+            # application, the hearing of that application is not the trial of the appeal
+            "first_trial_date": min(
+                (d for d in trial_days if filed is None or d >= filed), default=None
+            ),
             "n_sittings": len(sittings),
             "n_trial_sittings": len(trial_days),
             "n_other_sittings": sum(k == "other" for _, k in sittings),

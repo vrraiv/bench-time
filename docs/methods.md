@@ -667,7 +667,14 @@ for an application file the application scheduled) and no conference, motion, st
 hearing was waiting for its minutes; a decision reserved, consent allowed or withdrawal accepted
 "at hearing" the same day also makes it a trial. Result: 6,962 trial sittings (43%), 8,570 other
 (53%), 529 unclassified (3%, counted as not a trial, so trial shares are lower bounds). Check: a
-judgment follows within 45 days after 39% of trial sittings and 5% of the others. The rule is ours
+judgment follows within 45 days after 39% of trial sittings and 5% of the others. Misses: among files with a
+sitting and a judgment with no consent entry, no trial sitting is found in 66 of 287 General
+files (23%) and 72 of 1,776 Informal files (4%); some of those judgments decide motions. Against
+the court's "Files prepared for hearing and heard in Court" (S8, fiscal years; definition not
+published; our census has no pre-2018 files): files with a trial sitting 719 v. 713 (2022-23),
+269 v. 166 (2021-22), 220 v. 273 (2020-21), 1,324 v. 883 (2019-20), 345 v. 888 (2018-19); files
+with any sitting were 1,251, 1,387, 557, 1,820 and 895. A trial sitting dated before the filing
+date (62 files, mostly converted extension applications) is not used. The rule is ours
 and inferred; it is not the court's and not yet reviewed. `first_hearing_date` (any sitting) is
 kept beside the new `first_trial_date`.
 

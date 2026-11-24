@@ -131,7 +131,9 @@ display(Plot.plot({
 
 <div class="chart-note"><p><span class="status">Changed 24 November 2026</span> <strong>Only trial sittings now count.</strong> The practitioner told us "Minutes of Hearing" is kept for motions, status hearings and conference calls as well as the hearing of the appeal, and the files bear that out: more than half of the 16,061 sitting days follow a case management or trial management conference, a motion, or a status or show-cause hearing.</p>
 <ul>
-<li><strong>The rule (ours, not yet reviewed):</strong> a sitting is the trial when the appeal had been set down for hearing (notice of hearing, order fixing the hearing, appeal scheduled) and nothing else was waiting for its minutes. 43% of sittings are trials, 53% something else, 3% cannot be told and are not counted, so the shares are lower bounds.</li>
+<li><strong>The rule (ours, not yet reviewed):</strong> a sitting is the trial when the appeal had been set down for hearing (notice of hearing, order fixing the hearing, appeal scheduled) and nothing else was waiting for its minutes. 43% of sittings are trials, 53% something else, 3% cannot be told and are not counted.</li>
+<li><strong>It misses some trials, so the shares are lower bounds.</strong> Among files with a sitting and a judgment that was not on consent, we find no trial sitting in 23% of General procedure files and 4% of Informal ones (some of those judgments decide motions, not the appeal). If every one were a missed trial, General procedure trial counts would be about 7% higher: not enough to change the picture.</li>
+<li><strong>Against the court's own count:</strong> the Tax Court publishes "files prepared for hearing and heard in court" by fiscal year. Our files with a trial sitting: 719 against the court's 713 in 2022–23, 269 against 166 in 2021–22, 220 against 273 in 2020–21, and 1,324 against 883 in 2019–20. Counting every sitting gave 1,251 to 1,820 in those years. The court's definition is not published and our census leaves out files opened before 2018, so this is a rough check: the new measure is the right order of magnitude; the old one was not.</li>
 <li><strong>Effect:</strong> General procedure, files of 2018: 1.4% reach a trial sitting within two years, where the earlier chart showed 12%. Informal procedure: 29%, where it showed 41%.</li>
 <li><strong>Check:</strong> a judgment follows within 45 days after 39% of the sittings we call trials and 5% of the others.</li>
 <li>Most files end without a trial, so this is a cumulative incidence with "ended without one" as the competing outcome, not a waiting-time median.</li>
@@ -275,7 +277,7 @@ display(Inputs.table(sccBench, {
 <ul>
 <li><strong>A quarter of judgments are from the bench</strong> (241 of 941), and the share is rising: 17% in 2010–2014, 31% in 2020–2026.</li>
 <li><strong>Reserved judgments take longer than the pooled figure suggests:</strong> median 205 days from hearing to judgment, against 178 days when bench judgments are counted as zero. The reserved median has moved from 186 days (2010–2014) to 220 days (2020–2026).</li>
-<li><strong>Reasons after a bench judgment:</strong> the case pages record written reasons later for 36 of the 241 bench judgments, a median of 137 days after the hearing. Where no such entry exists we cannot tell whether reasons were given orally or not at all.</li>
+<li><strong>Reasons after a bench judgment:</strong> the case pages record written reasons later for 36 of the 241 bench judgments, a median of about 122 days after the hearing. Where no such entry exists we cannot tell whether reasons were given orally or not at all.</li>
 <li>From the bench = judgment dated the day of the hearing. 2010–2014 misses judgments in files opened before 2010.</li>
 </ul></div>
 

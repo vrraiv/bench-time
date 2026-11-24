@@ -466,8 +466,12 @@ def build_s12(derived: Path, site: Path) -> None:
         "hearing (notice of hearing, order fixing the hearing, appeal scheduled); minutes "
         "that follow a case management or trial management conference, motion, status or "
         "show-cause hearing are not counted. The rule is ours, built on the practitioner's "
-        "reading that minutes are kept for every kind of sitting; about 3% of sittings "
-        "cannot be classified and are not counted as trials, so the share is a lower bound.",
+        "reading that minutes are kept for every kind of sitting. About 3% of sittings "
+        "cannot be classified and are not counted, and some trials are missed (in files with "
+        "a sitting and a judgment not on consent, no trial sitting is found in 23% of General "
+        "and 4% of Informal files), so the share is a lower bound. Files with a trial sitting "
+        "per fiscal year are close to the court's published 'files heard in court' in "
+        "2022-23 (719 against 713) but not in every year.",
     )
     if wait.height:
         wait = (
@@ -1259,7 +1263,9 @@ def build_scc_cases(derived: Path, site: Path) -> None:
         .with_columns(
             # judgment dated the day of the hearing = given from the bench (practitioner, SC-8)
             pl.when(pl.col("c") > 0).then(pl.col("c")).alias("c_reserved"),
-            days("written_reasons_date", "judgment_date").alias("e"),
+            pl.when(pl.col("judgment_date") == pl.col("hearing_date"))
+            .then(days("written_reasons_date", "judgment_date"))
+            .alias("e"),
         )
     )
     stages = _quantile_rows(
