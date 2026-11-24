@@ -112,14 +112,14 @@ display(Plot.plot({
 }));
 ```
 
-<div class="chart-note"><p><span class="status">Pending review</span> How to treat files held in abeyance, which entry marks the trial, and what several entry labels mean (questions sent to the practitioner). Census of Tax Court files from 2018 from the court's public file search; end of file follows the court's own status field. Kaplan–Meier, censored at the scrape date.</p></div>
+<div class="chart-note"><p><span class="status">Pending review</span> How to treat files held in abeyance and when the clock should start for files that began as extension applications (follow-up questions with the practitioner). Confirmed by the practitioner: a file is held in abeyance only at a party's request, and a file "bound by a lead case" is not paused. Census of Tax Court files from 2018 from the court's public file search; end of file follows the court's own status field. Kaplan–Meier, censored at the scrape date.</p></div>
 
-## Tax Court: share of files with a hearing within two years of filing
+## Tax Court: share of files with a trial sitting within two years of filing
 
 ```js
 const tw = tccWait.filter(d => ["General", "Informal"].includes(d.procedure_group) && d.event_by_730d != null);
 display(Plot.plot({
-  y: {label: "share with a first hearing entry within two years (%)", grid: true, percent: true}, x: {label: "file year", tickFormat: "d"},
+  y: {label: "share with a first trial sitting within two years (%)", grid: true, percent: true}, x: {label: "file year", tickFormat: "d"},
   color: {legend: true},
   marks: [
     Plot.ruleX(tw, {x: "docket_year", y1: "event_by_730d_lo", y2: "event_by_730d_hi", stroke: "procedure_group", strokeOpacity: 0.5}),
@@ -129,7 +129,29 @@ display(Plot.plot({
 }));
 ```
 
-<div class="chart-note"><p><span class="status">Pending review</span> The first "Minutes of Hearing" entry is used, and <strong>it is sometimes a motion or status hearing, not the trial.</strong></p><p>Most files end without a hearing, so this is a cumulative incidence with "ended without a hearing" as the competing outcome, not a waiting-time median.</p></div>
+<div class="chart-note"><p><span class="status">Changed 24 November 2026</span> <strong>Only trial sittings now count.</strong> The practitioner told us "Minutes of Hearing" is kept for motions, status hearings and conference calls as well as the hearing of the appeal, and the files bear that out: more than half of the 16,061 sitting days follow a case management or trial management conference, a motion, or a status or show-cause hearing.</p>
+<ul>
+<li><strong>The rule (ours, not yet reviewed):</strong> a sitting is the trial when the appeal had been set down for hearing (notice of hearing, order fixing the hearing, appeal scheduled) and nothing else was waiting for its minutes. 43% of sittings are trials, 53% something else, 3% cannot be told and are not counted, so the shares are lower bounds.</li>
+<li><strong>Effect:</strong> General procedure, files of 2018: 1.4% reach a trial sitting within two years, where the earlier chart showed 12%. Informal procedure: 29%, where it showed 41%.</li>
+<li><strong>Check:</strong> a judgment follows within 45 days after 39% of the sittings we call trials and 5% of the others.</li>
+<li>Most files end without a trial, so this is a cumulative incidence with "ended without one" as the competing outcome, not a waiting-time median.</li>
+</ul></div>
+
+```js
+const tccMix = FileAttachment("review-data/s12_tcc_file_outcomes_by_cohort.csv").csv({typed: true});
+```
+
+```js
+display(Inputs.table(tccMix.filter(d => ["General", "Informal"].includes(d.procedure_group)), {
+  columns: ["procedure_group", "docket_year", "n_files", "any_sitting_share", "hearing_held_share", "unclassified_sitting_share", "closed_share"],
+  header: {procedure_group: "Procedure", docket_year: "File year", n_files: "Files", any_sitting_share: "Any sitting", hearing_held_share: "Trial sitting", unclassified_sitting_share: "Sitting we cannot classify", closed_share: "File ended"},
+  format: {docket_year: d3.format("d"), any_sitting_share: d3.format(".1%"), hearing_held_share: d3.format(".1%"), unclassified_sitting_share: d3.format(".1%"), closed_share: d3.format(".0%")},
+  layout: "auto"
+}));
+```
+
+<div class="chart-note"><p>Share of each year's files with any sitting on record, and with a sitting read as the trial, at any time up to the date we read the file. Recent years are incomplete.</p>
+<p><strong>Coverage warning.</strong> The Tax Court's public file list held 29,714 files when we read it on 16 November 2026 and about 4,700 from 19 November; we do not know why. Our census keeps every file listed on either date, but the status of files no longer listed cannot be updated.</p></div>
 
 ## Appeal chains: from filing in the court below to the end of the appeal
 
@@ -175,8 +197,8 @@ const sccPeriod = view(Inputs.select(["2010-2026", "2010-2014", "2015-2019", "20
 
 ```js
 display(Inputs.table(sccLeave.filter(d => d.filing_period === sccPeriod), {
-  columns: ["origin", "n", "granted_share", "p50_days", "p50_lo", "p50_hi", "p90_days", "filing_to_complete_days_p50", "filing_to_complete_days_p90", "first_ruling_to_appeal_judgment_days_p50"],
-  header: {origin: "Court appealed from", n: "Files", granted_share: "Leave granted", p50_days: "Filing to leave decision (median days)", p50_lo: "95% low", p50_hi: "95% high", p90_days: "90th pct", filing_to_complete_days_p50: "Filing to application complete (median days)", filing_to_complete_days_p90: "90th pct", first_ruling_to_appeal_judgment_days_p50: "First ruling to appeal judgment below (median days)"},
+  columns: ["origin", "n", "granted_share", "p50_days", "p50_lo", "p50_hi", "p90_days", "filing_to_complete_days_p50", "filing_to_complete_days_p90", "complete_to_decision_days_p50", "complete_to_decision_days_p90", "first_ruling_to_appeal_judgment_days_p50"],
+  header: {origin: "Court appealed from", n: "Files", granted_share: "Leave granted", p50_days: "Clock 1: filing to leave decision (median days)", p50_lo: "95% low", p50_hi: "95% high", p90_days: "90th pct", filing_to_complete_days_p50: "Filing to application complete (median days)", filing_to_complete_days_p90: "90th pct", complete_to_decision_days_p50: "Clock 2: application complete to leave decision (median days)", complete_to_decision_days_p90: "90th pct", first_ruling_to_appeal_judgment_days_p50: "First ruling to appeal judgment below (median days)"},
   format: {granted_share: d3.format(".0%")},
   layout: "auto", width: {origin: 250}
 }));
@@ -185,10 +207,25 @@ display(Inputs.table(sccLeave.filter(d => d.filing_period === sccPeriod), {
 <div class="chart-note"><p><span class="status">Pending review</span> Every Supreme Court file opened from 2010 (about 9,100 files), read from the court's case information pages in November 2026. Unit is the file.</p>
 <ul>
 <li><strong>Similar across courts:</strong> leave times are within a few weeks of each other across courts appealed from; applications from the Court of Appeal of Quebec take consistently longer (median 160 days against 142 to 156 elsewhere).</li>
-<li><strong>Growing from first filing:</strong> the median has grown from 125 days (2010–2014) to 177 days (2020–2026). The court's own average, which starts when the application is complete, has stayed near four months, so <strong>the growth is in the time applications take to become complete.</strong></li>
+<li><strong>Two clocks, on the practitioner's advice:</strong> from first filing the median has grown from 125 days (2010–2014) to 177 days (2020–2026). From the date the Registry marked the application complete it moved from 112 to 126 days. <strong>Most of the growth is in the time applications take to become complete</strong> (median 0 days in 2010–2014, 20 days in 2020–2026), and she tells us that wait can be the applicant's, the Registry's, or both. Clock 1 is a Kaplan–Meier median; clock 2 covers decided files only.</li>
 <li><strong>Last column:</strong> the time between the first ruling listed for the case and the appeal judgment below. It describes only cases that went on to seek leave, a selected group, and says nothing about those courts in general.</li>
 <li>Files carrying a sealing or publication-ban note (7% of files) are included.</li>
 </ul></div>
+
+```js
+const sccOutcomes = FileAttachment("review-data/s13_scc_leave_outcomes.csv").csv({typed: true});
+```
+
+```js
+display(Inputs.table(sccOutcomes.filter(d => d.filing_period === sccPeriod), {
+  columns: ["outcome", "n", "share_of_files"],
+  header: {outcome: "How the leave stage ended", n: "Files", share_of_files: "Share of files"},
+  format: {share_of_files: d3.format(".1%")},
+  layout: "auto"
+}));
+```
+
+<div class="chart-note"><p><span class="status">Changed 24 November 2026</span> Each way the leave stage can end is now shown. The practitioner's view is that a remand to the court below and an order for an oral hearing are quite different from leave being granted; they are no longer folded into "not granted". Unit is the file, at its latest leave judgment; 43 files with leave judgments on more than one date are a follow-up question.</p></div>
 
 ## Supreme Court: our figures against the court's published statistics
 
@@ -205,7 +242,7 @@ display(Inputs.table(sccCheck.filter(d => d.measure === sccMeasure), {
 }));
 ```
 
-<div class="chart-note"><p><span class="status">Pending review</span> A check on the data: counts of appeals heard and of judgments match the court's within one or two a year, and average hearing-to-judgment times match to within 0.3 months. The court's leave average runs from the date the application was complete; the same interval from first filing is shown as a separate measure and has no court figure. Medians and 90th percentiles are ours; the court publishes averages only. The average from hearing to judgment sits below the median because judgments given from the bench count as zero days.</p></div>
+<div class="chart-note"><p><span class="status">Pending review</span> A check on the data: counts of appeals heard and of judgments match the court's within one or two a year, and average hearing-to-judgment times match to within 0.3 months. The court's leave average runs from the date the application was complete; the same interval from first filing is shown as a separate measure and has no court figure. Medians and 90th percentiles are ours; the court publishes averages only. The average from hearing to judgment sits below the median because judgments given from the bench count as zero days; the same average for reserved judgments only is a separate measure with no court figure.</p></div>
 
 ## Supreme Court: stages of appeals that were heard
 
@@ -217,7 +254,30 @@ display(Inputs.table(sccStages, {
 }));
 ```
 
-<div class="chart-note"><p><span class="status">Pending review</span> Completed intervals, files opened 2010 to 2026 pooled. "Ready for hearing" is the Registry's entry that the appeal is perfected. Appeals as of right have no leave stage and appear only in the hearing rows.</p></div>
+<div class="chart-note"><p><span class="status">Pending review</span> Completed intervals, files opened 2010 to 2026 pooled. "Ready for hearing" is the Registry's entry that the appeal is perfected; the practitioner agrees the wait from that entry to the hearing is the court's time, not the parties'. Appeals as of right have no leave stage and appear only in the hearing rows.</p></div>
+
+## Supreme Court: judgments from the bench and reserved judgments
+
+```js
+const sccBench = FileAttachment("review-data/s13_scc_bench_judgments.csv").csv({typed: true});
+```
+
+```js
+display(Inputs.table(sccBench, {
+  columns: ["judgment_period", "n_judgments", "n_from_bench", "bench_share", "n_reasons_later", "n_reserved", "reserved_p50_days", "reserved_p75_days", "reserved_p90_days", "all_p50_days"],
+  header: {judgment_period: "Judgment given", n_judgments: "Judgments", n_from_bench: "From the bench", bench_share: "Share from the bench", n_reasons_later: "Bench judgments with written reasons later", n_reserved: "Reserved", reserved_p50_days: "Reserved: hearing to judgment (median days)", reserved_p75_days: "75th pct", reserved_p90_days: "90th pct", all_p50_days: "All judgments (median days)"},
+  format: {bench_share: d3.format(".0%")},
+  layout: "auto"
+}));
+```
+
+<div class="chart-note"><p><span class="status">New 24 November 2026</span> On the practitioner's advice, judgments given at the hearing are reported apart from reserved ones.</p>
+<ul>
+<li><strong>A quarter of judgments are from the bench</strong> (241 of 941), and the share is rising: 17% in 2010–2014, 31% in 2020–2026.</li>
+<li><strong>Reserved judgments take longer than the pooled figure suggests:</strong> median 205 days from hearing to judgment, against 178 days when bench judgments are counted as zero. The reserved median has moved from 186 days (2010–2014) to 220 days (2020–2026).</li>
+<li><strong>Reasons after a bench judgment:</strong> the case pages record written reasons later for 36 of the 241 bench judgments, a median of 137 days after the hearing. Where no such entry exists we cannot tell whether reasons were given orally or not at all.</li>
+<li>From the bench = judgment dated the day of the hearing. 2010–2014 misses judgments in files opened before 2010.</li>
+</ul></div>
 
 ## Federal Court of Appeal files through the leave stage
 

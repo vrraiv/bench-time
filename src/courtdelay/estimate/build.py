@@ -426,13 +426,19 @@ def build_s12(derived: Path, site: Path) -> None:
         km = km.with_columns(pl.lit(d["scraped_date"].max()).alias("vintage"))
         _write(km, "s12_tcc_km_by_cohort", derived, site, publish=False)
     closed = pl.col("final_disposition_date").is_not_null()
-    heard = pl.col("first_hearing_date").is_not_null()
+    # the trial, not any sitting: "Minutes of Hearing" is also kept for conferences and
+    # motions (practitioner, TC-6), so a sitting counts as the trial only when the appeal
+    # had been set down for hearing (s12_tcc_dockets.classify_sittings)
+    heard = pl.col("first_trial_date").is_not_null()
+    sat = pl.col("first_hearing_date").is_not_null()
     mix = (
         d.group_by(["docket_year", "procedure_group"])
         .agg(
             pl.len().alias("n_files"),
             closed.mean().alias("closed_share"),
             heard.mean().alias("hearing_held_share"),
+            sat.mean().alias("any_sitting_share"),
+            (pl.col("n_unclassified_sittings") > 0).mean().alias("unclassified_sitting_share"),
             (closed & ~heard).mean().alias("closed_without_hearing_share"),
             pl.col("discontinuance_date").is_not_null().mean().alias("discontinued_share"),
             pl.col("abeyance_date").is_not_null().mean().alias("abeyance_share"),
@@ -451,13 +457,17 @@ def build_s12(derived: Path, site: Path) -> None:
         d.filter(pl.col("procedure_group").is_in(["General", "Informal", "EI", "CPP"])),
         cohort_col="cohort",
         start_col="date_filed",
-        event_col="first_hearing_date",
+        event_col="first_trial_date",
         competing_col="final_disposition_date",
         censor_col="scraped_date",
-        label="filing -> first hearing entry (competing: file ended without one)",
+        label="filing -> first trial sitting (competing: file ended without one)",
         bias_statement=S12_BIAS
-        + " The first 'Minutes of Hearing' entry is used; it is sometimes a motion or status "
-        "hearing, not the trial (practitioner review pending).",
+        + " Trial = the first 'Minutes of Hearing' entry after the appeal was set down for "
+        "hearing (notice of hearing, order fixing the hearing, appeal scheduled); minutes "
+        "that follow a case management or trial management conference, motion, status or "
+        "show-cause hearing are not counted. The rule is ours, built on the practitioner's "
+        "reading that minutes are kept for every kind of sitting; about 3% of sittings "
+        "cannot be classified and are not counted as trials, so the share is a lower bound.",
     )
     if wait.height:
         wait = (
@@ -913,7 +923,8 @@ def build_links(derived: Path, site: Path) -> None:
             "judgment_date",
         )
         et = pl.read_parquet(s12e).with_columns(
-            pl.col("entry_type").replace({"hearing_held": "hearing"}),
+            # decision matching keeps every sitting as a hearing, as before
+            pl.col("entry_type").replace({"hearing_held": "hearing", "trial_held": "hearing"}),
             pl.lit(None, dtype=pl.String).alias("hearing_subject"),
         )
         kt = linkage.decision_keys(meta, ["TCC"], linkage.normalise_tcc_key)
@@ -1013,6 +1024,7 @@ def build_scc_cases(derived: Path, site: Path) -> None:
         period("leave_filed_date").alias("filing_period"),
         days("leave_filed_date", "lower_court_judgment_date").alias("judgment_to_leave_filing"),
         days("leave_completed_date", "leave_filed_date").alias("filing_to_complete"),
+        days("leave_decision_date", "leave_completed_date").alias("complete_to_decision"),
         days("lower_court_judgment_date", "first_ruling_date").alias("first_ruling_to_appeal"),
     )
 
@@ -1045,6 +1057,16 @@ def build_scc_cases(derived: Path, site: Path) -> None:
         pl.col("judgment_to_leave_filing").median().alias("judgment_below_to_filing_days_p50"),
         pl.col("filing_to_complete").median().alias("filing_to_complete_days_p50"),
         pl.col("filing_to_complete").quantile(0.9).alias("filing_to_complete_days_p90"),
+        # the second clock (practitioner, SC-2): from the date the Registry marked the
+        # application complete, decided files only
+        pl.col("complete_to_decision")
+        .filter(pl.col("complete_to_decision") >= 0)
+        .median()
+        .alias("complete_to_decision_days_p50"),
+        pl.col("complete_to_decision")
+        .filter(pl.col("complete_to_decision") >= 0)
+        .quantile(0.9)
+        .alias("complete_to_decision_days_p90"),
         pl.col("first_ruling_to_appeal")
         .filter(pl.col("first_ruling_to_appeal") >= 0)
         .count()
@@ -1078,6 +1100,43 @@ def build_scc_cases(derived: Path, site: Path) -> None:
     )
     _write(by_origin, "s13_scc_leave_by_origin", derived, site, publish=False)
 
+    # -- how the leave stage ended (practitioner, SC-4: remand, quashed and oral hearing
+    # ordered are neither refusals nor grants, so each is shown) -------------------------------
+    labels = {
+        "granted": "Leave granted",
+        "dismissed": "Leave dismissed",
+        "remanded": "Remanded to the court below",
+        "quashed": "Quashed",
+        "oral_hearing": "Oral hearing ordered",
+    }
+    lv = pl.concat(
+        [leave, leave.with_columns(pl.lit("2010-2026").alias("filing_period"))],
+        how="vertical_relaxed",
+    ).with_columns(
+        pl.when(pl.col("leave_result").is_not_null())
+        .then(pl.col("leave_result").replace_strict(labels, default="Other"))
+        .when(pl.col("leave_discontinued_date").is_not_null())
+        .then(pl.lit("Discontinued"))
+        .otherwise(pl.lit("No decision yet or none recorded"))
+        .alias("outcome")
+    )
+    outcomes = (
+        lv.group_by("filing_period", "outcome")
+        .agg(pl.len().alias("n"))
+        .with_columns(
+            (pl.col("n") / pl.col("n").sum().over("filing_period")).alias("share_of_files")
+        )
+        .sort("filing_period", "n", descending=[False, True])
+        .with_columns(
+            pl.lit(
+                "Files with a leave application, by the period it was filed; unit is the file, "
+                "at its latest leave judgment. Recent files are still undecided, so shares for "
+                "2020-2026 will move. " + S13_BIAS
+            ).alias("bias_statement")
+        )
+    )
+    _write(outcomes, "s13_scc_leave_outcomes", derived, site, publish=False)
+
     # -- check against the court's own yearly statistics (S5) ----------------------------------
     p5 = proc / "s5" / "scc_stats.parquet"
     if p5.exists():
@@ -1105,6 +1164,10 @@ def build_scc_cases(derived: Path, site: Path) -> None:
             days("leave_decision_date", "leave_filed_date").alias("filed_to_decision"),
             days("hearing_date", "leave_decision_date").alias("leave_to_hearing"),
             days("judgment_date", "hearing_date").alias("hearing_to_judgment"),
+        ).with_columns(
+            pl.when(pl.col("hearing_to_judgment") > 0)
+            .then(pl.col("hearing_to_judgment"))
+            .alias("hearing_to_reserved_judgment")
         )
         granted = t.filter(pl.col("leave_granted_any").fill_null(False))
         add(
@@ -1150,6 +1213,13 @@ def build_scc_cases(derived: Path, site: Path) -> None:
             sub=t,
             months_col="hearing_to_judgment",
         )
+        add(
+            "Hearing to judgment, reserved judgments only (average months)",
+            "judgment_date",
+            None,
+            sub=t.filter(pl.col("hearing_to_reserved_judgment").is_not_null()),
+            months_col="hearing_to_reserved_judgment",
+        )
         court = s5.select(
             (pl.col("section") + "|" + pl.col("item")).alias("k"),
             "year",
@@ -1178,13 +1248,19 @@ def build_scc_cases(derived: Path, site: Path) -> None:
         _write(chk, "s13_scc_vs_court_statistics", derived, site, publish=False)
 
     # -- appeal stages for files that went on to a hearing --------------------------------------
-    ap = pl.concat(
-        [c, c.with_columns(pl.lit("All courts").alias("origin"))], how="vertical_relaxed"
-    ).with_columns(
-        days("hearing_date", "leave_decision_date").alias("a"),
-        days("hearing_date", "appeal_perfected_date").alias("b"),
-        days("judgment_date", "hearing_date").alias("c"),
-        days("judgment_date", "leave_filed_date").alias("d"),
+    ap = (
+        pl.concat([c, c.with_columns(pl.lit("All courts").alias("origin"))], how="vertical_relaxed")
+        .with_columns(
+            days("hearing_date", "leave_decision_date").alias("a"),
+            days("hearing_date", "appeal_perfected_date").alias("b"),
+            days("judgment_date", "hearing_date").alias("c"),
+            days("judgment_date", "leave_filed_date").alias("d"),
+        )
+        .with_columns(
+            # judgment dated the day of the hearing = given from the bench (practitioner, SC-8)
+            pl.when(pl.col("c") > 0).then(pl.col("c")).alias("c_reserved"),
+            days("written_reasons_date", "judgment_date").alias("e"),
+        )
     )
     stages = _quantile_rows(
         ap,
@@ -1192,14 +1268,17 @@ def build_scc_cases(derived: Path, site: Path) -> None:
         [
             ("a", "Leave granted to hearing"),
             ("b", "Appeal ready for hearing to hearing"),
-            ("c", "Hearing to judgment"),
+            ("c", "Hearing to judgment (all; from the bench counts as 0 days)"),
+            ("c_reserved", "Hearing to judgment, reserved judgments only"),
+            ("e", "Judgment from the bench to written reasons"),
             ("d", "Leave application filed to judgment on the appeal"),
         ],
     ).with_columns(
         pl.lit(
             "Completed intervals only, files opened 2010 to 2026 pooled, so the most recent "
-            "files are under-represented in the longer intervals. Hearing to judgment includes "
-            "judgments given from the bench (zero days). Cells under 30 files omitted. " + S13_BIAS
+            "files are under-represented in the longer intervals. A judgment dated the day of "
+            "the hearing is treated as given from the bench; written reasons are timed only "
+            "where the case page records them. Cells under 30 files omitted. " + S13_BIAS
         ).alias("bias_statement")
     )
     _write(
@@ -1209,6 +1288,43 @@ def build_scc_cases(derived: Path, site: Path) -> None:
         site,
         publish=False,
     )
+
+    # -- judgments from the bench, by period of judgment ---------------------------------------
+    jd = c.filter(pl.col("judgment_date").is_not_null() & pl.col("hearing_date").is_not_null())
+    jd = jd.with_columns(
+        period("judgment_date").alias("judgment_period"),
+        days("judgment_date", "hearing_date").alias("h2j"),
+        days("written_reasons_date", "judgment_date").alias("j2r"),
+    )
+    jd = pl.concat(
+        [jd, jd.with_columns(pl.lit("2010-2026").alias("judgment_period"))],
+        how="vertical_relaxed",
+    )
+    res = pl.col("h2j").filter(pl.col("h2j") > 0)
+    bench = (
+        jd.group_by("judgment_period")
+        .agg(
+            pl.len().alias("n_judgments"),
+            (pl.col("h2j") == 0).sum().alias("n_from_bench"),
+            ((pl.col("h2j") == 0) & pl.col("j2r").is_not_null()).sum().alias("n_reasons_later"),
+            res.count().alias("n_reserved"),
+            res.median().alias("reserved_p50_days"),
+            res.quantile(0.75).alias("reserved_p75_days"),
+            res.quantile(0.9).alias("reserved_p90_days"),
+            pl.col("h2j").median().alias("all_p50_days"),
+        )
+        .with_columns((pl.col("n_from_bench") / pl.col("n_judgments")).alias("bench_share"))
+        .sort("judgment_period")
+        .with_columns(
+            pl.lit(
+                "Appeals with a hearing and a judgment on the case page, by period of judgment; "
+                "files opened from 2010, so 2010-2014 misses judgments in older files. From the "
+                "bench = judgment dated the day of the hearing. Reasons later = the page "
+                "records written reasons after an oral judgment. " + S13_BIAS
+            ).alias("bias_statement")
+        )
+    )
+    _write(bench, "s13_scc_bench_judgments", derived, site, publish=False)
 
     # -- Federal Court of Appeal chain through the leave stage ----------------------------------
     p10 = proc / "s10" / "dockets.parquet"

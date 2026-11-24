@@ -38,6 +38,10 @@ def test_classify_labels():
     )
     assert s13.classify("Hearing of the appeal, 2026-01-15, DAY 2") == "hearing"
     assert s13.classify("Judgment on the appeal rendered, CJ") == "judgment"
+    assert s13.classify("Written reasons rendered after oral judgment") == "written_reasons"
+    assert s13.classify("Judgment reserved OR rendered with reasons to follow") == (
+        "judgment_reserved"
+    )
     assert s13.classify("Appeal closed") == "closed"
     assert s13.classify("Certificate (on limitations to public access)") == "access_certificate"
 

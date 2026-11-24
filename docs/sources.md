@@ -335,6 +335,17 @@ terms, two site maps, one case page); nothing parsed or stored beyond the cache.
 
 ### S12 — Tax Court dockets — **ENDPOINTS VERIFIED, PILOTED**
 
+- **Listing shrank 2026-11-19 (found 2026-11-24).** The nine-prefix year listings returned 29,714
+  files on 2026-11-16 and 4,721 on 2026-11-19 and 2026-11-23 (e.g. prefix `2018-1`: 1,093 rows,
+  then 218; the response also lost its `APPELLANT_INITIALS` field, so the site changed). The
+  human search page uses the same endpoint, so the missing files cannot be found there either.
+  No pattern found by year, status, procedure, act or representation; applications mostly stayed.
+  The refresh overwrote the cached listings (`refresh=True`), so the 16 November responses were
+  restored from restic snapshot `f2fe9f86` and `parse()` now keeps `_listing_ledger.json` (every
+  row ever listed, with `_last_listed`). Not tested: whether the entries endpoint still answers
+  for a file that is no longer listed (no request made). The refresh's `accept=_has_rows` guard
+  does not catch a listing that shrinks; it should refuse a large drop.
+
 - Landing page `https://www.tcc-cci.ca/en/pages/find-a-court-file` (script `/Content/js/base/data.js`,
   read 2026-11-16). File search: `GET /en/tcc/pq/appealnumber/courtnumber?courtnumber=&lang=e`;
   recorded entries: `GET /en/tcc/pq/appealnumberRE?appealnumber=&lang=e`. Other endpoints (party

@@ -103,6 +103,8 @@ ENTRY_TYPES: list[tuple[str, re.Pattern]] = [
     ("hearing", re.compile(r"^hearing of the appeal", re.I)),
     ("judgment_reserved", re.compile(r"^judgment reserved", re.I)),
     ("judgment", re.compile(r"^judgment on the appeal rendered", re.I)),
+    # reasons delivered later for a judgment given orally at the hearing
+    ("written_reasons", re.compile(r"^written reasons rendered after oral judgment", re.I)),
     ("discontinuance", re.compile(r"^notice of discontinuance", re.I)),
     ("closed", re.compile(r"^appeal closed|^close file", re.I)),
     # a standard form the parties file; counted, never read as a sealing marker on its own
@@ -291,6 +293,7 @@ def parse_page(html: str, case_no: int, fetched_at: str) -> tuple[dict, list[dic
         "notice_of_appeal_date": first("notice_of_appeal"),
         "hearing_date": first("hearing"),
         "judgment_date": first("judgment"),
+        "written_reasons_date": first("written_reasons"),
         "closed_date": max(
             (e["entry_date"] for e in entries if e["entry_type"] in {"closed", "leave_closed"}),
             default=None,

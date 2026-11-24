@@ -209,6 +209,87 @@ ACTIVE_STATUS_PREFIXES = (
 )
 
 
+# "Minutes of Hearing" is recorded for any sitting: the trial, but also motions, status
+# hearings, case management and conference calls (practitioner, round 1, TC-6; in the census
+# the entry most often follows "Case Management Conference scheduled"). A sitting is read as
+# the trial from what was set down before it.
+MINUTES_RX = re.compile(r"^minutes of hearing", re.I)
+# sets the appeal itself down for hearing (for an application file, the application)
+TRIAL_SET_RX = re.compile(
+    r"^notice of hearing(?! of| -)|^order hearing fixed$|^appeal scheduled"
+    r"|^continuation of appeal scheduled|^appeal hearing reassigned"
+    r"|^application scheduled",
+    re.I,
+)
+# sets down something else that will produce its own minutes
+OTHER_SET_RX = re.compile(
+    r"^case management conference scheduled|^trial management scheduled"
+    r"|^motion\b.*\bscheduled|^show cause scheduled|^status hearing scheduled"
+    r"|^notice of status hearing|^settlement conference scheduled"
+    r"|^pre-hearing conference scheduled|^returnable date for notice of motion",
+    re.I,
+)
+# on the day itself: marks the sitting as a conference or a motion
+OTHER_DAY_RX = re.compile(
+    r"^case management conference held|^trial management held|^show cause held"
+    r"|^status hearing heard|^settlement conference held|^interim motion .* at hearing"
+    r"|^motion to dismiss/quash .* at hearing|^conference call",
+    re.I,
+)
+# on the day itself: only happens at the hearing of the appeal
+TRIAL_DAY_RX = re.compile(
+    r"^reserved decision at hearing|^consent allowed at hearing"
+    r"|^withdrawal accepted at hearing|^dism[.] for failure to appear",
+    re.I,
+)
+TRIAL_OFF_RX = re.compile(r"^adj[.] prior to hearing|^hearing adjourned by tcc", re.I)
+OTHER_DONE_RX = re.compile(
+    r"^case management conference (?:held|adjourned)|^trial management held|^show cause held"
+    r"|^status hearing heard|^adj[.] of status hearing|^settlement conference held"
+    r"|^withdrawal of (?:notice of )?motion|^interim motion .* prior to hearing",
+    re.I,
+)
+
+
+def classify_sittings(entries: list[tuple[date | None, str]]) -> list[tuple[date, str]]:
+    """Each date with a "Minutes of Hearing" entry -> (date, kind), kind one of "trial",
+    "other" (conference, motion, status or show-cause hearing) or "unclassified" (nothing on
+    the file says what was set down). Entries are (date, label); order within a day is unknown,
+    so a day is read as a whole."""
+    days: dict[date, list[str]] = {}
+    for d, label in entries:
+        if d is not None:
+            days.setdefault(d, []).append((label or "").strip())
+    out, trial_set, other_set = [], False, 0
+    for d in sorted(days):
+        labels = days[d]
+        if any(MINUTES_RX.search(x) for x in labels):
+            if any(TRIAL_DAY_RX.search(x) for x in labels):
+                kind = "trial"
+            elif any(OTHER_DAY_RX.search(x) for x in labels) or other_set:
+                kind = "other"
+                other_set = max(0, other_set - 1)
+            elif trial_set:
+                kind = "trial"
+            else:
+                kind = "unclassified"
+            out.append((d, kind))
+        else:
+            # a conference or motion that was held, adjourned or withdrawn with no minutes
+            # entry is no longer waiting for one
+            done = sum(bool(OTHER_DONE_RX.search(x)) for x in labels)
+            other_set = max(0, other_set - done)
+        # what this day sets down for later days
+        for x in labels:
+            if OTHER_SET_RX.search(x):
+                other_set += 1
+            elif TRIAL_SET_RX.search(x):
+                trial_set = True
+            elif TRIAL_OFF_RX.search(x):
+                trial_set = False
+    return out
+
+
 def classify(label: str | None) -> str:
     t = (label or "").strip()
     for name, rx in ENTRY_TYPES:
@@ -244,6 +325,12 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
         ),
         key=lambda e: e["entry_date"] or date.min,
     )
+
+    sittings = classify_sittings([(_d(e.get("CREATED_DATE")), e.get("INFO")) for e in entries])
+    trial_days = {d for d, k in sittings if k == "trial"}
+    for e in ents:
+        if e["entry_type"] == "hearing_held" and e["entry_date"] in trial_days:
+            e["entry_type"] = "trial_held"
 
     def first(t):
         return next((e["entry_date"] for e in ents if e["entry_type"] == t), None)
@@ -293,7 +380,13 @@ def parse_file(listing: dict, entries: list[dict], fetched_at: str) -> tuple[dic
             "listed_filed_date_implausible": listed is not None and not plausible(listed),
             "reply_date": first("reply"),
             "first_scheduled_date": first("scheduled"),
-            "first_hearing_date": first("hearing_held"),
+            # first sitting of any kind, and the first read as the trial (see MINUTES_RX)
+            "first_hearing_date": min((d for d, _ in sittings), default=None),
+            "first_trial_date": min(trial_days, default=None),
+            "n_sittings": len(sittings),
+            "n_trial_sittings": len(trial_days),
+            "n_other_sittings": sum(k == "other" for _, k in sittings),
+            "n_unclassified_sittings": sum(k == "unclassified" for _, k in sittings),
             "hearing_requested_date": first("hearing_requested"),
             "n_case_mgmt_conferences": sum(e["entry_type"] == "case_mgmt_held" for e in ents),
             "n_adjournment_requests": sum(e["entry_type"] == "adjournment_requested" for e in ents),
@@ -347,14 +440,34 @@ def _cached_json(url_contains: str):
             yield meta, json.loads((raw / meta["file"]).read_text(encoding="utf-8"))
 
 
+LEDGER = "_listing_ledger.json"
+
+
+def listing_ledger() -> dict[str, dict]:
+    """Every file the court's search has ever listed for us, with the row as last listed and
+    the date it was last listed (``_last_listed``).
+
+    The weekly refresh re-fetches each year's listing over the cached copy, so the cache holds
+    only what the court lists today. Between 16 and 19 November 2026 the court's listing
+    shrank from 29,714 files to about 4,700 with no pattern we could find; files that drop out
+    of the listing stay in the census through this ledger (raw data, contains names, stays in
+    data/raw). Updated from the cache on every parse."""
+    path = paths.raw_dir(SOURCE) / LEDGER
+    ledger = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    for meta, j in _cached_json("/appealnumber/courtnumber"):
+        for row in j.get("data") or []:
+            nbr = (row.get("APPEAL_NBR") or "").strip()
+            if nbr:
+                ledger[nbr] = {**row, "_last_listed": meta["fetched_at"][:10]}
+    path.write_text(json.dumps(ledger, ensure_ascii=False), encoding="utf-8")
+    return ledger
+
+
 def parse(client: Client | None = None):
     import polars as pl
 
-    listing: dict[str, dict] = {}
-    for _meta, j in _cached_json("/appealnumber/courtnumber"):
-        for row in j.get("data") or []:
-            if row.get("APPEAL_NBR"):
-                listing[row["APPEAL_NBR"].strip()] = row
+    listing = listing_ledger()
+    latest = max((r["_last_listed"] for r in listing.values()), default=None)
     entries: dict[str, tuple[list, str]] = {}
     for meta, j in _cached_json("/appealnumberRE"):
         nbr = meta["url"].split("appealnumber=")[1].split("&")[0]
@@ -371,6 +484,9 @@ def parse(client: Client | None = None):
         if row is None:
             dropped += 1
             continue
+        # still on the court's public listing at our latest reading of it?
+        row["last_listed"] = _d(lrow.get("_last_listed"))
+        row["listed_now"] = lrow.get("_last_listed") == latest
         rows.append(row)
         erows.extend(er)
     out = paths.processed_dir() / "s12"

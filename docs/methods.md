@@ -655,17 +655,45 @@ written for more than trials, which supports practitioner question 1.
 
 **Tax Court wait for a hearing** (`s12_tcc_hearing_wait_by_cohort`, provisional). Most files end
 without a hearing, so this is a cumulative incidence with "ended without a hearing" as the
-competing outcome (`survival.cif_table`), not a Kaplan-Meier median. Share of files with a first
-hearing entry within one and two years of filing:
+competing outcome (`survival.cif_table`), not a Kaplan-Meier median.
+
+**Which sitting is the trial (changed 2026-11-24).** The practitioner's reading (round 1, TC-6) is
+that "Minutes of Hearing" is kept for every kind of sitting: motions, status hearings and
+conference calls as well as the hearing of the appeal. The census agrees: of 16,061 sitting days,
+the entry most often follows "Case Management Conference scheduled". `classify_sittings` in
+`s12_tcc_dockets.py` therefore reads a sitting as the **trial** only when the appeal had been set
+down (notice of hearing, order fixing the hearing, appeal scheduled, continuation scheduled, or
+for an application file the application scheduled) and no conference, motion, status or show-cause
+hearing was waiting for its minutes; a decision reserved, consent allowed or withdrawal accepted
+"at hearing" the same day also makes it a trial. Result: 6,962 trial sittings (43%), 8,570 other
+(53%), 529 unclassified (3%, counted as not a trial, so trial shares are lower bounds). Check: a
+judgment follows within 45 days after 39% of trial sittings and 5% of the others. The rule is ours
+and inferred; it is not the court's and not yet reviewed. `first_hearing_date` (any sitting) is
+kept beside the new `first_trial_date`.
+
+Share of files with a first trial sitting within one and two years of filing (in brackets: the
+earlier figure, which counted any sitting):
 
 | Filing year | Informal, 1 year | Informal, 2 years | General, 2 years |
 |---|---|---|---|
-| 2018 | 31% | 41% (39-42) | 12% (10-14) |
-| 2020 | 6% | 19% (17-21) | 13% (11-15) |
-| 2022 | 8% | 26% (24-29) | 9% (8-10) |
-| 2024 | 18% | 34% (32-37) | 12% (10-13) |
+| 2018 | 15% (was 31%) | 29% (28-31) (was 41%) | 1.4% (0.7-1.9) (was 12%) |
+| 2020 | 1% (was 6%) | 6% (5-8) (was 19%) | 1.4% (0.8-2.3) (was 13%) |
+| 2022 | 7% (was 8%) | 22% (20-25) (was 26%) | 1.0% (0.6-1.4) (was 9%) |
+| 2024 | 15% (was 18%) | 31% (28-34) (was 34%) | 2.7% (1.9-3.5) (was 12%) |
 
-The fall from 31% to 6% within a year for Informal files filed in 2020 is the pandemic closure.
+General procedure: about a third of 2018-2020 files had some sitting, about one in nine a trial
+sitting. The low point for Informal files filed in 2020 is the pandemic closure.
+
+**The court's public listing shrank (found 2026-11-24).** The year listings the search returned
+on 16 November 2026 held 29,714 files; from 19 November they hold about 4,700 (4,709 of our
+29,722 files are still listed). The files that dropped out span every year, status and
+procedure; applications mostly stayed. We found no rule that separates them. The weekly refresh
+had overwritten the cached listings, so a re-parse would have cut the census to the files still
+listed; the 16 November listings were restored from the backup and the parser now keeps a ledger
+of every file ever listed (`_listing_ledger.json` in the raw folder; contains names, never
+exported). Each file carries `last_listed` and `listed_now`. Consequence: the weekly refresh can
+only see status changes for files still listed, so the status of the other 25,000 is frozen at 16
+November until this is resolved. An open issue for the Tax Court Registry.
 
 ### Confidentiality markers: files kept, markers counted (owner decision 2026-11-19)
 

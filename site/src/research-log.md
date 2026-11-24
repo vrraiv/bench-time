@@ -10,6 +10,15 @@ Held-back results (Tax Court, appeal chains, Supreme Court, pending-file counts,
 
 **Kinds of entry:** _Data_ (coverage and collection) · _Definitions_ (how a file, event or count is defined) · _Results_ · _Decision_ (by the project lead) · _Open_ (questions not yet settled).
 
+## 2026-11-24
+
+- _Definitions_: Tax Court: only trial sittings now count as a hearing. The practitioner told us the "Minutes of Hearing" entry is kept for motions, status hearings and conference calls as well as trials, and the files confirm it (more than half of all sittings follow a conference, motion or status hearing). A sitting is now read as the trial only when the appeal had been set down for hearing and nothing else was waiting for its minutes. The rule is ours and has not been reviewed; about 3 percent of sittings cannot be classified and are not counted.
+- _Results_: The Tax Court hearing figures fall sharply as a result, most of all for General procedure files, where the earlier figures were mostly counting conferences. Figures are on the results-under-review page.
+- _Data_: The Tax Court's public file list shrank from 29,714 files on 16 November to about 4,700 from 19 November. The files that dropped out span every year, status and procedure, and we found no rule that explains it. Our census keeps every file listed on either date (the earlier list was recovered from the backup, and the parser now keeps a permanent record of every file the court has listed). Files no longer listed cannot have their status updated by the weekly refresh. This is why one file named in the follow-up questions could not be found by the practitioner.
+- _Definitions_: Supreme Court, on the practitioner's advice: judgments given at the hearing are reported apart from reserved judgments, with the time to written reasons where the case page records it; the wait for a leave decision is shown from both starting dates (first filing, and the date the application was complete); and each way the leave stage can end (granted, dismissed, remanded, quashed, oral hearing ordered, discontinued) is shown separately.
+- _Results_: Supreme Court: about a quarter of judgments are given from the bench and the share has risen; reserved judgments therefore take longer than the pooled figure showed. Figures are on the results-under-review page.
+- _Open_: Why the Tax Court's public list shrank, and whether the removed files can still be read, is added to the open issues for the Tax Court Registry.
+
 ## 2026-11-23
 
 - _Decision_: The practitioner gets private working copies of the court records for the files the follow-up questions name, made from our saved copies of the courts' public file searches. They include names, so they are kept in a shared folder outside the site and the repository, not published. One Tax Court file named in the questions no longer appears in the court's public search.
