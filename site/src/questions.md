@@ -22,6 +22,7 @@ display(html`<p>For background: <a href=${summary.href} target="_blank" rel="noo
 - You can reply more than once; nothing is overwritten.
 
 ```js
+import {linkify, richText} from "./components/filelinks.js";
 const data = FileAttachment("review-data/questions.json").json();
 const round1 = FileAttachment("review-data/questions-archive-round1.json").json();
 ```
@@ -80,7 +81,7 @@ function table(t) {
   const tb = el.createTBody();
   for (const row of t.rows) {
     const r = tb.insertRow();
-    for (const c of row) r.insertCell().textContent = c;
+    for (const c of row) r.insertCell().append(...linkify(c));
   }
   return el;
 }
@@ -148,13 +149,13 @@ function issueCard(q) {
   if (ctx) card.append(ctx);
   // don't repeat a heading that is just the question's first sentence
   const body = ownTitle && q.question.startsWith(q.title) ? q.question.slice(q.title.length).trim() : q.question;
-  if (body) card.append(el("p", {className: "q-text", textContent: body}));
+  if (body) card.append(richText(body));
   if (q.context && !ctx) card.append(el("p", {className: "muted", textContent: q.context}));
   // the earlier exchange this follow-up builds on
   const prev = q.follows ? round1.issues.find((p) => p.id === q.follows) : null;
   if (prev) {
     const det = el("details", {className: "earlier"}, el("summary", {textContent: `Round 1 (${prev.id}): what we asked and what you said`}));
-    det.append(el("p", {className: "muted", textContent: prev.question}));
+    det.append(el("p", {className: "muted"}, ...linkify(prev.question)));
     const ul = el("ul", {className: "replies"});
     for (const r of prev.replies || []) ul.append(replyItem({...r, author: "round 1"}));
     det.append(ul);
@@ -231,6 +232,10 @@ display(root);
 #observablehq-main .question h3 { margin-top: 0; margin-bottom: 0.5rem; font-size: 17px; font-weight: 600; color: var(--theme-foreground); max-width: 720px; }
 .qid { font-size: 13px; font-weight: 500; color: var(--theme-foreground-muted); margin-right: 0.5rem; }
 .q-text { font-size: 17px; max-width: 720px; margin: 0.5rem 0; }
+.q-text p { margin: 0.5rem 0; }
+.q-text ul { margin: 0.25rem 0 0.5rem; padding-left: 1.25rem; }
+.q-text li { margin: 0.15rem 0; }
+.filelink { white-space: nowrap; }
 .entry { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1rem; margin: 0.5rem 0 0.75rem; padding: 0.5rem 0.75rem; font-size: 15px; background: var(--theme-background-alt); border-radius: 6px; max-width: 720px; }
 .entry dt { font-weight: 600; color: var(--theme-foreground-muted); }
 .entry dd { margin: 0; }

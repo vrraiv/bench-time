@@ -11,6 +11,7 @@ These questions quote provisional figures. They are shown only on this access-re
 Each round's questions, with the replies given on the [Questions for review](./questions) page, frozen when the round closed. Nothing here can be edited; where we needed more, the question was carried into the current round as a follow-up (marked below).
 
 ```js
+import {linkify} from "./components/filelinks.js";
 const r1 = FileAttachment("review-data/questions-archive-round1.json").json();
 const current = FileAttachment("review-data/questions.json").json();
 ```
@@ -33,7 +34,7 @@ function table(t) {
   const body = tb.createTBody();
   for (const row of t.rows) {
     const r = body.insertRow();
-    for (const c of row) r.insertCell().textContent = c;
+    for (const c of row) r.insertCell().append(...linkify(c));
   }
   return tb;
 }
@@ -60,7 +61,7 @@ function round(a) {
       }
       card.append(h);
       if (q.context) card.append(el("p", {className: "muted", textContent: q.context}));
-      card.append(el("p", {className: "q-text", textContent: q.question}));
+      card.append(el("p", {className: "q-text"}, ...linkify(q.question)));
       const ul = el("ul", {className: "replies"});
       for (const r of q.replies || []) {
         ul.append(el("li", {},
