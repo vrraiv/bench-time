@@ -344,7 +344,9 @@ terms, two site maps, one case page); nothing parsed or stored beyond the cache.
   restored from restic snapshot `f2fe9f86` and `parse()` now keeps `_listing_ledger.json` (every
   row ever listed, with `_last_listed`). Not tested: whether the entries endpoint still answers
   for a file that is no longer listed (no request made). The refresh's `accept=_has_rows` guard
-  does not catch a listing that shrinks; it should refuse a large drop.
+  did not catch a listing that shrinks; since 2026-11-24 a listing with under 80% of the files
+  in the cached copy is refused (`refresh._keeps_most`), the cached copy is kept, and five
+  refusals in a row stop the run.
 
 - Landing page `https://www.tcc-cci.ca/en/pages/find-a-court-file` (script `/Content/js/base/data.js`,
   read 2026-11-16). File search: `GET /en/tcc/pq/appealnumber/courtnumber?courtnumber=&lang=e`;

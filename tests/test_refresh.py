@@ -4,6 +4,7 @@ import json
 from datetime import date
 
 import polars as pl
+import pytest
 
 from courtdelay import refresh
 from courtdelay.common.http import FetchError
@@ -143,3 +144,43 @@ def test_scc_refresh_fetches_new_pages_and_rechecks_open_slice(tmp_path, monkeyp
     c2 = FakeSCC([*open_cases, 40100, 40101, 40102])
     refresh.refresh_scc(c2, today, refresh._Run("scc", None), new_only=True)
     assert len(c2.calls) == 1
+
+
+def test_listing_that_shrinks_is_refused():
+    import json
+
+    body = lambda n: json.dumps({"data": [{"APPEAL_NBR": f"2018-{i}(IT)I"} for i in range(n)]})  # noqa: E731
+    accept = refresh._keeps_most(1000)
+    assert accept(body(1000).encode()) and accept(body(800).encode())
+    assert not accept(body(218).encode()) and not accept(b"not json")
+    # small listings only need to come back with rows
+    small = refresh._keeps_most(5)
+    assert small(body(1).encode()) and not small(body(0).encode())
+
+
+def test_tcc_refresh_keeps_cached_listing_and_stops_when_listings_shrink(tmp_path, monkeypatch):
+    from courtdelay.sources import s12_tcc_dockets as s12
+
+    before = {f"2026-{d}{i:03d}(IT)I": "Closed" for d in range(1, 10) for i in range(40)}
+    monkeypatch.setattr(refresh, "_s12_listing_from_cache", lambda: before)
+    monkeypatch.setattr(refresh, "_s12_cached_entry_numbers", lambda: set(before))
+    monkeypatch.setattr(s12, "listing_ledger", lambda: dict.fromkeys(before, {}))
+
+    class Shrunk:
+        calls = 0
+
+        def get(self, url, *, source, tier, params, refresh=False, accept=None):
+            Shrunk.calls += 1
+            rows = [{"APPEAL_NBR": f"{params['courtnumber']}000(IT)I", "STATUS": "Closed"}]
+            import json
+
+            if accept is not None and not accept(json.dumps({"data": rows}).encode()):
+                raise FetchError(url, 200, "rejected; cached copy kept")
+            return FakeResp({"data": rows})
+
+    run = refresh._Run("tcc", None)
+    with pytest.raises(refresh.RefreshAborted):
+        refresh.refresh_tcc(Shrunk(), date(2026, 11, 29), run, first_year=2026)
+    # the run stops after five refused listings; no file is fetched, no listing replaced
+    assert Shrunk.calls == refresh.MAX_CONSECUTIVE_ERRORS
+    assert run.stats == {"failed_requests": refresh.MAX_CONSECUTIVE_ERRORS}

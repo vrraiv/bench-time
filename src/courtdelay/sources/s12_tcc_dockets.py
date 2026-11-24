@@ -215,12 +215,15 @@ ACTIVE_STATUS_PREFIXES = (
 # the trial from what was set down before it.
 MINUTES_RX = re.compile(r"^minutes of hearing", re.I)
 # sets the appeal itself down for hearing (for an application file, the application)
+# ("Order Hearing Fixed" and "Notice of Hearing" are not used: they also accompany show-cause
+# hearings and motions)
 TRIAL_SET_RX = re.compile(
-    r"^notice of hearing(?! of| -)|^order hearing fixed$|^appeal scheduled"
-    r"|^continuation of appeal scheduled|^appeal hearing reassigned"
+    r"^appeal scheduled|^continuation of appeal scheduled|^appeal hearing reassigned"
     r"|^application scheduled",
     re.I,
 )
+# minutes with an exhibit list: evidence was taken, so the appeal itself was heard
+EXHIBITS_RX = re.compile(r"^minutes of hearing and exhibit list", re.I)
 # sets down something else that will produce its own minutes
 OTHER_SET_RX = re.compile(
     r"^case management conference scheduled|^trial management scheduled"
@@ -260,11 +263,11 @@ def classify_sittings(entries: list[tuple[date | None, str]]) -> list[tuple[date
     for d, label in entries:
         if d is not None:
             days.setdefault(d, []).append((label or "").strip())
-    out, trial_set, other_set = [], False, 0
+    out, trial_set, other_set, last_set = [], False, 0, None
     for d in sorted(days):
         labels = days[d]
         if any(MINUTES_RX.search(x) for x in labels):
-            if any(TRIAL_DAY_RX.search(x) for x in labels):
+            if any(TRIAL_DAY_RX.search(x) or EXHIBITS_RX.search(x) for x in labels):
                 kind = "trial"
             elif any(OTHER_DAY_RX.search(x) for x in labels) or other_set:
                 kind = "other"
@@ -283,10 +286,16 @@ def classify_sittings(entries: list[tuple[date | None, str]]) -> list[tuple[date
         for x in labels:
             if OTHER_SET_RX.search(x):
                 other_set += 1
+                last_set = "other"
             elif TRIAL_SET_RX.search(x):
                 trial_set = True
+                last_set = "trial"
             elif TRIAL_OFF_RX.search(x):
-                trial_set = False
+                # an adjournment before the hearing cancels whatever was set down last
+                if last_set == "other" and other_set:
+                    other_set -= 1
+                else:
+                    trial_set = False
     return out
 
 

@@ -462,16 +462,15 @@ def build_s12(derived: Path, site: Path) -> None:
         censor_col="scraped_date",
         label="filing -> first trial sitting (competing: file ended without one)",
         bias_statement=S12_BIAS
-        + " Trial = the first 'Minutes of Hearing' entry after the appeal was set down for "
-        "hearing (notice of hearing, order fixing the hearing, appeal scheduled); minutes "
-        "that follow a case management or trial management conference, motion, status or "
-        "show-cause hearing are not counted. The rule is ours, built on the practitioner's "
-        "reading that minutes are kept for every kind of sitting. About 3% of sittings "
-        "cannot be classified and are not counted, and some trials are missed (in files with "
-        "a sitting and a judgment not on consent, no trial sitting is found in 23% of General "
-        "and 4% of Informal files), so the share is a lower bound. Files with a trial sitting "
-        "per fiscal year are close to the court's published 'files heard in court' in "
-        "2022-23 (719 against 713) but not in every year.",
+        + " Trial = a 'Minutes of Hearing' entry with an exhibit list or a decision reserved "
+        "that day, or one that follows 'Appeal Scheduled' with no conference, motion, status "
+        "or show-cause hearing waiting for its minutes. The rule is ours, built on the "
+        "practitioner's reading that minutes are kept for every kind of sitting. About 5% of "
+        "sittings cannot be classified and are not counted, and some trials are missed (in "
+        "files with a sitting and a judgment not on consent, no trial sitting is found in 16% "
+        "of General and 2% of Informal files), so the share is a lower bound. Files with a "
+        "trial sitting per fiscal year are close to the court's published 'files heard in "
+        "court' in 2022-23 (741 against 713) but not in every year.",
     )
     if wait.height:
         wait = (

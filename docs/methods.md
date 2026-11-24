@@ -661,34 +661,36 @@ competing outcome (`survival.cif_table`), not a Kaplan-Meier median.
 that "Minutes of Hearing" is kept for every kind of sitting: motions, status hearings and
 conference calls as well as the hearing of the appeal. The census agrees: of 16,061 sitting days,
 the entry most often follows "Case Management Conference scheduled". `classify_sittings` in
-`s12_tcc_dockets.py` therefore reads a sitting as the **trial** only when the appeal had been set
-down (notice of hearing, order fixing the hearing, appeal scheduled, continuation scheduled, or
-for an application file the application scheduled) and no conference, motion, status or show-cause
-hearing was waiting for its minutes; a decision reserved, consent allowed or withdrawal accepted
-"at hearing" the same day also makes it a trial. Result: 6,962 trial sittings (43%), 8,570 other
-(53%), 529 unclassified (3%, counted as not a trial, so trial shares are lower bounds). Check: a
-judgment follows within 45 days after 39% of trial sittings and 5% of the others. Misses: among files with a
-sitting and a judgment with no consent entry, no trial sitting is found in 66 of 287 General
-files (23%) and 72 of 1,776 Informal files (4%); some of those judgments decide motions. Against
-the court's "Files prepared for hearing and heard in Court" (S8, fiscal years; definition not
-published; our census has no pre-2018 files): files with a trial sitting 719 v. 713 (2022-23),
-269 v. 166 (2021-22), 220 v. 273 (2020-21), 1,324 v. 883 (2019-20), 345 v. 888 (2018-19); files
+`s12_tcc_dockets.py` reads a sitting as the **trial** when (a) the minutes carry an exhibit list,
+or a decision was reserved, a consent allowed or a withdrawal accepted "at hearing" that day; or
+(b) the appeal had been set down ("Appeal Scheduled", "Continuation of Appeal scheduled",
+"Appeal hearing reassigned", or for an application file "Application Scheduled") and no
+conference, motion, status or show-cause hearing was waiting for its minutes. "Order Hearing
+Fixed" and "Notice of Hearing" are not used as setters: they also accompany show-cause hearings
+and motions. An adjournment before the hearing cancels whatever was set down last. Result: 7,228
+trial sittings (45%), 8,030 other (50%), 803 unclassified (5%, counted as not a trial). Checks: a
+judgment follows within 45 days after 39% of trial sittings and 4% of the others. Misses: among
+files with a sitting and a judgment with no consent entry, no trial sitting is found in 47 of 287
+General files (16%) and 32 of 1,776 Informal files (2%); some of those judgments decide motions.
+Against the court's "Files prepared for hearing and heard in Court" (S8, fiscal years; definition
+not published; our census has no pre-2018 files): files with a trial sitting 741 v. 713 (2022-23),
+279 v. 166 (2021-22), 229 v. 273 (2020-21), 1,343 v. 883 (2019-20), 352 v. 888 (2018-19); files
 with any sitting were 1,251, 1,387, 557, 1,820 and 895. A trial sitting dated before the filing
-date (62 files, mostly converted extension applications) is not used. The rule is ours
-and inferred; it is not the court's and not yet reviewed. `first_hearing_date` (any sitting) is
-kept beside the new `first_trial_date`.
+date (mostly converted extension applications) is not used. The rule is ours and inferred; it is
+not the court's, and it is with the practitioner for review (round 2, TC-16). `first_hearing_date`
+(any sitting) is kept beside the new `first_trial_date`.
 
 Share of files with a first trial sitting within one and two years of filing (in brackets: the
 earlier figure, which counted any sitting):
 
 | Filing year | Informal, 1 year | Informal, 2 years | General, 2 years |
 |---|---|---|---|
-| 2018 | 15% (was 31%) | 29% (28-31) (was 41%) | 1.4% (0.7-1.9) (was 12%) |
-| 2020 | 1% (was 6%) | 6% (5-8) (was 19%) | 1.4% (0.8-2.3) (was 13%) |
-| 2022 | 7% (was 8%) | 22% (20-25) (was 26%) | 1.0% (0.6-1.4) (was 9%) |
-| 2024 | 15% (was 18%) | 31% (28-34) (was 34%) | 2.7% (1.9-3.5) (was 12%) |
+| 2018 | 16% (was 31%) | 30% (28-32) (was 41%) | 1.6% (1.0-2.3) (was 12%) |
+| 2020 | 1% (was 6%) | 6% (5-8) (was 19%) | 1.3% (0.8-2.0) (was 13%) |
+| 2022 | 7% (was 8%) | 23% (20-25) (was 26%) | 1.7% (1.0-2.2) (was 9%) |
+| 2024 | 15% (was 18%) | 31% (29-34) (was 34%) | 3.7% (2.8-4.7) (was 12%) |
 
-General procedure: about a third of 2018-2020 files had some sitting, about one in nine a trial
+General procedure: about a third of 2018-2020 files had some sitting, about one in eight a trial
 sitting. The low point for Informal files filed in 2020 is the pandemic closure.
 
 **The court's public listing shrank (found 2026-11-24).** The year listings the search returned

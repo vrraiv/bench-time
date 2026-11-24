@@ -168,13 +168,13 @@ def test_active_status_overrides_motion_judgment():
 
 def test_sittings_trial_only_when_the_appeal_was_set_down():
     d = date
-    # a case management conference, then the trial: only the second sitting is the trial
+    # a case management conference, then the trial: only the later sittings are the trial
     file1 = [
         (d(2024, 1, 5), "Notice of Appeal"),
         (d(2024, 5, 1), "Case Management Conference scheduled"),
         (d(2024, 6, 3), "Minutes of Hearing"),
+        (d(2024, 9, 1), "Appeal Scheduled"),
         (d(2024, 9, 1), "Order Hearing Fixed"),
-        (d(2024, 9, 2), "Notice of Hearing"),
         (d(2025, 2, 10), "Minutes of Hearing and Exhibit list"),
         (d(2025, 2, 11), "Minutes of Hearing"),
     ]
@@ -185,23 +185,42 @@ def test_sittings_trial_only_when_the_appeal_was_set_down():
     ]
     # a conference held with no minutes does not swallow the trial that follows
     file2 = [
-        (d(2024, 3, 1), "Notice of Hearing"),
+        (d(2024, 3, 1), "Appeal Scheduled"),
         (d(2024, 4, 1), "Case Management Conference scheduled"),
         (d(2024, 4, 20), "Case Management Conference Held"),
         (d(2024, 6, 1), "Minutes of Hearing"),
     ]
     assert s12.classify_sittings(file2) == [(d(2024, 6, 1), "trial")]
-    # nothing set down: not counted as a trial; a decision reserved that day makes it one
+    # nothing set down: not counted as a trial; a decision reserved that day, or an exhibit
+    # list, makes it one
     assert s12.classify_sittings([(d(2024, 6, 1), "Minutes of Hearing")]) == [
         (d(2024, 6, 1), "unclassified")
     ]
     assert s12.classify_sittings(
         [(d(2024, 6, 1), "Minutes of Hearing"), (d(2024, 6, 1), "Reserved Decision at Hearing")]
     ) == [(d(2024, 6, 1), "trial")]
+    assert s12.classify_sittings([(d(2024, 6, 1), "Minutes of Hearing and Exhibit list")]) == [
+        (d(2024, 6, 1), "trial")
+    ]
     # an adjourned trial date no longer counts as set down
     file3 = [
-        (d(2024, 3, 1), "Notice of Hearing"),
+        (d(2024, 3, 1), "Appeal Scheduled"),
         (d(2024, 5, 1), "Adj. prior to hearing - Sine die"),
         (d(2024, 6, 1), "Minutes of Hearing"),
     ]
     assert s12.classify_sittings(file3) == [(d(2024, 6, 1), "unclassified")]
+    # an order fixing a show-cause hearing does not set the appeal down
+    file4 = [
+        (d(2024, 3, 1), "Order Hearing Fixed"),
+        (d(2024, 3, 1), "Show Cause scheduled"),
+        (d(2024, 6, 1), "Minutes of Hearing"),
+    ]
+    assert s12.classify_sittings(file4) == [(d(2024, 6, 1), "other")]
+    # a status hearing adjourned before it was held does not swallow the trial
+    file5 = [
+        (d(2024, 1, 1), "Status Hearing Scheduled"),
+        (d(2024, 2, 1), "Adj. prior to hearing - Sine die"),
+        (d(2024, 3, 1), "Appeal Scheduled"),
+        (d(2024, 6, 1), "Minutes of Hearing"),
+    ]
+    assert s12.classify_sittings(file5) == [(d(2024, 6, 1), "trial")]

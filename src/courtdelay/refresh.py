@@ -57,6 +57,29 @@ def _has_rows(content: bytes) -> bool:
         return False
 
 
+# A year listing that comes back with far fewer files than the copy we hold is refused: the
+# cached copy is kept and the request counts as a failure, so a listing that shrinks across the
+# board stops the run. (Between 16 and 19 November 2026 the Tax Court's listings lost 84% of
+# their files; the refresh accepted them because they still had rows.)
+LISTING_MIN_SHARE = 0.8
+LISTING_MIN_BEFORE = 20
+
+
+def _keeps_most(n_before: int):
+    """accept() for a listing that held ``n_before`` files when last read."""
+
+    def accept(content: bytes) -> bool:
+        try:
+            n = len(json.loads(content).get("data") or [])
+        except (ValueError, AttributeError):
+            return False
+        if n_before < LISTING_MIN_BEFORE:
+            return n > 0
+        return n >= LISTING_MIN_SHARE * n_before
+
+    return accept
+
+
 class _Run:
     """Counters, error budget and time budget shared by the steps of one run."""
 
@@ -188,12 +211,15 @@ def refresh_tcc(
 ) -> None:
     """Re-list every filing year (nine requests a year carry every file's status), then fetch the
     entries of new files, of files whose status changed, and of this week's slice of open files."""
+    # every file listed so far goes into the ledger before any cached listing is replaced
+    ever_listed = len(s12.listing_ledger())
     before = _s12_listing_from_cache()
     have_entries = _s12_cached_entry_numbers()
     now: dict[str, str] = {}
     for year in range(first_year, today.year + 1):
         for d in range(1, 10):
             prefix = f"{year}-{d}"
+            n_prefix = sum(n.startswith(prefix) for n in before)
             try:
                 r = client.get(
                     s12.LIST_URL,
@@ -201,8 +227,8 @@ def refresh_tcc(
                     tier=s12.TIER,
                     params={"courtnumber": prefix, "lang": "e"},
                     refresh=True,
-                    # a prefix that listed files before must list files again
-                    accept=_has_rows if any(n.startswith(prefix) for n in before) else None,
+                    # a prefix that listed files before must list most of them again
+                    accept=_keeps_most(n_prefix) if n_prefix else None,
                 )
                 rows = r.json().get("data") or []
                 run.ok()
@@ -213,6 +239,10 @@ def refresh_tcc(
                 nbr = (row.get("APPEAL_NBR") or "").strip()
                 if nbr.startswith(prefix):
                     now[nbr] = (row.get("STATUS") or "").strip()
+    # the new listings go into the ledger too; the log shows how much of the census is listed
+    s12.listing_ledger()
+    run.add("listed_now", len(now))
+    run.add("ever_listed", max(ever_listed, len(now)))
     k = week_slice(today)
     closed = {"closed", "withdrawn"}
     for nbr in sorted(now, key=lambda n: (len(n), n)):
