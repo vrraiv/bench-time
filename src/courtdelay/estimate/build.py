@@ -1367,9 +1367,13 @@ def copy_review_questions(site: Path) -> None:
     """The practitioner's questions (data/review/questions.json, written by
     scripts/import_review_questions.py; gitignored) go to the held-back folder for the
     "Questions for review" page; earlier rounds frozen by scripts/archive_review_round.py
-    (questions-archive-round*.json) go with them for the archive page."""
+    (questions-archive-round*.json) and the open-issues log (open-issues.json) go with them."""
     folder = paths.REPO_ROOT / "data" / "review"
-    files = [folder / "questions.json", *sorted(folder.glob("questions-archive-round*.json"))]
+    files = [
+        folder / "questions.json",
+        folder / "open-issues.json",
+        *sorted(folder.glob("questions-archive-round*.json")),
+    ]
     files = [f for f in files if f.exists()]
     if files:
         review = site.parent / "review-data"

@@ -12,6 +12,7 @@ export default {
     {name: "Resources", path: "/resources"},
     {name: "Results under review", path: "/review"},
     {name: "Questions for review", path: "/questions"},
+    {name: "Open issues", path: "/open-issues"},
     {name: "Research log", path: "/research-log"},
     {name: "Methods", path: "/methods"},
     {name: "Sources & limitations", path: "/sources"}

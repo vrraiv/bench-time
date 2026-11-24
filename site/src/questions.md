@@ -8,7 +8,7 @@ title: Questions for review
 These questions quote provisional figures. They are shown only on this access-restricted preview and are not in the public repository. Please do not forward them.
 </div>
 
-These are our follow-up questions after the first round of answers (23 November 2026). Most ask you to look at a specific file we name; each shows, folded, what we asked before and what you said. The first round's questions and answers are kept in full on the **[earlier rounds](./questions-archive)** page.
+These are our follow-up questions after the first round of answers (23 November 2026). Most ask you to look at a specific file we name; each shows, folded, what we asked before and what you said. The first round's questions and answers are kept in full on the **[earlier rounds](./questions-archive)** page. The first section, **Decisions for us both**, is about whom we ask next (the Registry, an outside expert) and who does the asking. Questions nobody has been able to answer yet are tracked on the **[open issues](./open-issues)** page until they are settled or disclosed with the results.
 
 ```js
 const summary = FileAttachment("review-data/status-summary.pdf");
