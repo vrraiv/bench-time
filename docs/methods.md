@@ -726,6 +726,16 @@ the file); one file is flagged throughout. S4 (Refugee Law Lab) keeps its 667
 marked files too (owner decision later the same day): 562 mention "sealed", 246 a confidentiality
 order, 25 a publication ban.
 
+**What the markers mean (outside lawyer, 2026-11-25; open-issues OI-1, OI-2, OI-5):** a
+publication ban does not take a case out of the court's own statistics, so leaving banned files
+out would break the match with the court's tables; they stay in. A *protective order* usually
+covers documents the parties exchange before trial, is often agreed on consent and drawn broadly,
+and covers only that exchange. A *confidentiality order* covers material before the court and is
+construed narrowly because of the open-court principle. So the two should be counted separately:
+a protective order is a weak signal of a contested file, a confidentiality order a stronger one.
+The current counters (`n_sealed_text_entries` and the text match) still lump them; splitting them
+is open. Whether every "sealed envelope" entry reflects an order is still open (OI-1).
+
 **Published (owner decision 2026-11-19):** the FC/FCA cohort tables (`s10_`) and the FC, FCA and
 immigration link match rates (`link_`) are written to `site/src/data`, cells of 30 or more only.
 Held back: Tax Court tables and Tax Court link rates (practitioner review), appeal-chain totals

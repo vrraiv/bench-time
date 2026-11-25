@@ -32,6 +32,7 @@ for (const i of log.issues) {
   dl.append(el("dt", {textContent: "Affects"}), el("dd", {textContent: i.touches}));
   dl.append(el("dt", {textContent: "Who could settle it"}), el("dd", {textContent: i.routes.join("; ")}));
   dl.append(el("dt", {textContent: "If unresolved, we say"}), el("dd", {textContent: i.disclaimer}));
+  if (i.progress) dl.append(el("dt", {textContent: "Progress"}), el("dd", {textContent: i.progress}));
   if (i.resolution) dl.append(el("dt", {textContent: "Resolution"}), el("dd", {textContent: i.resolution}));
   card.append(dl);
   root.append(card);
