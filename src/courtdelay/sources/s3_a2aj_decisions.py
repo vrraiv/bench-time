@@ -47,6 +47,8 @@ HF = "https://huggingface.co/datasets/a2aj/canadian-case-law/resolve/main/{court
 COURTS = ["SCC", "FCA", "FC", "TCC", "ONCA"]
 HEAD_CHARS = 4000
 TAIL_CHARS = 3000
+# the closing "solicitors / counsel of record" page; Tax Court decisions put footnotes after it
+PAGE_CHARS = 9000
 
 _MONTHS_EN = "january|february|march|april|may|june|july|august|september|october|november|december"
 _MONTHS_FR = (
@@ -186,6 +188,123 @@ def _file_numbers(head: str, court: str) -> list[str]:
     return list(dict.fromkeys(f for f in files if f))
 
 
+# -- the closing page ------------------------------------------------------------------------
+# Federal Court, Federal Court of Appeal and Tax Court decisions end with a page of labelled
+# fields: file number, style of cause, place and date of hearing, the judge and kind of
+# decision, the date signed, appearances and counsel. (Pointed out by an outside lawyer,
+# 2026-11-25.) Only the fields below are kept; style of cause, appearances and counsel are
+# never read into the output.
+PAGE_START_RE = re.compile(
+    r"^\s*(?:STYLES? OF CAUSE|INTITUL[ÉE]S?(?: DE LA CAUSE)?)\s*:", re.M | re.I
+)
+PAGE_LABEL_RE = re.compile(r"^\s*([A-ZÀ-Ü][A-Za-zÀ-ÿ0-9 ,./&'’()\-]{2,90}?)\s*:\s*(.*)$")
+PLACE_LBL = re.compile(r"^(?:PLACE OF (?:THE )?HEARING|LIEU DE L.AUDIENCE)$", re.I)
+HEARING_LBL = re.compile(r"^(?:DATES? OF (?:THE )?HEARING|DATES? DE L.AUDIENCE)$", re.I)
+DATED_LBL = re.compile(
+    r"^(?:DATED|DATE OF (?:AMENDED |ORAL )?(?:JUDGMENTS?|ORDER|DECISION)(?: AND REASONS"
+    r"(?: FOR JUDGMENT)?)?|DATE DU JUGEMENT(?: ET DES MOTIFS)?|DATE DE L.ORDONNANCE"
+    r"(?: ET DES MOTIFS)?|DATE DES MOTIFS DU JUGEMENT ET DU JUGEMENT|DATE DE LA DÉCISION)$",
+    re.I,
+)
+REASONS_DATE_LBL = re.compile(
+    r"^(?:DATE OF (?:ORAL )?REASONS(?: FOR (?:JUDGMENT|ORDER))?|DATE DES MOTIFS)$", re.I
+)
+WRITTEN_LBL = re.compile(
+    r"^(?:WRITTEN (?:REPRESENTATIONS|SUBMISSIONS)(?: BY)?|OBSERVATIONS ÉCRITES(?: PAR)?)$",
+    re.I,
+)
+# the label that names the judge also says what was given: judgment, order, reasons
+DECISION_LBL = re.compile(
+    r"(?:JUDGE?MENT|ORDER|REASONS|BENCH|DIRECTION|DECISION|ASSESSMENT|JUGEMENT|ORDONNANCE"
+    r"|MOTIFS|BANC|DÉCISION|TAXATION)",
+    re.I,
+)
+REMOTE_VIDEO_RE = re.compile(r"vid[ée]o|visioconf|zoom|teams|virtual|virtuel|webex", re.I)
+REMOTE_PHONE_RE = re.compile(r"t[ée]l[ée]conf|t[ée]l[ée]phon", re.I)
+
+
+def page_fields(text: str | None) -> dict:
+    """Fields of the closing page, or all None when there is no page."""
+    out = {
+        "page_found": False,
+        "page_place_kind": None,
+        "page_hearing_last_date": None,
+        "page_decision_kind": None,
+        "page_from_bench": None,
+        "page_judges": None,
+        "page_dated": None,
+        "page_reasons_date": None,
+        "page_written": None,
+    }
+    if not text:
+        return out
+    starts = list(PAGE_START_RE.finditer(text))
+    if not starts:
+        return out
+    # the page begins a few labels before the style of cause (docket / citation lines)
+    seg = text[max(0, starts[-1].start() - 400) :]
+    fields: list[tuple[str, str]] = []
+    for line in seg.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        m = PAGE_LABEL_RE.match(line)
+        # a label's first word is in capitals ("JUDGMENT and reasons:" occurs)
+        first = re.match(r"[^\W\d_]+", m.group(1)) if m else None
+        if m and first and len(first.group(0)) >= 2 and first.group(0).isupper():
+            fields.append((" ".join(m.group(1).split()).upper(), m.group(2).strip()))
+        elif fields and not fields[-1][1]:
+            fields[-1] = (fields[-1][0], line)
+    if not fields:
+        return out
+    out["page_found"] = True
+    for label, value in fields:
+        if PLACE_LBL.match(label) and out["page_place_kind"] is None:
+            out["page_place_kind"] = (
+                "video"
+                if REMOTE_VIDEO_RE.search(value)
+                else "telephone"
+                if REMOTE_PHONE_RE.search(value)
+                else "in person"
+                if value
+                else None
+            )
+        elif HEARING_LBL.match(label) and out["page_hearing_last_date"] is None:
+            d = _parse_date(value)
+            out["page_hearing_last_date"] = max(d) if d else None
+        elif REASONS_DATE_LBL.match(label) and out["page_reasons_date"] is None:
+            d = _parse_date(value)
+            out["page_reasons_date"] = max(d) if d else None
+        elif DATED_LBL.match(label) and out["page_dated"] is None:
+            d = _parse_date(value)
+            out["page_dated"] = max(d) if d else None
+        elif WRITTEN_LBL.match(label):
+            out["page_written"] = True
+        elif DECISION_LBL.search(label) and not label.startswith("DATE"):
+            u = label.upper()
+            # "DELIVERED FROM THE BENCH BY" usually follows the "REASONS ... BY" label
+            bench = bool(re.search(r"BENCH|BANC", u))
+            out["page_from_bench"] = bool(out["page_from_bench"]) or bench
+            if out["page_decision_kind"] is not None:
+                continue
+            out["page_decision_kind"] = (
+                "costs"
+                if re.search(r"ASSESSMENT|TAXATION", u)
+                else "judgment"
+                if re.search(r"JUDGE?MENT|JUGEMENT", u)
+                else "order"
+                if re.search(r"ORDER|ORDONNANCE", u)
+                else "direction"
+                if re.search(r"DIRECTION", u)
+                else "reasons"
+            )
+            # the judge, as a linking key only (never published; CLAUDE.md)
+            out["page_judges"] = value[:200] or None
+    if out["page_place_kind"] is None and out["page_written"]:
+        out["page_place_kind"] = "written"
+    return out
+
+
 def parse_header(text: str | None, court: str, tail: str | None = None) -> dict:
     """Parse derived fields from the start (and optional end) of a decision text."""
     res = {
@@ -278,6 +397,17 @@ PARSED_SCHEMA = {
     "judges_line": pl.Utf8,
     "lower_court_date": pl.Date,
 }
+PAGE_SCHEMA = {
+    "page_found": pl.Boolean,
+    "page_place_kind": pl.Utf8,
+    "page_hearing_last_date": pl.Date,
+    "page_decision_kind": pl.Utf8,
+    "page_from_bench": pl.Boolean,
+    "page_judges": pl.Utf8,
+    "page_dated": pl.Date,
+    "page_reasons_date": pl.Date,
+    "page_written": pl.Boolean,
+}
 
 
 def parse_court(court: str, path, meta: dict) -> pl.DataFrame:
@@ -306,8 +436,15 @@ def parse_court(court: str, path, meta: dict) -> pl.DataFrame:
         pl.col("unofficial_text_en").str.slice(-TAIL_CHARS).alias("_tail_en"),
         pl.col("unofficial_text_fr").str.slice(0, HEAD_CHARS).alias("_head_fr"),
         pl.col("unofficial_text_fr").str.slice(-TAIL_CHARS).alias("_tail_fr"),
+        pl.col("unofficial_text_en").str.slice(-PAGE_CHARS).alias("_page_en"),
+        pl.col("unofficial_text_fr").str.slice(-PAGE_CHARS).alias("_page_fr"),
     ).collect()
-    parsed = []
+    parsed, pages = [], []
+    for page_en, page_fr in zip(df["_page_en"], df["_page_fr"], strict=True):
+        pg = page_fields(page_en)
+        if not pg["page_found"]:
+            pg = page_fields(page_fr)
+        pages.append(pg)
     for head_en, tail_en, head_fr, tail_fr in zip(
         df["_head_en"], df["_tail_en"], df["_head_fr"], df["_tail_fr"], strict=True
     ):
@@ -318,10 +455,10 @@ def parse_court(court: str, path, meta: dict) -> pl.DataFrame:
                 if p.get(k) in (None, 0) and v not in (None, 0):
                     p[k] = v
         parsed.append(p)
-    pdf = pl.DataFrame(parsed, schema=PARSED_SCHEMA)
+    pdf = pl.DataFrame(parsed, schema=PARSED_SCHEMA).hstack(pl.DataFrame(pages, schema=PAGE_SCHEMA))
     date_cols = [c for c in ("document_date_en", "document_date_fr") if c in cols]
     out = (
-        df.drop(["_head_en", "_tail_en", "_head_fr", "_tail_fr"])
+        df.drop(["_head_en", "_tail_en", "_head_fr", "_tail_fr", "_page_en", "_page_fr"])
         .hstack(pdf)
         .with_columns(
             pl.coalesce([pl.col(c).cast(pl.Date) for c in date_cols]).alias("decision_date"),
@@ -380,6 +517,12 @@ def parse(client: Client | None = None, courts: list[str] | None = None) -> pl.D
             (pl.col("hearing_mode") == "written").mean().alias("written_share"),
             pl.col("file_numbers").is_not_null().mean().alias("file_rate"),
             pl.col("judges_line").is_not_null().mean().alias("judges_rate"),
+            pl.col("page_found").mean().alias("page_rate"),
+            pl.col("page_place_kind").is_not_null().mean().alias("page_place_rate"),
+            pl.col("page_decision_kind").is_not_null().mean().alias("page_kind_rate"),
+            pl.col("page_dated").is_not_null().mean().alias("page_dated_rate"),
+            (pl.col("page_dated") == pl.col("decision_date")).mean().alias("page_dated_agrees"),
+            (pl.col("page_place_kind") == "video").mean().alias("video_share"),
             pl.col("reserve_days").median().alias("reserve_days_median"),
             pl.col("reserve_days").quantile(0.9).alias("reserve_days_p90"),
         )

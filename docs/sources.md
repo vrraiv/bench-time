@@ -101,6 +101,21 @@ request); add the real hostname once the owner confirms it.
   attribution-required, not-to-be-indexed until the `upstream_license` values are tabulated
   (first S3 task), and we still publish derived fields only.
 - `https://www.a2aj.ca/` is up (robots allow-all).
+- **Closing page (added 2026-11-25, on an outside lawyer's tip).** Federal Court, FCA and Tax
+  Court texts end with a page of labelled fields (`page_fields`): place of hearing, date of
+  hearing, the label naming the judge (which says judgment, order, reasons, assessment of costs,
+  or "delivered from the bench"), the date signed ("DATED" / "DATE OF JUDGMENT"), a separate date
+  of reasons, and "written representations". Style of cause, appearances and counsel on the
+  same page are never read into the output; the judge text is kept as a linking key only.
+  Found for 98% of FC and FCA and 96% of TCC decisions (English text, else French). Checks:
+  the date signed equals A2AJ's decision date for 99.2% of FC and 98.9% of FCA decisions that
+  carry it, but only 88% for the Tax Court (889 differ, median 8 days, spread both ways; not yet
+  explained). The page's hearing date equals the one parsed from the opening header for 97.8%
+  (FC), 98.1% (FCA) and 92.7% (TCC) of decisions with both. FCA decisions "delivered from the
+  bench": 2,088, of which 98.6% are dated the day of the hearing. Place of hearing reads "by
+  videoconference" where it was; the Tax Court's page gives only a city, so remote hearings
+  cannot be identified there (a handful are noted in the opening header). The page does not
+  record when a file ended: "DATED" is the date the decision was signed.
 
 ### S4 — Refugee Law Lab "Luck of the Draw III" — **OK**
 

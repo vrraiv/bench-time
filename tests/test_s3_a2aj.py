@@ -182,3 +182,112 @@ def test_tcc_file_numbers_without_procedure_letter():
     # the letter that starts the next word is not taken for a procedure suffix
     p = s3.parse_header(TCC_HEADER.replace("2019-1234(IT)G", "2019-1234(EI) IN"), "TCC")
     assert p["file_numbers"] == "2019-1234(EI)"
+
+
+FC_PAGE = """
+[12] The application is dismissed.
+FEDERAL COURT
+SOLICITORS OF RECORD
+DOCKET:
+IMM-1234-23
+STYLE OF CAUSE:
+PERSON ONE v. THE MINISTER OF CITIZENSHIP AND IMMIGRATION
+PLACE OF HEARING:
+by videoconference
+DATE OF HEARING:
+April 16, 2024
+JUDGMENT and reasons:
+JUDGE ONE J.
+DATED:
+April 25, 2024
+APPEARANCES:
+LAWYER ONE
+For The Applicant
+SOLICITORS OF RECORD:
+FIRM ONE LLP
+"""
+
+FCA_BENCH_PAGE = """
+FEDERAL COURT OF APPEAL
+NAMES OF COUNSEL AND SOLICITORS OF RECORD
+DOCKET:
+A-12-24
+STYLE OF CAUSE:
+PERSON TWO v. ATTORNEY GENERAL OF CANADA
+PLACE OF HEARING:
+Ottawa, Ontario
+DATE OF HEARING:
+October 1, 2024
+REASONS FOR JUDGMENT OF THE COURT BY:
+JUDGE TWO J.A.
+DELIVERED FROM THE BENCH BY:
+JUDGE TWO J.A.
+APPEARANCES:
+LAWYER TWO
+"""
+
+TCC_PAGE = """
+CITATION:
+2024 TCC 70
+COURT FILE NO.:
+2020-515(GST)G
+STYLE OF CAUSE:
+PERSON THREE v. HIS MAJESTY THE KING
+PLACE OF HEARING:
+Toronto, Ontario
+DATE OF HEARING:
+April 9 and 10, 2024
+REASONS FOR JUDGMENT BY:
+The Honourable Justice Judge Three
+DATE OF JUDGMENT:
+May 15, 2024
+APPEARANCES:
+LAWYER THREE
+COUNSEL OF RECORD:
+Name:
+LAWYER THREE
+[1] A footnote after the page.
+"""
+
+FR_PAGE = """
+AVOCATS INSCRITS AU DOSSIER
+DOSSIER :
+IMM-10960-22
+INTITULÉ :
+PERSON FOUR c LE MINISTRE
+LIEU DE L’AUDIENCE :
+Toronto (Ontario)
+DATE DE L’AUDIENCE :
+Le 30 novembre 2023
+ORDONNANCE ET MOTIFS :
+JUDGE FOUR
+DATE DE L’ORDONNANCE ET DES MOTIFS :
+Le 12 décembre 2023
+COMPARUTIONS :
+LAWYER FOUR
+"""
+
+
+def test_closing_page_fields():
+    p = s3.page_fields(FC_PAGE)
+    assert p["page_found"] and p["page_place_kind"] == "video"
+    assert p["page_hearing_last_date"] == date(2024, 4, 16)
+    assert p["page_decision_kind"] == "judgment" and p["page_from_bench"] is False
+    assert p["page_dated"] == date(2024, 4, 25) and p["page_judges"] == "JUDGE ONE J."
+    q = s3.page_fields(FCA_BENCH_PAGE)
+    assert q["page_place_kind"] == "in person" and q["page_dated"] is None
+    assert q["page_decision_kind"] == "judgment" and q["page_from_bench"] is True
+    t = s3.page_fields(TCC_PAGE)
+    assert t["page_hearing_last_date"] == date(2024, 4, 10)
+    assert t["page_dated"] == date(2024, 5, 15) and t["page_decision_kind"] == "judgment"
+    f = s3.page_fields(FR_PAGE)
+    assert f["page_decision_kind"] == "order" and f["page_dated"] == date(2023, 12, 12)
+    assert f["page_hearing_last_date"] == date(2023, 11, 30)
+    assert s3.page_fields("no page here")["page_found"] is False
+
+
+def test_closing_page_never_keeps_names():
+    for text in (FC_PAGE, FCA_BENCH_PAGE, TCC_PAGE, FR_PAGE):
+        p = s3.page_fields(text)
+        blob = repr({k: v for k, v in p.items() if k != "page_judges"})
+        assert "PERSON" not in blob and "LAWYER" not in blob and "FIRM" not in blob

@@ -10,6 +10,11 @@ Held-back results (Tax Court, appeal chains, Supreme Court, pending-file counts,
 
 **Kinds of entry:** _Data_ (coverage and collection) · _Definitions_ (how a file, event or count is defined) · _Results_ · _Decision_ (by the project lead) · _Open_ (questions not yet settled).
 
+## 2026-11-25
+
+- _Data_: Published decisions of the Federal Court, Federal Court of Appeal and Tax Court end with a page of labelled details, which we now read (a tip from an outside lawyer who has researched Federal Court timing). It records whether a hearing was held by videoconference, whether the decision is a judgment or an order, whether the Federal Court of Appeal gave it from the bench, when reasons followed, and the date the decision was signed. That date matches the decision date we already used; the page does not record when a file ended, which still comes from the court files. Names on the page are not kept. Nothing published changes yet.
+- _Open_: Videoconference hearings rose sharply in the Federal Court from 2020 and remain common; the Tax Court's page does not record them, so they cannot be studied there from decisions alone. For the Tax Court, the date signed and the decision date differ in about one decision in eight, for reasons not yet known.
+
 ## 2026-11-24
 
 - _Definitions_: Tax Court: only trial sittings now count as a hearing. The practitioner told us the "Minutes of Hearing" entry is kept for motions, status hearings and conference calls as well as trials, and the files confirm it. A sitting is now read as the trial only when the appeal had been set down for hearing and nothing else was waiting for its minutes. The rule is ours and has not been reviewed; it misses some trials, so the new figures are lower bounds. Counted this way, files heard per year are of the same order as the court's own published count, which the earlier measure was not.
