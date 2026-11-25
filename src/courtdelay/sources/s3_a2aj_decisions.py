@@ -223,6 +223,134 @@ REMOTE_VIDEO_RE = re.compile(r"vid[ée]o|visioconf|zoom|teams|virtual|virtuel|we
 REMOTE_PHONE_RE = re.compile(r"t[ée]l[ée]conf|t[ée]l[ée]phon", re.I)
 
 
+# -- counsel and place, from the same page ---------------------------------------------------
+# Counts only: no name is returned. Federal Court and FCA pages give each lawyer's name and then
+# the side ("For the Applicant"); Tax Court pages give the side first ("Counsel for the
+# Respondent:") and then the names.
+APPEAR_LBL_RE = re.compile(
+    r"^\s*(APPEARANCES?|COMPARUTIONS?|WRITTEN (?:REPRESENTATIONS|SUBMISSIONS) BY"
+    r"|OBSERVATIONS ÉCRITES(?: PAR)?)\s*:\s*(.*)$",
+    re.M | re.I,
+)
+APPEAR_END_RE = re.compile(
+    r"^(?:SOLICITORS|COUNSEL) OF RECORD|^AVOCATS? INSCRITS?|^NAMES? OF COUNSEL|^\[\d+\]", re.I
+)
+SIDE_RE = re.compile(
+    r"^(?:(?:counsel|agent|solicitors?)\s+for|for|pour|avocat(?:e|s)?\s+(?:de|du|des|pour))\b"
+    r"\s*(?:the\s+|le\s+|la\s+|les\s+|l['’]\s*)?(.*)$",
+    re.I,
+)
+SELF_RE = re.compile(
+    r"own behalf|self[- ]represented|propre compte|lui-m[êe]me|elle-m[êe]me|^the\s+\w+\s+"
+    r"(?:himself|herself|themselves|itself)\b|^(?:himself|herself|themselves)\b",
+    re.I,
+)
+FIRST_SIDE_RE = re.compile(r"applicant|appellant|plaintiff|petitioner|demand|appel|requ[ée]r", re.I)
+OTHER_SIDE_RE = re.compile(r"respondent|defendant|minister|crown|intim|défend|ministre", re.I)
+INTERVENER_RE = re.compile(r"interven", re.I)
+
+
+def _side(role: str) -> str:
+    r = role.lower()
+    if INTERVENER_RE.search(r):
+        return "intervener"
+    if FIRST_SIDE_RE.search(r):
+        return "first"
+    if OTHER_SIDE_RE.search(r):
+        return "other"
+    return "unknown"
+
+
+def counsel_counts(page: str | None) -> dict:
+    """Number of counsel per side named under "Appearances", and whether a party appeared on
+    its own behalf. Counts only; names are never returned."""
+    out = {
+        "n_counsel": None,
+        "n_counsel_first": None,
+        "n_counsel_other": None,
+        "n_counsel_intervener": None,
+        "self_represented": None,
+    }
+    if not page:
+        return out
+    m = APPEAR_LBL_RE.search(page)
+    if not m:
+        return out
+    lines = [m.group(2).strip()] if m.group(2).strip() else []
+    for line in page[m.end() :].splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if APPEAR_END_RE.search(line):
+            break
+        lines.append(line)
+    # role-first layout (Tax Court): a side label ending in a colon introduces the names
+    role_first = any(SIDE_RE.match(x) and x.rstrip().endswith(":") for x in lines)
+    counts = {"first": 0, "other": 0, "intervener": 0, "unknown": 0}
+    self_rep, pending, current = False, 0, None
+    for line in lines:
+        sm = SIDE_RE.match(line)
+        if SELF_RE.search(line):
+            self_rep = True
+            if not role_first:
+                pending = 0  # the name before it is the party, not counsel
+            continue
+        if sm:
+            side = _side(sm.group(1))
+            if role_first:
+                current = side
+            else:
+                counts[side] += pending
+                pending = 0
+            continue
+        # a name line (possibly two names joined by "and" / "et" or a comma)
+        n = 1 + len(re.findall(r"\s+(?:and|et)\s+|,\s*(?=[A-ZÀ-Ü])", line))
+        if role_first:
+            counts[current or "unknown"] += n
+        else:
+            pending += n
+    counts["unknown"] += pending
+    total = sum(counts.values())
+    out.update(
+        {
+            "n_counsel": total,
+            "n_counsel_first": counts["first"],
+            "n_counsel_other": counts["other"],
+            "n_counsel_intervener": counts["intervener"],
+            "self_represented": self_rep,
+        }
+    )
+    return out
+
+
+def _place_city(value: str) -> str | None:
+    """'MontrEal, QuEbec' -> 'Montréal'. A remote hearing has no city: the place named with it
+    ("held by videoconference between Ottawa and ...") is where the judge or parties sat."""
+    if REMOTE_VIDEO_RE.search(value) or REMOTE_PHONE_RE.search(value):
+        return None
+    v = re.sub(r"^(?:held|heard|tenue?s?)\s+(?:at|in|à|a)\s+", "", value.strip(), flags=re.I)
+    v = re.split(r"[,(;]| - |\s+and\s+|\s+et\s+", v)[0].strip(" .")
+    if not v or len(v) > 40 or re.match(r"(?:held|heard|n/?a|none|sans)\b", v, re.I):
+        return None
+    v = v.lower()
+    v = v.replace("’", "'")
+    folded = v.translate(str.maketrans("éèêëàâîïôûùç", "eeeeaaiiouuc"))
+    return CITY_FIX.get(folded, v.title())
+
+
+CITY_FIX = {
+    "montreal": "Montréal",
+    "quebec": "Québec",
+    "quebec city": "Québec",
+    "ville de quebec": "Québec",
+    "st. john's": "St. John's",
+    "st john's": "St. John's",
+    "trois-rivieres": "Trois-Rivières",
+    "sherbrooke": "Sherbrooke",
+    "gatineau": "Gatineau",
+}
+
+
 def page_fields(text: str | None) -> dict:
     """Fields of the closing page, or all None when there is no page."""
     out = {
@@ -235,6 +363,8 @@ def page_fields(text: str | None) -> dict:
         "page_dated": None,
         "page_reasons_date": None,
         "page_written": None,
+        "page_place_city": None,
+        **counsel_counts(None),
     }
     if not text:
         return out
@@ -243,6 +373,7 @@ def page_fields(text: str | None) -> dict:
         return out
     # the page begins a few labels before the style of cause (docket / citation lines)
     seg = text[max(0, starts[-1].start() - 400) :]
+    out.update(counsel_counts(seg))
     fields: list[tuple[str, str]] = []
     for line in seg.splitlines():
         line = line.strip()
@@ -260,6 +391,7 @@ def page_fields(text: str | None) -> dict:
     out["page_found"] = True
     for label, value in fields:
         if PLACE_LBL.match(label) and out["page_place_kind"] is None:
+            out["page_place_city"] = _place_city(value)
             out["page_place_kind"] = (
                 "video"
                 if REMOTE_VIDEO_RE.search(value)
@@ -407,6 +539,12 @@ PAGE_SCHEMA = {
     "page_dated": pl.Date,
     "page_reasons_date": pl.Date,
     "page_written": pl.Boolean,
+    "page_place_city": pl.Utf8,
+    "n_counsel": pl.Int32,
+    "n_counsel_first": pl.Int32,
+    "n_counsel_other": pl.Int32,
+    "n_counsel_intervener": pl.Int32,
+    "self_represented": pl.Boolean,
 }
 
 

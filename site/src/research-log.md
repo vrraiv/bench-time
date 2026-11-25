@@ -13,6 +13,7 @@ Held-back results (Tax Court, appeal chains, Supreme Court, pending-file counts,
 ## 2026-11-25
 
 - _Data_: Published decisions of the Federal Court, Federal Court of Appeal and Tax Court end with a page of labelled details, which we now read (a tip from an outside lawyer who has researched Federal Court timing). It records whether a hearing was held by videoconference, whether the decision is a judgment or an order, whether the Federal Court of Appeal gave it from the bench, when reasons followed, and the date the decision was signed. That date matches the decision date we already used; the page does not record when a file ended, which still comes from the court files. Names on the page are not kept. Nothing published changes yet.
+- _Data_: From the same page we now also count the lawyers who appeared for each side, and note whether a party represented itself; no names are kept, only the counts. We also record the city where an in-person hearing was held, which we were advised is more reliable in the decision than in the court file. The Tax Court's files name a different hearing city from the decision in about one case in seven.
 - _Open_: Videoconference hearings rose sharply in the Federal Court from 2020 and remain common; the Tax Court's page does not record them, so they cannot be studied there from decisions alone. For the Tax Court, the date signed and the decision date differ in about one decision in eight, for reasons not yet known.
 
 ## 2026-11-24

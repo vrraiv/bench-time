@@ -116,6 +116,20 @@ request); add the real hostname once the owner confirms it.
   videoconference" where it was; the Tax Court's page gives only a city, so remote hearings
   cannot be identified there (a handful are noted in the opening header). The page does not
   record when a file ended: "DATED" is the date the decision was signed.
+- **Counsel and place (added 2026-11-25).** From the same page's "Appearances" block,
+  `counsel_counts` returns counts only (no names): counsel for the first party (applicant,
+  appellant, plaintiff), for the other side, for interveners, and whether a party appeared on its
+  own behalf. FC and FCA pages give each name and then the side; Tax Court pages give the side
+  first. Decisions from 2016: counts found for 97% (FC), 99% (FCA) and 88% (TCC); the side is
+  known for 96-99% of counsel; median 2 counsel (FCA 3); a self-represented party in 11% (FC),
+  21% (FCA) and 30% (TCC). Name lines joined by "and" or a comma count as two; a firm name on
+  its own line would be counted as a person (not measured). `page_place_city`: the city of an
+  in-person hearing (none for remote hearings, where the city named is where the judge sat).
+  Advice received (2026-11-25): the place in the decision is more reliable than the court
+  file's, because registry practice varies. Checks: for Tax Court decisions joined to their
+  file, the decision's city equals the file's hearing location in 85% (649 decisions; most
+  differences are nearby cities, e.g. Hamilton for Oakville, or Ottawa); for FC and FCA, the
+  hearing was in the city of the filing office in 79% (3,108 decisions since 2018).
 
 ### S4 — Refugee Law Lab "Luck of the Draw III" — **OK**
 

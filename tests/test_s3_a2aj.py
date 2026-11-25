@@ -291,3 +291,64 @@ def test_closing_page_never_keeps_names():
         p = s3.page_fields(text)
         blob = repr({k: v for k, v in p.items() if k != "page_judges"})
         assert "PERSON" not in blob and "LAWYER" not in blob and "FIRM" not in blob
+
+
+def test_counsel_counts_without_names():
+    fc = """STYLE OF CAUSE:
+PERSON ONE v. MINISTER
+APPEARANCES:
+LAWYER ONE
+For The Applicant
+LAWYER TWO
+LAWYER THREE
+For The Respondent
+SOLICITORS OF RECORD:
+FIRM ONE
+"""
+    c = s3.counsel_counts(fc)
+    assert c == {
+        "n_counsel": 3,
+        "n_counsel_first": 1,
+        "n_counsel_other": 2,
+        "n_counsel_intervener": 0,
+        "self_represented": False,
+    }
+    self_rep = """APPEARANCES:
+PERSON TWO
+ON HER OWN BEHALF
+LAWYER FOUR
+For The Respondent
+SOLICITORS OF RECORD:
+"""
+    c = s3.counsel_counts(self_rep)
+    assert c["self_represented"] and c["n_counsel_first"] == 0 and c["n_counsel_other"] == 1
+    tcc = """APPEARANCES:
+Counsel for the Appellant:
+LAWYER FIVE
+LAWYER SIX
+Counsel for the Respondent:
+LAWYER SEVEN
+COUNSEL OF RECORD:
+"""
+    c = s3.counsel_counts(tcc)
+    assert (c["n_counsel_first"], c["n_counsel_other"], c["n_counsel"]) == (2, 1, 3)
+    tcc_self = """APPEARANCES:
+For the Appellant:
+The Appellant himself
+Counsel for the Respondent:
+LAWYER EIGHT
+COUNSEL OF RECORD:
+"""
+    c = s3.counsel_counts(tcc_self)
+    assert c["self_represented"] and c["n_counsel"] == 1
+    assert "LAWYER" not in repr(c)
+
+
+def test_place_city():
+    assert s3._place_city("MontrEal, QuEbec") == "Montréal"
+    assert s3._place_city("Toronto, Ontario") == "Toronto"
+    assert s3._place_city("Québec (Québec)") == "Québec"
+    assert s3._place_city("by videoconference") is None
+    assert s3._place_city("Ottawa, Ontario (by videoconference)") is None
+    assert s3._place_city("Held at Toronto, Ontario") == "Toronto"
+    assert s3._place_city("St. John’s, Newfoundland and Labrador") == "St. John's"
