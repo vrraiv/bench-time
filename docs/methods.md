@@ -630,7 +630,10 @@ read 19-20 November 2026. Held back with the other chain results; not reviewed.
 - *Restriction notes.* 616 files (7%) have an entry mentioning a sealing order, a publication
   ban or confidential material. They are kept and counted, as for the Federal Court files; 28%
   of them were granted leave against 8% of the rest, so dropping them would bias the grant rate.
-  Kept on the gated preview (owner, 2026-11-20); the practitioner's guidance will decide.
+  Kept on the gated preview (owner, 2026-11-20). Settled 2026-11-25 (owner, on the practitioner's
+  and an outside lawyer's advice that a ban does not take a case out of court statistics): these
+  files stay in all aggregates, published or not; the Supreme Court tables remain held back for
+  other reasons.
 - *Open questions* are in the review list written to the owner's working folder on 2026-11-20:
   what "completed" means and why it now takes longer; how to treat remands and files with two
   leave decisions; what the FCA motion numbers are.
@@ -733,8 +736,42 @@ covers documents the parties exchange before trial, is often agreed on consent a
 and covers only that exchange. A *confidentiality order* covers material before the court and is
 construed narrowly because of the open-court principle. So the two should be counted separately:
 a protective order is a weak signal of a contested file, a confidentiality order a stronger one.
-The current counters (`n_sealed_text_entries` and the text match) still lump them; splitting them
-is open. Whether every "sealed envelope" entry reflects an order is still open (OI-1).
+Whether every "sealed envelope" entry reflects an order is still open (OI-1).
+
+**Split counters (2026-11-25).** S10 and S4 files now carry `n_protective_order_entries`,
+`n_confidentiality_order_entries` (entries mentioning each) and `protective_order_date`,
+`confidentiality_order_date`: the first entry whose wording records an order *made* ("Protective
+Order dated … rendered", "Sealed envelope pursuant to the Confidentiality Order …", "service of
+…", French equivalents). A motion for an order, or a letter saying none will be sought, mentions
+but does not count as made, so the dates are a lower bound on files with an order. Files with an
+order made (FC/FCA, registrations excluded): FC `T` IP subjects 1,364 files, 264 protective, 123
+confidentiality (66 both); FC `T` other 20,833 files, 75 and 134; FCA `A` 7,117 files, 53 and
+129. Protective orders sit mostly in NOC (170 of 398 files) and patent, trade-mark and copyright
+actions; confidentiality orders also appear in judicial reviews (51) and access to information
+(21). Median days from filing to the order: protective 160 (FC) and 108 (FCA); confidentiality
+333 (FC) and 87 (FCA). S4 (immigration): 35 files with a confidentiality order made, 3 protective.
+
+*Landmark comparison* (an order needs the file to stay open, so a raw comparison of durations
+favours marked files). Files still open one year after filing, grouped by the order made by then;
+Kaplan-Meier median days remaining, 95% bootstrap CI, and the share of endings that were a
+judgment:
+
+| Group | Order by one year | n | Median days remaining | Ended by judgment |
+|---|---|---|---|---|
+| FC `T`, IP subjects | none | 521 | 341 (309–376) | 22% |
+| | protective only | 127 | 225 (194–244) | 9% |
+| | confidentiality | 27 | 269 (136–408) | 42% |
+| FC `T`, other subjects | none | 7,193 | 427 (409–446) | 41% |
+| | protective only | 31 | 411 (319–615) | 21% |
+| | confidentiality | 66 | 412 (160–627) | 55% |
+| FCA `A` | none | 3,102 | 164 (161–174) | 79% |
+| | confidentiality | 58 | 273 (163–311) | 94% |
+
+Read: a protective order goes with files that end sooner and seldom by judgment (consistent with
+an agreed exchange in cases that settle, and with NOC actions' statutory timetable); a
+confidentiality order goes with files more often decided by judgment, and at the FCA with longer
+appeals. Small cells; descriptive; subject mix within "IP" not controlled beyond the split shown.
+Not published (analysis note only).
 
 **Published (owner decision 2026-11-19):** the FC/FCA cohort tables (`s10_`) and the FC, FCA and
 immigration link match rates (`link_`) are written to `site/src/data`, cells of 30 or more only.

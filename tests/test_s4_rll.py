@@ -273,3 +273,38 @@ def test_2026_docket_stages():
     d = s4.derive_docket(s4.classify_docket_entries(one, "IMM-2-26"), judgment_fallback=False)
     assert d["final_disposition_date"] == date(2026, 5, 29)
     assert d["final_disposition_type"] == "leave_decision"
+
+
+def test_order_markers_split_and_made():
+    docs = [
+        {
+            "DOC_DT": "2021-01-05",
+            "RECORDED_ENTRY": "Letter: will not be seeking a confidentiality order",
+        },
+        {
+            "DOC_DT": "2021-03-02",
+            "RECORDED_ENTRY": "Protective Order dated 02-MAR-2021 rendered by the Court",
+        },
+        {
+            "DOC_DT": "2021-04-10",
+            "RECORDED_ENTRY": "Sealed envelope pursuant to protective order dated March 2, 2021",
+        },
+        {"DOC_DT": "2022-06-01", "RECORDED_ENTRY": "Motion Record for a confidentiality order"},
+        {
+            "DOC_DT": "2022-07-15",
+            "RECORDED_ENTRY": "Confidentiality Order dated 15-JUL-2022 rendered",
+        },
+        {
+            "DOC_DT": "15-JUL-2022",
+            "RECORDED_ENTRY": "Ordonnance de confidentialité rendue par la Cour",
+        },
+    ]
+    m = s4.order_markers(docs)
+    assert m["n_protective_order_entries"] == 2
+    assert m["n_confidentiality_order_entries"] == 4
+    assert m["protective_order_date"] == date(2021, 3, 2)
+    assert m["confidentiality_order_date"] == date(2022, 7, 15), (
+        "a motion or refusal is not an order"
+    )
+    none = s4.order_markers(docs[:1] + docs[3:4])
+    assert none["confidentiality_order_date"] is None and none["protective_order_date"] is None

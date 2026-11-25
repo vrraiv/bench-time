@@ -55,11 +55,13 @@ The owner is an economist and a technical collaborator. Plan briefly, build, com
 - Licences: A2AJ and Refugee Law Lab are CC BY-NC 4.0 + upstream court terms (non-commercial,
   attribution, not search-indexable). StatCan is Open Government Licence. Attribute everything.
 - Drop any record carrying a sealing / publication-ban marker.
-  Exception (owner, 2026-11-19): Federal Court and FCA docket files (S10) and Refugee Law Lab
-  dockets (S4) are kept even when an entry carries a confidentiality marker; the markers are
-  counted per file. Pending practitioner review of what the markers mean.
-  Supreme Court files (S13) with a sealing or publication-ban note are likewise kept and
-  counted, on the gated preview only (owner, 2026-11-20); the practitioner's guidance decides.
+  Exception (owner, 2026-11-19, confirmed 2026-11-25): Federal Court and FCA docket files (S10),
+  Refugee Law Lab dockets (S4) and Supreme Court files (S13) are kept in aggregates even when an
+  entry carries a confidentiality, sealing or publication-ban marker; the markers are counted
+  per file. Practitioner and outside-lawyer guidance (2026-11-25): a publication ban does not
+  take a case out of the court's own statistics; protective orders (pre-trial document exchange,
+  often on consent) and confidentiality orders (material before the court, granted narrowly) are
+  counted separately. Whether a table is published is still decided by the held-back list below.
 - Aggregates from the docket sites (owner, 2026-11-19): the FC/FCA cohort tables and the link
   match rates are published. Held back until the owner says otherwise: Tax Court tables
   (practitioner review), appeal-chain totals, the Supreme Court tables (S13), pending-file

@@ -56,6 +56,50 @@ SEALED_RE = re.compile(
     r"\bsous\s+scell[ée]s?\b|interdiction\s+de\s+publication",
     re.I,
 )
+# Two kinds of order behind most markers (outside lawyer, 2026-11-25): a protective order covers
+# documents the parties exchange before trial, is often agreed on consent and drawn broadly; a
+# confidentiality order covers material before the court and is granted narrowly (open court).
+PROTECTIVE_RE = re.compile(r"protective\s+order|ordonnance\s+de\s+protection", re.I)
+CONFIDENTIALITY_RE = re.compile(
+    r"confidential(?:ity)?\s+order|ordonnance\s+de\s+confidentialit[ée]", re.I
+)
+# wording that records an order having been made, not a motion for one or a refusal to seek one
+_KIND = r"(?:protective|confidential(?:ity)?)\s+order"
+_KIND_FR = r"ordonnance\s+de\s+(?:protection|confidentialit[ée])"
+ORDER_MADE_RE = re.compile(
+    rf"^\s*(?:\((?:final\s+decision|d[ée]cision\s+finale)\)\s*)?(?:copy\s+of\s+)?(?:amended\s+)?"
+    rf"{_KIND}\s+(?:dated|rendered)"
+    rf"|pursuant\s+to\s+(?:the\s+|a\s+|an\s+)?(?:amended\s+)?{_KIND}"
+    rf"|service\s+of\s+(?:the\s+)?(?:amended\s+)?{_KIND}"
+    rf"|^\s*(?:copie\s+de\s+l['’]\s*)?{_KIND_FR}\s+(?:rendue|dat[ée]e|du)"
+    rf"|conform[ée]ment\s+[àa]\s+l['’]\s*{_KIND_FR}",
+    re.I,
+)
+
+
+def order_markers(docs: list[dict]) -> dict:
+    """Per file: entries mentioning each kind of order, and the first date an order of that kind
+    is recorded as made (from the entry's date). Counts and dates only."""
+    out = {
+        "n_protective_order_entries": 0,
+        "n_confidentiality_order_entries": 0,
+        "protective_order_date": None,
+        "confidentiality_order_date": None,
+    }
+    for d in docs:
+        t = d.get("RECORDED_ENTRY") or ""
+        p, c = PROTECTIVE_RE.search(t), CONFIDENTIALITY_RE.search(t)
+        out["n_protective_order_entries"] += bool(p)
+        out["n_confidentiality_order_entries"] += bool(c)
+        if not (p or c) or not ORDER_MADE_RE.search(t):
+            continue
+        dt = parse_entry_date(d.get("DOC_DT"))
+        for hit, k in ((p, "protective_order_date"), (c, "confidentiality_order_date")):
+            if hit and dt and (out[k] is None or dt < out[k]):
+                out[k] = dt
+    return out
+
+
 COPY_RE = re.compile(
     r"^\s*(?:\((?:final\s+decision|d[ée]cision\s+finale)\)\s*)?"
     r"(?:copy\s+of|copies\s+of|acknowledg?ment\s+of\s+receipt|copie\s+(?:certifi[ée]e\s+)?de|"
@@ -509,6 +553,7 @@ def parse(client: Client | None = None) -> dict[str, pl.DataFrame]:
                 "scraped": parse_entry_date(row.get("scraped_timestamp")),
                 "source_url": row.get("source_url"),
                 "n_sealed_text_entries": n_marked,
+                **order_markers(docs),
                 **derive_docket(ents),
             }
         )

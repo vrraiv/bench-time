@@ -573,6 +573,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "n_confidential_flag_entries": n_flag,
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,
+            **s4.order_markers(docs),
             "_copies": copies_of_decisions(texts, docket),
             "_unqualified_judgment": unqualified_judgment_date(entries),
             "_copied_discontinuance": copied_discontinuance_date(entries),
