@@ -829,6 +829,28 @@ cause: longer files have more time to accumulate orders, so this is a descriptio
 control for complexity it should be measured at a fixed point (for example orders in the first
 year) or as a rate. Not published.
 
+*Fixed window (first year).* `file_procedure.parquet` now also carries
+`n_interlocutory_orders_y1`, `n_motions_filed_y1` and `n_informal_requests_y1` (entries dated
+within 365 days of filing; untagged orders interlocutory unless final). Landmark comparison:
+files filed 2015 to 2023 and still open one year after filing, Kaplan-Meier median days
+remaining after that year (95% bootstrap CI), by interlocutory orders in the first year:
+
+| Group | 0 | 1 | 2-3 | 4+ |
+|---|---|---|---|---|
+| FC IP | 322 (229–376), n 112 | 237 (186–414), n 74 | 307 (268–368), n 174 | 284 (259–328), n 160 |
+| FC judicial review | 446 (365–609), n 553 | 264 (237–336), n 507 | 274 (229–311), n 658 | 272 (233–327), n 363 |
+| FC other actions | 480 (406–486), n 187 | 433 (410–467), n 365 | 623 (488–1133), n 191 | 597 (358–1449), n 65 |
+| FC other | 733 (606–915), n 541 | 920 (701–1267), n 353 | 564 (487–647), n 392 | 480 (411–637), n 149 |
+| FCA appeals | 160 (138–182), n 708 | 183 (164–201), n 582 | 228 (201–261), n 484 | 237 (182–325), n 136 |
+
+Read: most of the gradient in the whole-life count was the longer-files-collect-more effect.
+Measured in a fixed window, early rulings go with somewhat longer remaining time only at the FCA
+and in FC actions; in judicial reviews (and the FC "other" group) a file with *no* ruling in its
+first year takes longer from there, which looks like dormancy (files left idle until a status
+review) rather than simplicity. Early procedural activity is therefore not a one-directional
+complexity measure: as a control it needs to separate "no activity" from "light activity", and
+its meaning differs by type of proceeding. Not published.
+
 **Published (owner decision 2026-11-19):** the FC/FCA cohort tables (`s10_`) and the FC, FCA and
 immigration link match rates (`link_`) are written to `site/src/data`, cells of 30 or more only.
 Held back: Tax Court tables and Tax Court link rates (practitioner review), appeal-chain totals

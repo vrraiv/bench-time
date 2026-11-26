@@ -892,8 +892,44 @@ def build_file_procedure() -> None:
         )
         .rename({"key": "docket"})
     )
-    out = d.join(pub, on="docket", how="left").with_columns(
-        pl.col("n_published_interlocutory", "n_published_motion_decisions").fill_null(0)
+    # the same counts within a fixed window after filing (first year), so they can serve as a
+    # complexity control without the longer-files-collect-more problem
+    e = pl.read_parquet(proc / "s10" / "entries.parquet").select(
+        "docket",
+        "entry_date",
+        "order_regarding",
+        "order_interlocutory",
+        "is_final",
+        "motion_filing",
+    )
+    early = (
+        e.join(d.select("docket", "date_filed"), on="docket", how="inner")
+        .with_columns((pl.col("entry_date") - pl.col("date_filed")).dt.total_days().alias("age"))
+        .filter(pl.col("age").is_between(0, 365))
+        .group_by("docket")
+        .agg(
+            (
+                pl.col("order_regarding").is_not_null()
+                & pl.col("order_interlocutory").fill_null(~pl.col("is_final"))
+            )
+            .sum()
+            .alias("n_interlocutory_orders_y1"),
+            (pl.col("motion_filing") == "formal").sum().alias("n_motions_filed_y1"),
+            (pl.col("motion_filing") == "informal").sum().alias("n_informal_requests_y1"),
+        )
+    )
+    out = (
+        d.join(pub, on="docket", how="left")
+        .join(early, on="docket", how="left")
+        .with_columns(
+            pl.col(
+                "n_published_interlocutory",
+                "n_published_motion_decisions",
+                "n_interlocutory_orders_y1",
+                "n_motions_filed_y1",
+                "n_informal_requests_y1",
+            ).fill_null(0)
+        )
     )
     (proc / "links").mkdir(exist_ok=True)
     out.write_parquet(proc / "links" / "file_procedure.parquet")
