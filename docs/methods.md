@@ -773,6 +773,62 @@ confidentiality order goes with files more often decided by judgment, and at the
 appeals. Small cells; descriptive; subject mix within "IP" not controlled beyond the split shown.
 Not published (analysis note only).
 
+### Motions and interlocutory decisions (2026-11-25)
+
+Prompted by the outside lawyer: interlocutory rulings appear in the docket, but the decision
+text is the more consistent account of what they decided. Built from both sources
+(`courtdelay.common.motions`); categories and counts only.
+
+**Docket (S10).** Each order or judgment entry is read for what it was "with regard to"
+(motion, informal request by letter, case management conference, status review, the court's
+own motion, the merits, other), the registry's own tag ("Interlocutory Decision" / "Final
+Decision", from 2026 "Order (Interlocutory)"), and topics from the "with regard to" phrase and
+the result (extension, stay, strike, summary judgment, confidentiality, amend, security for
+costs, discovery, intervention, case management, adjournment, timetable, consolidation,
+representation, injunction, record). Scheduling ("time and place") orders, copies of orders
+from other files, standalone "Reasons for ..." entries and directions are not counted.
+Untagged orders (mostly older entries) are read as interlocutory unless they are the file's
+final-decision entry (`n_interlocutory_orders_inferred`). Notices of motion and informal
+requests by letter are counted as filed. Entry rows carry `order_regarding`,
+`order_interlocutory`, `order_topics`, `motion_filing`; files carry `n_motions_filed`,
+`n_informal_requests`, `n_orders`, `n_interlocutory_orders`, `n_orders_on_motions`, ...,
+`n_orders_<topic>`. FC and FCA census files: 48,126 orders, 37,655 interlocutory (10,630 of
+them inferred), 17,564 notices of motion, 4,764 informal requests. Topics are named in about a
+third of order entries; most say only "granted" or "dismissed".
+
+| Group (non-registration) | Files | Any motion filed | Any interlocutory order | Interlocutory orders p50 / p90 |
+|---|---|---|---|---|
+| FC IP subjects | 1,364 | 44% | 73% | 2 / 9 |
+| FC judicial review | 11,606 | 22% | 44% | 0 / 4 |
+| FC other actions | 1,968 | 54% | 62% | 1 / 5 |
+| FC other | 7,259 | 23% | 35% | 0 / 3 |
+| FCA appeals | 7,117 | 46% | 56% | 1 / 3 |
+
+**Published decisions (S3).** `opening_is_motion` and `opening_topics` read the first
+paragraphs ("[1] This is a motion by ..."). Decisions the closing page calls an order describe a
+motion in 29% (FC), 67% (FCA) and 59% (Tax Court) of cases; judgments in 4%, 15% and 4%. Among
+linked decisions, those that are not the file's final decision describe a motion in 62% (FC) and
+56% (FCA), final ones in 12% and 17%.
+
+**The two together** (`data/processed/links/file_procedure.parquet`, per file, local only).
+Of 1,703 linked interlocutory decisions, 945 sit within 7 days of a docket order entry; that entry
+is tagged interlocutory in every case. The decision names a topic in 79% of them, the docket entry
+in 32%; where both do, they share a topic 85% of the time. So the docket counts rulings
+completely and the text says what they were about, as advised. Published reasons are a selected
+subset: across the census files, case-management orders number 6,710 in the docket against 100
+published decisions on the topic, timetables 3,378 against 26 and extensions 3,216 against 80,
+while injunctions (158 against 139), interventions (349 against 207), strikes (720 against 271)
+and consolidations (777 against 272) are published far more often. 153 of the 1,316 files with
+a published interlocutory decision show no interlocutory order in the docket; the order is
+recorded under wording not yet read.
+
+**Relation to duration** (files filed 2015 to 2022, Kaplan-Meier median days to the end of the
+file): 0 interlocutory orders against 4 or more: FC IP 169 against 689; FC judicial review 134
+against 624; FC other actions 138 against 1,139; FCA appeals 295 against 662. The count is not a
+cause: longer files have more time to accumulate orders, so this is a description, and as a
+control for complexity it should be measured at a fixed point (for example orders in the first
+year) or as a rate. Not published.
+
 **Published (owner decision 2026-11-19):** the FC/FCA cohort tables (`s10_`) and the FC, FCA and
 immigration link match rates (`link_`) are written to `site/src/data`, cells of 30 or more only.
 Held back: Tax Court tables and Tax Court link rates (practitioner review), appeal-chain totals

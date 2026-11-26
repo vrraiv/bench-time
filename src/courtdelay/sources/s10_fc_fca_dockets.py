@@ -529,6 +529,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
     With ``DROP_MARKED_FILES`` set, a marked file returns (None, []) as the handoff first asked."""
     import re
 
+    from courtdelay.common import motions
     from courtdelay.sources import s4_rll_fc_dockets as s4
 
     texts = [e.get("RECORDED_ENTRY") or "" for e in entries]
@@ -549,6 +550,28 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
         for e in entries
     ]
     ents = s4.classify_docket_entries(docs, docket)
+    # what each order was about and the registry's interlocutory tag; copies are not orders
+    is_copy = [str(e.get("IS_COPY", "N")).upper() == "Y" for e in entries]
+    details = [motions.order_detail(None if c else t) for t, c in zip(texts, is_copy, strict=True)]
+    filings = [None if c else motions.motion_filing(t) for t, c in zip(texts, is_copy, strict=True)]
+    by_re = {
+        s4._int(e.get("RE_NO")): {**d, "motion_filing": f}
+        for e, d, f in zip(entries, details, filings, strict=True)
+    }
+    blank = {
+        "order_regarding": None,
+        "order_interlocutory": None,
+        "order_topics": None,
+        "motion_filing": None,
+    }
+    for e in ents:
+        e.update(by_re.get(e["re_no"], blank))
+    # older order entries carry no Interlocutory / Final tag: an order that is not the file's
+    # final-decision entry is read as interlocutory (counted in n_orders_untagged)
+    final_re = {e["re_no"] for e in ents if e["is_final"]}
+    for e, d in zip(entries, details, strict=True):
+        if d["order_regarding"] is not None and d["order_interlocutory"] is None:
+            d["order_interlocutory_inferred"] = s4._int(e.get("RE_NO")) not in final_re
     track = next(
         (e.get("ENGLISH_TRACK_NAME") for e in entries if e.get("ENGLISH_TRACK_NAME")), None
     )
@@ -574,6 +597,7 @@ def parse_file(info: dict, entries: list[dict], fetched_at: str) -> tuple[dict |
             "n_sealed_text_entries": n_sealed,
             "n_publication_ban_entries": n_ban,
             **s4.order_markers(docs),
+            **motions.file_procedure(details, filings),
             "_copies": copies_of_decisions(texts, docket),
             "_unqualified_judgment": unqualified_judgment_date(entries),
             "_copied_discontinuance": copied_discontinuance_date(entries),

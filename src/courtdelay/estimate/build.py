@@ -855,6 +855,55 @@ def build_scc_leg(derived: Path, site: Path) -> None:
     _write(agg, "link_scc_leg_from_fca", derived, site, publish=False)
 
 
+def build_file_procedure() -> None:
+    """Per-file procedural intensity (FC / FCA census files): motions filed, informal requests,
+    interlocutory orders and their topics from the docket (S10), plus the interlocutory decisions
+    published with reasons (S3 linked, not the file's final decision) and their topics. Local
+    analysis table in data/processed/links/; counts only, never published per file."""
+    proc = paths.processed_dir()
+    dk, lk = proc / "s10" / "dockets.parquet", proc / "links" / "fc_decision_docket.parquet"
+    meta = proc / "s3" / "decisions_meta.parquet"
+    if not (dk.exists() and lk.exists() and meta.exists()):
+        return
+    d = pl.read_parquet(dk)
+    keep = ["docket", "prefix", "docket_year", "nature", "date_filed", "is_registration"]
+    keep += [c for c in d.columns if c.startswith("n_") and ("order" in c or "motion" in c)]
+    keep += ["n_informal_requests", "final_disposition_date", "final_disposition_type"]
+    d = d.select(list(dict.fromkeys(c for c in keep if c in d.columns)))
+    m = pl.read_parquet(meta).select(
+        pl.col("citation_en").alias("decision_id"), "opening_is_motion", "opening_topics"
+    )
+    pub = (
+        pl.read_parquet(lk)
+        .filter((pl.col("status") == "linked") & ~pl.col("decision_is_final"))
+        .join(m, on="decision_id", how="left")
+        .group_by("key")
+        .agg(
+            pl.len().alias("n_published_interlocutory"),
+            pl.col("opening_is_motion").sum().alias("n_published_motion_decisions"),
+            pl.col("opening_topics")
+            .drop_nulls()
+            .str.split(",")
+            .list.explode(keep_nulls=False, empty_as_null=False)
+            .unique()
+            .sort()
+            .str.join(",")
+            .alias("published_topics"),
+        )
+        .rename({"key": "docket"})
+    )
+    out = d.join(pub, on="docket", how="left").with_columns(
+        pl.col("n_published_interlocutory", "n_published_motion_decisions").fill_null(0)
+    )
+    (proc / "links").mkdir(exist_ok=True)
+    out.write_parquet(proc / "links" / "file_procedure.parquet")
+    log.info(
+        "file procedure: %d files, %d with a published interlocutory decision",
+        out.height,
+        (out["n_published_interlocutory"] > 0).sum(),
+    )
+
+
 def build_links(derived: Path, site: Path) -> None:
     """Decision-to-docket links (S3 x S10). Per-decision rows go to data/processed/links/ and are
     never published; only aggregate match rates are written as a derived table."""
@@ -1522,6 +1571,7 @@ def _build_all(derived: Path, site: Path) -> None:
     build_s10(derived, site)
     build_s8_benchmark(derived, site)
     build_links(derived, site)
+    build_file_procedure()
     build_appeal_chains(derived, site)
     build_judges(derived, site, v)
     build_scc_leg(derived, site)

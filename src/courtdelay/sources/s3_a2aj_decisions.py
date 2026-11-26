@@ -37,7 +37,7 @@ from datetime import date
 
 import polars as pl
 
-from courtdelay.common import paths
+from courtdelay.common import motions, paths
 from courtdelay.common.http import Client
 
 log = logging.getLogger(__name__)
@@ -548,6 +548,29 @@ PAGE_SCHEMA = {
 }
 
 
+# -- what a motion decision was about ----------------------------------------------------------
+# The opening paragraphs say it ("[1] This is a motion by the defendant for an order striking
+# out ..."). Topics come from courtdelay.common.motions; categories only, no text is kept.
+OPENING_CHARS = 2500
+FIRST_PARA_RE = re.compile(r"\[1\]|^\s*1\.\s", re.M)
+MOTION_OPENING_RE = re.compile(
+    r"\bmotions?\b|\brequ[êe]tes?\b|\bapplication for (?:an )?(?:order|extension|stay)", re.I
+)
+
+
+def opening_fields(text: str | None) -> dict:
+    """Whether the opening paragraphs describe a motion, and its topics."""
+    out = {"opening_is_motion": None, "opening_topics": None}
+    if not text:
+        return out
+    m = FIRST_PARA_RE.search(text, 300)
+    start = m.start() if m else min(len(text), 2000)
+    window = text[start : start + OPENING_CHARS]
+    out["opening_is_motion"] = bool(MOTION_OPENING_RE.search(window[:800]))
+    out["opening_topics"] = ",".join(motions.topics(window)) or None
+    return out
+
+
 def parse_court(court: str, path, meta: dict) -> pl.DataFrame:
     lf = pl.scan_parquet(path)
     cols = lf.collect_schema().names()
@@ -576,8 +599,13 @@ def parse_court(court: str, path, meta: dict) -> pl.DataFrame:
         pl.col("unofficial_text_fr").str.slice(-TAIL_CHARS).alias("_tail_fr"),
         pl.col("unofficial_text_en").str.slice(-PAGE_CHARS).alias("_page_en"),
         pl.col("unofficial_text_fr").str.slice(-PAGE_CHARS).alias("_page_fr"),
+        pl.col("unofficial_text_en").str.slice(0, 9000).alias("_open_en"),
+        pl.col("unofficial_text_fr").str.slice(0, 9000).alias("_open_fr"),
     ).collect()
     parsed, pages = [], []
+    openings = [
+        opening_fields(en or fr) for en, fr in zip(df["_open_en"], df["_open_fr"], strict=True)
+    ]
     for page_en, page_fr in zip(df["_page_en"], df["_page_fr"], strict=True):
         pg = page_fields(page_en)
         if not pg["page_found"]:
@@ -593,10 +621,21 @@ def parse_court(court: str, path, meta: dict) -> pl.DataFrame:
                 if p.get(k) in (None, 0) and v not in (None, 0):
                     p[k] = v
         parsed.append(p)
-    pdf = pl.DataFrame(parsed, schema=PARSED_SCHEMA).hstack(pl.DataFrame(pages, schema=PAGE_SCHEMA))
+    pdf = (
+        pl.DataFrame(parsed, schema=PARSED_SCHEMA)
+        .hstack(pl.DataFrame(pages, schema=PAGE_SCHEMA))
+        .hstack(
+            pl.DataFrame(
+                openings, schema={"opening_is_motion": pl.Boolean, "opening_topics": pl.Utf8}
+            )
+        )
+    )
     date_cols = [c for c in ("document_date_en", "document_date_fr") if c in cols]
     out = (
-        df.drop(["_head_en", "_tail_en", "_head_fr", "_tail_fr", "_page_en", "_page_fr"])
+        df.drop(
+            ["_head_en", "_tail_en", "_head_fr", "_tail_fr", "_page_en", "_page_fr"]
+            + ["_open_en", "_open_fr"]
+        )
         .hstack(pdf)
         .with_columns(
             pl.coalesce([pl.col(c).cast(pl.Date) for c in date_cols]).alias("decision_date"),

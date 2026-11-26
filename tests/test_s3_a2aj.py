@@ -352,3 +352,18 @@ def test_place_city():
     assert s3._place_city("Ottawa, Ontario (by videoconference)") is None
     assert s3._place_city("Held at Toronto, Ontario") == "Toronto"
     assert s3._place_city("St. John’s, Newfoundland and Labrador") == "St. John's"
+
+
+def test_opening_fields_motion_topics():
+    text = (
+        "Docket: T-1-21\nCitation: 2021 FC 1\nBETWEEN: PARTY ONE and PARTY TWO\n"
+        + "x " * 200
+        + "\n[1] This is a motion by the defendant for an order striking out the statement of "
+        "claim, or in the alternative an extension of time to file a defence.\n[2] For the "
+        "reasons below the motion is granted."
+    )
+    o = s3.opening_fields(text)
+    assert o["opening_is_motion"] is True
+    assert o["opening_topics"] == "extension,strike"
+    j = s3.opening_fields("Header " * 80 + "\n[1] This is an application for judicial review.")
+    assert j["opening_is_motion"] is False and j["opening_topics"] is None
